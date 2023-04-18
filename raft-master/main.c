@@ -4,21 +4,29 @@ int main() {
     // Initialize log
     // Initialize message counter
     // Parse hostfile
-    // Init active hosts list
+    // Init active hosts list and state
     // Create corresponding sockets
     // Create heartbeat channels
     // Create heartbeat cluster-monitor channels
     // Create manual input channel
     // Create consensus lead channels
     // Create elections channels
+    // Create control channel
     // Create close sync channels
     // Create CS-side backup channels
 
-    // Launch HS elections
-
     /* Event loop:
      *
+     * > HS and CS: if receive message with wrong term addressed to P, reply with update on who is P
+     *
+     * > Receive log entry proposal
+     *      > check if message counter and term are valid, heartbeat back if invalid (with correct indexes)
+     *          > check if no entry is under vote ("proposed" state)
+     *              > reject if so
+     *      > otherwise broadcast to servers for voting, and make it pending
+     *
      * > Consensus
+     *      >
      *
      * > Log replication
      *
@@ -26,8 +34,12 @@ int main() {
      *      - as result of new P/HS
      *          > update hosts list state
      *          > trigger election of new HS if old one took over
-     *      > send update for log entry state if any (one by one ?)
-     *      >
+     *      > send current term and message counter (if from P)
+     *      > send indexes
+     *
+     * > Missing log entry message reception
+     *      ? Check for coherence with match index
+     *      > Send corresponding entry with current indexes
      *
      * > Heartbeat ack reception
      *      > from server : update log entry replication if any
@@ -69,6 +81,8 @@ int main() {
      * > Log operation commit
      *
      * > Log operation pending
+     *
+     * > Log operation voting timeout ("proposed" state)
      *
      * > P to CS downgrade
      *

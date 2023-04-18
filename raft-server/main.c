@@ -12,6 +12,9 @@ int main() {
 
     /* Event loop:
      *
+     * > Receive special message from outdated masters on who is P
+     *      > Update hosts list
+     *
      * > Consensus
      *
      * > Log replication
@@ -21,16 +24,29 @@ int main() {
      *          > update hosts list state
      *              - prevent possibility of DOS
      *              - maybe through checking if P is previous HS ?
+     *      > check match index
+     *          > update if out of date
+     *      > check next index
+     *          > if it doesn't match, log entries are missing
+     *          > ask for next missing log entry (include pending index)
      *      > update log entry state if any (one by one ?)
-     *      > ack back with entry replication notice if any
+     *      > ack back with log entry replication notice if any
+     *
+     * > Missing log entry received
+     *      > Update log accordingly
+     *      > Check if next index matches
+     *          > If not, ask for next missing log entry (include pending index)
      *
      * > History snapshotting and message counter reset
      *
-     * > Log operation commit
+     * > Log entry commit
      *
-     * > Log operation pending
+     * > Log entry pending
      *
-     * > Log operation proposition input
+     * > Log entry proposition input
+     *      > Send request with term and message numbers
+     *      
+     * > 
     */
     return 0;
 }

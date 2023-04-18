@@ -1,8 +1,0 @@
-//
-// Created by zheraan on 13/04/23.
-//
-
-#ifndef THESIS_CSEC_MESSAGE_PASSER_H
-#define THESIS_CSEC_MESSAGE_PASSER_H
-
-#endif //THESIS_CSEC_MESSAGE_PASSER_H
