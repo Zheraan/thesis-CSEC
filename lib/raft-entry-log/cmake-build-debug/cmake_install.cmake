@@ -1,4 +1,4 @@
-# Install script for directory: /home/zheraan/Documents/Travail/Thesis/thesis-CSEC/raft-log
+# Install script for directory: /home/zheraan/Documents/Travail/Thesis/thesis-CSEC/raft-entry-log
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

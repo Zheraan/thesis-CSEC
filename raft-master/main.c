@@ -28,24 +28,54 @@ int main() {
      * > Consensus
      *      >
      *
-     * > Log replication
-     *
-     * > Heartbeat
+     * > Heartbeat reception
      *      - as result of new P/HS
      *          > update hosts list state
      *          > trigger election of new HS if old one took over
      *      > send current term and message counter (if from P)
+     *      > Send who is P (and who is HS ?)
      *      > send indexes
      *
-     * > Missing log entry message reception
-     *      ? Check for coherence with match index
-     *      > Send corresponding entry with current indexes
-     *
-     * > Heartbeat ack reception
+     * > Heartbeat Ack reception
      *      > from server : update log entry replication if any
+     *      - Missing log entry message reception
+     *          ? Check for coherence with match index
+     *          > Send corresponding entry with current indexes
+     *
+     * > Heartbeat reception from P as HS
+     *      > If in P candidate mode, rollback to HS
+     *      > Reset heartbeat timeout
+     *
+     * > Heartbeat reception from HS as CS
+     *      > Reset heartbeat timeout
+     *
+     * > Heartbeat reception from P as CS
+     *      > Update hosts list
+     *      > Special flag if queried from reachability
+     *          > Answer HS query with positive reachability
+     *
+     * > P heartbeat timeout as HS
+     *      > Transition to P candidate
+     *      > Queries other masters for reachability
+     *
+     * > Reachability query reception as CS
+     *      > Ack back
+     *      > Query master for reachability
+     *
+     * > Reachability query reception as P
+     *      > Heartbeat back with special flag
+     *
+     * > Reachability query answer reception as HS
+     *      > Update with result
+     *          - Majority attained: unreachable
+     *              > Transition to P and send heartbeat as P
+     *          - Majority attained: reachable
+     *              > Rollback to HS, query P for reachability
+     *
+     * > Timeout of
      *
      * > P takeover
-     *      > transitions to P, sends heartbeat as new P
+     *      > transitions to P status, sends heartbeat as new P
      *          > remove any HS or CS related events
      *          > create P related events
      *          > remove HS-side backup channels

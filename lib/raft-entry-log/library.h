@@ -1,5 +1,5 @@
-#ifndef RAFT_LOG_LIBRARY_H
-#define RAFT_LOG_LIBRARY_H
+#ifndef RAFT_ENTRY_LOG_LIBRARY_H
+#define RAFT_ENTRY_LOG_LIBRARY_H
 
 /* Log Data structure
  * - next index (index of next log entry that will be added)
@@ -7,6 +7,8 @@
  * - pending index (index of last log entry in pending state locally)
  * - committed index (index of last log committed locally)
  * - election ongoing ? ("proposed" state)
+ * - current P term
+ * - current HS term
  */
 
 /* Log Entry Data structure
@@ -19,4 +21,4 @@
 
 void hello(void);
 
-#endif //RAFT_LOG_LIBRARY_H
+#endif //RAFT_ENTRY_LOG_LIBRARY_H

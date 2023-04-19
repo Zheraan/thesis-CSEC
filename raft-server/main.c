@@ -31,6 +31,7 @@ int main() {
      *          > ask for next missing log entry (include pending index)
      *      > update log entry state if any (one by one ?)
      *      > ack back with log entry replication notice if any
+     *      > Reset heartbeat timeout
      *
      * > Missing log entry received
      *      > Update log accordingly
