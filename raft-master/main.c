@@ -15,48 +15,24 @@ int main() {
     // Create close sync channels
     // Create CS-side backup channels
 
-    /* Event loop:
+    /* Events:
      *
-     * > HS and CS: if receive message with wrong term addressed to P, reply with update on who is P
-     *
-     * > Receive log entry proposal
-     *      > check if message counter and term are valid, heartbeat back if invalid (with correct indexes)
-     *          > check if no entry is under vote ("proposed" state)
-     *              > reject if so
-     *      > otherwise broadcast to servers for voting, and make it pending
-     *
-     * > Consensus
-     *      >
-     *
-     * > Heartbeat reception
-     *      - as result of new P/HS
-     *          > update hosts list state
-     *          > trigger election of new HS if old one took over
-     *      > send current term and message counter (if from P)
-     *      > Send who is P (and who is HS ?)
-     *      > send indexes
-     *
-     * > Heartbeat Ack reception
-     *      > from server : update log entry replication if any
-     *      - Missing log entry message reception
-     *          ? Check for coherence with match index
-     *          > Send corresponding entry with current indexes
-     *
-     * > Heartbeat reception from P as HS
-     *      > If in P candidate mode, rollback to HS
-     *      > Reset heartbeat timeout
-     *
-     * > Heartbeat reception from HS as CS
-     *      > Reset heartbeat timeout
-     *
-     * > Heartbeat reception from P as CS
-     *      > Update hosts list
-     *      > Special flag if queried from reachability
-     *          > Answer HS query with positive reachability
+     * ------------- P Takeover ---------------------------------------------------
      *
      * > P heartbeat timeout as HS
      *      > Transition to P candidate
-     *      > Queries other masters for reachability
+     *      > Queries other masters for reachability and for who is master with term number
+     *      > Set query timeout
+     *
+     * > Reachability query timeout (as P candidate mode)
+     *      > Check if queries indicate right term and right master
+     *          > Step down if local terms are outdated compared to the majority of answers
+     *          > Update hosts and indexes accordingly
+     *      ? transition to partition mode if received less than half queries back
+     *      - Majority of negative reachability
+     *          ?! transitions to P status
+     *      - Majority of positive reachability
+     *          > rollback to HS
      *
      * > Reachability query reception as CS
      *      > Ack back
@@ -68,17 +44,19 @@ int main() {
      * > Reachability query answer reception as HS
      *      > Update with result
      *          - Majority attained: unreachable
-     *              > Transition to P and send heartbeat as P
+     *              ! Transition to P
      *          - Majority attained: reachable
      *              > Rollback to HS, query P for reachability
      *
-     * > Timeout of
-     *
-     * > P takeover
+     * > Transition to P
      *      > transitions to P status, sends heartbeat as new P
      *          > remove any HS or CS related events
      *          > create P related events
      *          > remove HS-side backup channels
+     *
+     *
+     *
+     * ------------- HS Election --------------------------------------------------
      *
      * > HS election bid reception
      *      > check term, ignore if lower than current
@@ -102,23 +80,101 @@ int main() {
      *          > if it doesn't get majority, try reaching again unreachable nodes
      *          > otherwise starts new term at timeout
      *
-     * > P-HS close sync
      *
-     * > HS-CS backup sync
      *
-     * > History snapshotting and message counter reset
+     * ------------- P Handling of log entry proposition --------------------------
+     *
+     * > Receive log entry proposal
+     *      - indexes and term are invalid
+     *          > heartbeat back with correct indexes and terms
+     *      - indexes and term are valid
+     *          > reject if under proposed state
+     *          > otherwise ack proposition
+     *          > enter proposed state and set timeout
+     *          > create pending proposition, and broadcast to servers for voting
+     *
+     * > Timeout of ongoing election ("proposed state")
+     *      > Check majority of votes
+     *          - Reached
+     *              > Commit locally and send commit order
+     *      > Exit "proposed" state
+     *
+     * > Receive replication Ack
+     *
+     * > Log operation voting timeout ("proposed" state)
      *
      * > Log operation commit
      *
      * > Log operation pending
      *
-     * > Log operation voting timeout ("proposed" state)
      *
-     * > P to CS downgrade
      *
-     * > Partition mode
+     * ------------- Heartbeats and log repair ------------------------------------
      *
-     * > Partition detection
+     * > Periodic standard heartbeat
+     *      > Include:
+     *          - Indexes
+     *          - Terms
+     *          - Hosts list and their status
+     *
+     * > Heartbeat reception
+     *      - as result of new P/HS
+     *          > update hosts list state
+     *          > trigger election of new HS if old one took over
+     *      - if from other node operating in the same mode
+     *          > Compare terms and step down from role if necessary
+     *      > compare terms and indexes
+     *          - if indexes wrong
+     *              >heartbeat ack with missing log entry message
+     *      > compare hosts lists
+     *          > adjust if necessary
+     *      > send indexes
+     *
+     * > Heartbeat Ack reception
+     *      > Update log entry replication if any
+     *      - Contains missing log entry message
+     *          ? Check for coherence with match index
+     *          > Send corresponding entry with current indexes
+     *
+     * > Heartbeat reception from P as HS
+     *      > If in P candidate mode, rollback to HS
+     *      > Reset heartbeat timeout
+     *      > Ack back
+     *
+     * > HS and CS: if receive message with wrong term addressed to P with update on who is P
+     *      > Heartbeat back with update on who is P
+     *
+     * > Heartbeat reception from HS as CS
+     *      > Check
+     *      > Reset heartbeat timeout
+     *
+     * > Heartbeat reception from P as CS
+     *      > Update hosts list
+     *      > Special flag if queried from reachability
+     *          > Answer HS query with positive reachability
+     *
+     *
+     *
+     * ------------- P-HS close sync ----------------------------------------------
+     *
+     *
+     *
+     * ------------- HS-CS backup sync --------------------------------------------
+     *
+     *
+     *
+     * ------------- History snapshotting and message counter reset ---------------
+     *
+     *
+     *
+     * ------------- Partition mode -----------------------------------------------
+     *
+     *
+     *
+     * ------------- Manual input channel -----------------------------------------
+     *
+     *
+     *
     */
     return 0;
 }

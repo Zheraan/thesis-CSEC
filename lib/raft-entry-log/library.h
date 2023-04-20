@@ -3,10 +3,10 @@
 
 /* Log Data structure
  * - next index (index of next log entry that will be added)
+ * - replication index (index of latest log entry that is either pending, committed or applied)
  * - match index (index of last log entry replicated by all nodes)
- * - pending index (index of last log entry in pending state locally)
  * - committed index (index of last log committed locally)
- * - election ongoing ? ("proposed" state)
+ * - election ongoing ? ("proposed" state for master node)
  * - current P term
  * - current HS term
  */
