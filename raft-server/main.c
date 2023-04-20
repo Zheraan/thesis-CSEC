@@ -2,9 +2,9 @@
 
 int main() {
     // Initialize log
-    // Initialize message counter
+    // Initialize term with special start value
     // Parse hostfile
-    // Init active hosts list
+    // Init active hosts list and state
     // Create corresponding sockets
     // Create heartbeat channels
     // Create heartbeat cluster-monitor channels

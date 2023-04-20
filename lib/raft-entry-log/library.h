@@ -6,13 +6,13 @@
  * - replication index (index of latest log entry that is either pending, committed or applied)
  * - match index (index of last log entry replicated by all nodes)
  * - committed index (index of last log committed locally)
- * - election ongoing ? ("proposed" state for master node)
  * - current P term
  * - current HS term
+ * - snapshot version
  */
 
 /* Log Entry Data structure
- * - term number
+ * - term of adoption
  * - state (created, queued, pending, committed, applied)
  * - replicated by
  * - server replication count

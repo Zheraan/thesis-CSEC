@@ -2,7 +2,7 @@
 
 int main() {
     // Initialize log
-    // Initialize message counter
+    // Initialize term with special start value
     // Parse hostfile
     // Init active hosts list and state
     // Create corresponding sockets
@@ -35,11 +35,13 @@ int main() {
      *          > rollback to HS
      *
      * > Reachability query reception as CS
+     *      - Term is outdated
+     *          > Ack back with hosts list and terms
      *      > Ack back
      *      > Query master for reachability
      *
      * > Reachability query reception as P
-     *      > Heartbeat back with special flag
+     *      > Ack back with special flag
      *
      * > Reachability query answer reception as HS
      *      > Update with result
@@ -47,11 +49,13 @@ int main() {
      *              ! Transition to P
      *          - Majority attained: reachable
      *              > Rollback to HS, query P for reachability
+     *                  ? Rollback to CS if still unreachable after several attempts
      *
      * > Transition to P
      *      > transitions to P status, sends heartbeat as new P
      *          > remove any HS or CS related events
      *          > create P related events
+     *          > Set non-proposed state
      *          > remove HS-side backup channels
      *
      *
@@ -121,6 +125,9 @@ int main() {
      *      - as result of new P/HS
      *          > update hosts list state
      *          > trigger election of new HS if old one took over
+     *      - new host special flag
+     *          > update hosts list & state
+     *          > ack back with log data and full hosts list
      *      - if from other node operating in the same mode
      *          > Compare terms and step down from role if necessary
      *      > compare terms and indexes
@@ -168,6 +175,9 @@ int main() {
      *
      *
      * ------------- Partition mode -----------------------------------------------
+     *
+     * ? Transition back to CS
+     * ? Reset term to special partition value (>init value, <any online value)
      *
      *
      *
