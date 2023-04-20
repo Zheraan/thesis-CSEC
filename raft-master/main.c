@@ -49,10 +49,10 @@ int main() {
      *              ! Transition to P
      *          - Majority attained: reachable
      *              > Rollback to HS, query P for reachability
-     *                  ? Rollback to CS if still unreachable after several attempts
+     *                  ? Partition mode if still unreachable after several attempts
      *
      * > Transition to P
-     *      > transitions to P status, sends heartbeat as new P
+     *      > transitions to P status, sends heartbeat as new P with special flag
      *          > remove any HS or CS related events
      *          > create P related events
      *          > Set non-proposed state
@@ -63,9 +63,9 @@ int main() {
      * ------------- HS Election --------------------------------------------------
      *
      * > HS election bid reception
-     *      > check term, ignore if lower than current
+     *      > check term, ack back with hosts status and terms if lower than current
      *      > otherwise respond favorably
-     *          - find solution to unlimited bid requests, possibility of DOS
+     *          - find solution to unlimited bid requests with increasing term numbers, possibility of DOS
      *      > set term timeout
      *
      * > HS election
@@ -91,6 +91,7 @@ int main() {
      * > Receive log entry proposal
      *      - indexes and term are invalid
      *          > heartbeat back with correct indexes and terms
+     *          > send the oldest log entry to be repaired
      *      - indexes and term are valid
      *          > reject if under proposed state
      *          > otherwise ack proposition
@@ -122,20 +123,24 @@ int main() {
      *          - Hosts list and their status
      *
      * > Heartbeat reception
-     *      - as result of new P/HS
+     *      - as result of new P (special flag)
      *          > update hosts list state
-     *          > trigger election of new HS if old one took over
-     *      - new host special flag
+     *          ! HS election
+     *      - as result of new HS (special flag)
+     *          > update hosts list state
+     *      - new host special flag (recovery from crash or at startup)
      *          > update hosts list & state
      *          > ack back with log data and full hosts list
-     *      - if from other node operating in the same mode
-     *          > Compare terms and step down from role if necessary
+     *      - if from other node operating in the same mode (P or HS)
+     *          ? Compare terms and step down from role if necessary
+     *          - Shouldn't happen with partition mode, though important for security
      *      > compare terms and indexes
      *          - if indexes wrong
-     *              >heartbeat ack with missing log entry message
+     *              > heartbeat ack with missing log entry message
+     *              > update accordingly
      *      > compare hosts lists
      *          > adjust if necessary
-     *      > send indexes
+     *      > ack back with eventual log status changes
      *
      * > Heartbeat Ack reception
      *      > Update log entry replication if any
@@ -182,6 +187,10 @@ int main() {
      *
      *
      * ------------- Manual input channel -----------------------------------------
+     *
+     *
+     *
+     * ------------- Log application ----------------------------------------------
      *
      *
      *

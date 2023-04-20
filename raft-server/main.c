@@ -12,6 +12,15 @@ int main() {
 
     /* Event loop:
      *
+     * ------------- Heartbeats ---------------------------------------------------
+     *
+     * > Reception of heartbeat from P
+     *      > Heartbeat back
+     *
+     *
+     *
+     * ------------- Heartbeats ---------------------------------------------------
+     *
      * > Receive special message from outdated masters on who is P
      *      > Update hosts list
      *
