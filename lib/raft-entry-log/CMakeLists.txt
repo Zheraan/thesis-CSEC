@@ -3,4 +3,4 @@ project(raft_log C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_library(raft_log library.c)
+add_library(raft_log log.c)

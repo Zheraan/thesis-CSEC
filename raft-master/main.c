@@ -65,7 +65,7 @@ int main() {
      * > HS election bid reception
      *      > check term, ack back with hosts status and terms if lower than current
      *      > otherwise respond favorably
-     *          - find solution to unlimited bid requests with increasing term numbers, possibility of DOS
+     *          X find solution to unlimited bid requests with increasing term numbers, possibility of DOS
      *      > set term timeout
      *
      * > HS election
@@ -75,14 +75,28 @@ int main() {
      *          > update hosts state
      *      > enter candidate state, increase term and vote for self
      *      > send bid to all, set term timeout
-     *          > receives votes from majority before bid timeout
+     *          > otherwise starts new term at timeout
+     *
+     * > Election bid answer
+     *      > Check term, ignore if wrong
+     *      - positive
+     *          > increase positive vote count
+     *          - If majority reached
      *              > transitions to HS, sends heartbeat as new HS
      *                  > remove any CS related events
      *                  > create HS related events
      *                  > remove CS-side backup channels
      *                  > create HS-side backup channels
-     *          > if it doesn't get majority, try reaching again unreachable nodes
-     *          > otherwise starts new term at timeout
+     *      - negative
+     *          > increase negative vote count
+     *
+     * > HS term timeout
+     *      - first time
+     *          > try reaching again unreachable nodes
+     *          > reset timeout
+     *      - second time
+     *          ! HS election
+     *      X Find a way to identify when partitioned (maybe when receiving no ack back?)
      *
      *
      *
@@ -90,34 +104,48 @@ int main() {
      *
      * > Receive log entry proposal
      *      - indexes and term are invalid
-     *          > heartbeat back with correct indexes and terms
-     *          > send the oldest log entry to be repaired
+     *          > heartbeat back with correct indexes and terms and special flag
+     *          > send the oldest log entry to be repaired if any
      *      - indexes and term are valid
-     *          > reject if under proposed state
-     *          > otherwise ack proposition
-     *          > enter proposed state and set timeout
-     *          > create pending proposition, and broadcast to servers for voting
+     *          - if under proposed state
+     *              > ack back with negative answer
+     *          - otherwise
+     *              > ack proposition
+     *              > enter proposed state and set timeout
+     *              > create pending proposition, and broadcast to servers for voting (replicate_entry)
      *
      * > Timeout of ongoing election ("proposed state")
      *      > Check majority of votes
      *          - Reached
      *              > Commit locally and send commit order
+     *              > Set commit timeout
+     *          - Not reached
+     *              > Reiterate update to servers not responding
      *      > Exit "proposed" state
      *
      * > Receive replication Ack
+     *      > Verify indexes
+     *      > Update replication status
+     *      > Check majority of votes
+     *          - Reached
+     *              X Edge case error possible: only send commit order if HS and the majority of CS have it replicated too
+     *                  - may stunt performance in favor of coherence
+     *              > Commit locally and send commit order
+     *              > Set timer for commit ack
+     *      > Exit "proposed" state
      *
-     * > Log operation voting timeout ("proposed" state)
-     *
-     * > Log operation commit
-     *
-     * > Log operation pending
+     * > Log operation commit ack
+     *      > update commit data
+     *      > remove retransmission event
      *
      *
      *
      * ------------- Heartbeats and log repair ------------------------------------
      *
-     * > Periodic standard heartbeat
+     * > Periodic standard heartbeat (P to servers and HS, HS to CS)
      *      > Include:
+     *          - Provenance
+     *          - Flags (status, special flags)
      *          - Indexes
      *          - Terms
      *          - Hosts list and their status
@@ -137,6 +165,7 @@ int main() {
      *      > compare terms and indexes
      *          - if indexes wrong
      *              > heartbeat ack with missing log entry message
+     *                  - possibility of erroneous log entries, check term from entries past match index
      *              > update accordingly
      *      > compare hosts lists
      *          > adjust if necessary
@@ -169,6 +198,9 @@ int main() {
      *
      * ------------- P-HS close sync ----------------------------------------------
      *
+     * X Edge case necessity: When entry is replicated by majority of CS, send special message to allow for commitment
+     *      - may stunt performance in favor of coherence
+     *
      *
      *
      * ------------- HS-CS backup sync --------------------------------------------
@@ -190,7 +222,7 @@ int main() {
      *
      *
      *
-     * ------------- Log application ----------------------------------------------
+     * ------------- Network topology ---------------------------------------------
      *
      *
      *

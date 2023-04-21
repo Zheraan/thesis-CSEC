@@ -11,14 +11,6 @@
  * - snapshot version
  */
 
-/* Log Entry Data structure
- * - term of adoption
- * - state (created, queued, pending, committed, applied)
- * - replicated by
- * - server replication count
- * - safe?
- */
-
 void hello(void);
 
 #endif //RAFT_ENTRY_LOG_LIBRARY_H
