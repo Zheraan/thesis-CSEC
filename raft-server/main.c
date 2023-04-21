@@ -78,6 +78,17 @@ int main() {
      *      - Validated
      *          > Make entry pending
      *
+     * > Commit entry order
+     *      - Term invalid
+     *          > Ack with right term
+     *      - Indexes invalid
+     *          > Ask for needed entries if any
+     *          > Fix the incoherences otherwise
+     *      - All valid
+     *          > commit corresponding pending entry
+     *          > Ack back
+     *          > Apply entry through data op module
+     *
      *
      *
      * ------------- History snapshotting and message counter reset ---------------
@@ -85,10 +96,6 @@ int main() {
      *
      *
      * ------------- Manual input channel -----------------------------------------
-     *
-     *
-     *
-     * ------------- Log application ----------------------------------------------
      *
      *
      *
@@ -103,25 +110,8 @@ int main() {
      * ------------- Network topology ---------------------------------------------
      *
      *
-     *
-     *
-     *
-     * > Consensus
-     *
-     * > Log replication
-     *
-     *
-     *
-     * > History snapshotting and message counter reset
-     *
-     * > Log entry commit
-     *
-     * > Log entry pending
-     *
-     * > Log entry proposition input
-     *      > Send request with term and message numbers
      *      
-     * > 
+     *
     */
     return 0;
 }

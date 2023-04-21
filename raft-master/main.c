@@ -117,8 +117,11 @@ int main() {
      * > Timeout of ongoing election ("proposed state")
      *      > Check majority of votes
      *          - Reached
-     *              > Commit locally and send commit order
-     *              > Set commit timeout
+     *              > Check if entry is marked as safe
+     *                  - Yes
+     *                      > Commit locally
+     *                      > send commit order
+     *                      > Set timer for commit ack
      *          - Not reached
      *              > Reiterate update to servers not responding
      *      > Exit "proposed" state
@@ -128,15 +131,58 @@ int main() {
      *      > Update replication status
      *      > Check majority of votes
      *          - Reached
-     *              X Edge case error possible: only send commit order if HS and the majority of CS have it replicated too
-     *                  - may stunt performance in favor of coherence
-     *              > Commit locally and send commit order
-     *              > Set timer for commit ack
+     *              > Check if entry is marked as safe
+     *                  - Yes
+     *                      > Commit locally
+     *                      > send commit order
+     *                      > Set timer for commit ack
      *      > Exit "proposed" state
      *
-     * > Log operation commit ack
+     * > Log entry commit ack
      *      > update commit data
      *      > remove retransmission event
+     *
+     * > Log entry safe message from HS
+     *      > mark entry as safe
+     *      > check majority status on entry
+     *          - Reached
+     *              > Broadcast commit order
+     *
+     *
+     *
+     * ------------- HS and CS entry replication ----------------------------------
+     *
+     * > Replicate entry order
+     *      - Term invalid
+     *          > Ack with right term
+     *      - Indexes invalid
+     *          > Ask for needed entries if any
+     *              - from P if HS
+     *              - from HS if CS
+     *          > Fix the incoherences otherwise
+     *      - All valid
+     *          > create corresponding pending entry
+     *              - If local is HS
+     *                  > Set entry's master pool replication count to 1
+     *          > Ack back
+     *
+     * > Commit entry order
+     *      - Term invalid
+     *          > Ack with right term
+     *      - Indexes invalid
+     *          > Ask for needed entries if any
+     *              - from P if HS
+     *              - from HS if CS
+     *          > Fix the incoherences otherwise
+     *      - All valid
+     *          > commit corresponding pending entry
+     *          > Ack back
+     *
+     * > Replicate entry ack (as HS from CS)
+     *      > Increase entry's master pool replication count
+     *          - Majority attained
+     *              > Mark as safe
+     *              > Signify entry is safe to P
      *
      *
      *
@@ -162,6 +208,8 @@ int main() {
      *      - if from other node operating in the same mode (P or HS)
      *          ? Compare terms and step down from role if necessary
      *          - Shouldn't happen with partition mode, though important for security
+     *      - If in P candidate mode
+     *          >rollback to HS
      *      > compare terms and indexes
      *          - if indexes wrong
      *              > heartbeat ack with missing log entry message
@@ -173,12 +221,13 @@ int main() {
      *
      * > Heartbeat Ack reception
      *      > Update log entry replication if any
+     *          > check if commit status makes an entry safe or reach majority
+     *              - trigger related events if so
      *      - Contains missing log entry message
      *          ? Check for coherence with match index
      *          > Send corresponding entry with current indexes
      *
      * > Heartbeat reception from P as HS
-     *      > If in P candidate mode, rollback to HS
      *      > Reset heartbeat timeout
      *      > Ack back
      *
@@ -198,8 +247,6 @@ int main() {
      *
      * ------------- P-HS close sync ----------------------------------------------
      *
-     * X Edge case necessity: When entry is replicated by majority of CS, send special message to allow for commitment
-     *      - may stunt performance in favor of coherence
      *
      *
      *
