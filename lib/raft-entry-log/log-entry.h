@@ -6,7 +6,7 @@
 #define THESIS_CSEC_LOG_ENTRY_H
 
 #ifndef HOSTS_LIST_SIZE
-#define HOSTS_LIST_SIZE 128
+#define HOSTS_LIST_SIZE 128 // May be redefined
 #endif
 
 #define ENTRY_STATE_CREATED 1
@@ -17,23 +17,16 @@
 #include "stdint.h"
 #include "../data-op.h"
 
-/* Log Entry Data structure
- * - term of adoption
- * - state (created, queued, pending, committed)
- * - server replication array
- * - master replication array
- * - server majority replication reached
- * - master majority replication reached
- * - data operation
- */
 typedef struct log_entry{
-    uint64_t adoption_term;
-    uint8_t state;
-    uint16_t server_replication[HOSTS_LIST_SIZE];
-    uint16_t master_replication[HOSTS_LIST_SIZE];
-    bool server_majority;
-    bool master_majority; // == "Safe"
-    data_op op;
+    uint32_t term; // P-Term the entry was proposed in
+    uint8_t state; // Refer to the ENTRY_STATE_* macros
+
+    uint16_t server_rep[HOSTS_LIST_SIZE]; // ID of server hosts where it is replicated
+    uint16_t master_rep[HOSTS_LIST_SIZE]; // ID of master hosts where it is replicated
+    bool server_maj; // Is server replication majority achieved ?
+    bool master_maj; // Is master replication majority achieved ? Equals "Safe" state
+
+    data_op *op; // Pointer to the data operation the entry refers to
 } log_entry;
 
 #endif //THESIS_CSEC_LOG_ENTRY_H
