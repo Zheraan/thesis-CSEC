@@ -1,6 +1,16 @@
-#include <stdio.h>
+
+#include "hosts-list/hosts-list.h"
 
 int main() {
+    hosts_list_s hl;
+    //log_s log;
+
+    if (init_hosts("hostfile.txt", &hl) < 1) {
+        fprintf(stderr, "Failed to parse any hosts");
+        exit(EXIT_FAILURE);
+    }
+
+
     // Initialize log
     // Initialize term with special start value
     // Parse hostfile

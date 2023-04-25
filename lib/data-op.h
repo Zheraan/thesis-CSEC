@@ -7,11 +7,11 @@
 
 #include "stdint.h"
 
-typedef struct data_op{
+typedef struct data_op_s{
     // TODO
     uint64_t line;
     uint64_t column;
-    char16_t newchar;
-} data_op;
+    char newchar;
+} data_op_s;
 
 #endif //THESIS_CSEC_DATA_OP_H
