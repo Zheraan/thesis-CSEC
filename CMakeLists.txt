@@ -11,4 +11,3 @@ target_link_libraries(raft_server lib_csec)
 
 add_subdirectory(raft-master)
 target_link_libraries(raft_master lib_csec)
-
