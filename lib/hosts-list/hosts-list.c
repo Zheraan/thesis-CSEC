@@ -3,6 +3,11 @@
 //
 
 #include "hosts-list.h"
+#ifdef NO_DNS_LOOKUP // May be defined to skip DNS lookup
+#define __NO_DNS_LOOKUP 1
+#else
+#define __NO_DNS_LOOKUP 0
+#endif
 
 uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
     uint32_t parsed = 0;
@@ -13,12 +18,18 @@ uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
         exit(EXIT_FAILURE);
     }
 
+    struct sockaddr_storage result;
     struct addrinfo *res = NULL;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_family = PF_UNSPEC;
+    hints.ai_family = AF_INET6;
     hints.ai_socktype = SOCK_DGRAM;
+
+if(__NO_DNS_LOOKUP)
+    hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG | AI_NUMERICHOST;
+else
     hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG;
+
 
     char line[256];
 
@@ -44,7 +55,7 @@ uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
             list->hosts[parsed].status = HOST_STATUS_UNRESOLVED;
         } else {
             list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
-            memcpy(&(list->hosts[parsed].addr_storage), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
+            memcpy(&(list->hosts[parsed].addr), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
         }
 
         // Copy the address line in the host entry struct
@@ -60,33 +71,33 @@ uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
     return parsed;
 }
 
-int re_resolve_host(hosts_list_s *list, uint32_t id_host) {
+int re_resolve_host(hosts_list_s *list, uint32_t host_id) {
     struct addrinfo *res = NULL;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_family = PF_UNSPEC;
+    hints.ai_family = AF_INET6;
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG;
 
-    int rc = getaddrinfo(list->hosts[id_host].addr_string, "35007", &hints, &res);
+    int rc = getaddrinfo(list->hosts[host_id].addr_string, "35007", &hints, &res);
     if (rc != 0) {
         fprintf(stderr,
                 "Failure to parse host '%s': %s (%d)",
-                list->hosts[id_host].addr_string,
+                list->hosts[host_id].addr_string,
                 gai_strerror(rc), rc);
         exit(EXIT_FAILURE);
     }
 
     if (res == NULL) {
         // In case getaddrinfo failed to resolve the address contained in the line
-        fprintf(stderr, "No host found for '%s'", list->hosts[id_host].addr_string);
-        list->hosts[id_host].status = HOST_STATUS_UNRESOLVED;
+        fprintf(stderr, "No host found for '%s'", list->hosts[host_id].addr_string);
+        list->hosts[host_id].status = HOST_STATUS_UNRESOLVED;
         freeaddrinfo(res);
         return EXIT_FAILURE;
     }
 
-    list->hosts[id_host].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
-    memcpy(&(list->hosts[id_host].addr_storage), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
+    list->hosts[host_id].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
+    memcpy(&(list->hosts[host_id].addr), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
 
     freeaddrinfo(res);
     return EXIT_SUCCESS;

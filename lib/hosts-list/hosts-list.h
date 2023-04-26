@@ -20,7 +20,7 @@
 
 
 typedef struct hosts_list_s {
-    host_s hosts[HOSTS_LIST_SIZE];
+    host_s hosts[HOSTS_LIST_SIZE]; //TODO Replace by a hashtable
     uint32_t nb_hosts;
 } hosts_list_s;
 
@@ -29,7 +29,7 @@ uint32_t init_hosts(char const *hostfile, hosts_list_s *list);
 
 // Attempts to re-resolve a host that was not successfully resolved at startup
 // Returns EXIT_SUCCESS on success, and EXIT_FAILURE on failure
-int re_resolve_host(hosts_list_s *list, uint32_t id_host);
+int re_resolve_host(hosts_list_s *list, uint32_t host_id);
 
 // Returns nonzero iff line is a string containing only whitespace (or is empty)
 int is_blank(char const *line);
