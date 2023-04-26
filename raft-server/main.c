@@ -84,22 +84,41 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
+    // Create the event related to the socket
     struct event *listener_event = event_new(eb, listener, EV_READ | EV_PERSIST, do_receive, (void *) eb);
     if (listener_event == NULL) {
-        perror("Socket init error");
+        fprintf(stderr, "Failed to create an event");
         event_config_free(ecfg);
         event_base_free(eb);
         close(listener);
         exit(EXIT_FAILURE);
     }
 
-    // Free Any pointers
-    // Close sockets
+    // Add the event in the loop
+    if (event_add(listener_event, NULL) != 0) {
+        fprintf(stderr, "Failed to add an event");
+        event_config_free(ecfg);
+        event_base_free(eb);
+        close(listener);
+        exit(EXIT_FAILURE);
+    }
+
+    // Run the loop
+    int rv = event_base_dispatch(eb);
+    if (rv == 1)
+        fprintf(stdout, "No events pending or active in the base, cleaning up and finishing...");
+    else if (rv == -1)
+        fprintf(stderr, "An error occured while running the loop, cleaning up and finishing...");
+    else fprintf(stdout, "Cleaning up and finishing...");
+
     // Free any running events first
     event_free(listener_event);
+    // Free Any pointers
     event_config_free(ecfg);
     event_base_free(eb);
-    close(listener);
+    // Close sockets
+    if (close(listener) != 0)
+        perror("Error closing socket file descriptor");
 
     // Initialize log
     // Initialize term with special start value
