@@ -29,7 +29,10 @@ uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
         if (is_blank(line) == 1)
             continue;
 
-        int rc = getaddrinfo(line, NULL, &hints, &res);
+        // Strip newline in case there is one
+        line[strcspn(line, "\r\n")] = 0;
+
+        int rc = getaddrinfo(line, "35007", &hints, &res);
         if (rc != 0) {
             fprintf(stderr, "Failure to parse host '%s': %s (%d)", line, gai_strerror(rc), rc);
             exit(EXIT_FAILURE);
@@ -65,7 +68,7 @@ int re_resolve_host(hosts_list_s *list, uint32_t id_host) {
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG;
 
-    int rc = getaddrinfo(list->hosts[id_host].addr_string, NULL, &hints, &res);
+    int rc = getaddrinfo(list->hosts[id_host].addr_string, "35007", &hints, &res);
     if (rc != 0) {
         fprintf(stderr,
                 "Failure to parse host '%s': %s (%d)",
