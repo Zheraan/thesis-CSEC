@@ -1,16 +1,105 @@
 
+#include <event2/event.h>
+#include <unistd.h>
 #include "hosts-list/hosts-list.h"
+#include "raft-comms/heartbeat.h"
+
+#define ECFG_MAX_DISPATCH_USEC 2000
+#define ECFG_MAX_CALLBACKS 5
+
+#define LISTEN_MAX_CONNEXIONS 16
+
+
+void do_receive(evutil_socket_t listener, short event, void *arg) {
+    heartbeat_s hb;
+    struct sockaddr_in6 sender;
+    socklen_t sender_len;
+
+    if (recvfrom(listener, &hb, sizeof(heartbeat_s), 0, &sender, &sender_len) == -1)
+        perror("recvfrom");
+
+    print_hb(&hb, stdout);
+    return;
+}
 
 int main() {
     hosts_list_s hl;
     //log_s log;
 
+    // Init the hosts list
     if (init_hosts("hostfile.txt", &hl) < 1) {
         fprintf(stderr, "Failed to parse any hosts");
         exit(EXIT_FAILURE);
     }
 
+    struct timeval max_dispatch_interval = {
+            .tv_sec = 0,
+            .tv_usec = ECFG_MAX_DISPATCH_USEC
+    };
 
+    // Config for the event base
+    struct event_config *ecfg = event_config_new();
+    if (ecfg == NULL ||
+        event_config_set_flag(ecfg, EVENT_BASE_FLAG_NOLOCK) != 0 ||
+        event_config_set_max_dispatch_interval(ecfg,
+                                               &max_dispatch_interval,
+                                               ECFG_MAX_CALLBACKS,
+                                               0) != 0) {
+        perror("Event config init error");
+        event_config_free(ecfg);
+        exit(EXIT_FAILURE);
+    }
+
+    // Init the event base
+    struct event_base *eb = event_base_new_with_config(ecfg);
+    if (eb == NULL || event_base_priority_init(eb, 2) != 0) {
+        perror("Event base init error");
+        event_config_free(ecfg);
+        event_base_free(eb);
+        exit(EXIT_FAILURE);
+    }
+
+    // Create the socket
+    evutil_socket_t listener = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (listener == -1 || evutil_make_socket_nonblocking(listener) != 0) {
+        perror("Socket init error");
+        event_config_free(ecfg);
+        event_base_free(eb);
+        exit(EXIT_FAILURE);
+    }
+
+    // Bind the socket
+    if (bind(listener, (struct sockaddr_in6 *) &(hl.hosts[0].addr), sizeof(hl.hosts[0].addr)) != 0) {
+        perror("Socket bind");
+        event_config_free(ecfg);
+        event_base_free(eb);
+        exit(EXIT_FAILURE);
+    }
+
+    // Listen to the socket
+    if (listen(listener, LISTEN_MAX_CONNEXIONS) != 0) {
+        perror("Socket listen");
+        event_config_free(ecfg);
+        event_base_free(eb);
+        exit(EXIT_FAILURE);
+    }
+
+    struct event *listener_event = event_new(eb, listener, EV_READ | EV_PERSIST, do_receive, (void *) eb);
+    if (listener_event == NULL) {
+        perror("Socket init error");
+        event_config_free(ecfg);
+        event_base_free(eb);
+        close(listener);
+        exit(EXIT_FAILURE);
+    }
+
+    // Free Any pointers
+    // Close sockets
+    // Free any running events first
+    event_free(listener_event);
+    event_config_free(ecfg);
+    event_base_free(eb);
+    close(listener);
 
     // Initialize log
     // Initialize term with special start value

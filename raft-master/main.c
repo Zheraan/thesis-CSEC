@@ -1,6 +1,6 @@
 
-#include "hosts-list/hosts-list.h"
 #include <event2/event.h>
+#include "hosts-list/hosts-list.h"
 
 #define ECFG_MAX_DISPATCH_USEC 2000
 #define ECFG_MAX_CALLBACKS 5
@@ -27,15 +27,17 @@ int main() {
                                                ECFG_MAX_CALLBACKS,
                                                0) != 0) {
         perror("Event config init error");
+        event_config_free(ecfg);
         exit(EXIT_FAILURE);
     }
 
     struct event_base *eb = event_base_new_with_config(ecfg);
     if (eb == NULL || event_base_priority_init(eb, 2) != 0) {
         perror("Event base init error");
+        event_config_free(ecfg);
+        event_base_free(eb);
         exit(EXIT_FAILURE);
     }
-    event_base_priority_init(eb, 2);
 
     // Free Any pointers
     // Close sockets
@@ -237,7 +239,7 @@ int main() {
      *          - Flags (status, special flags)
      *          - Indexes
      *          - Terms
-     *          - Hosts list and their status
+     *          ? Hosts list and their status
      *
      * > Heartbeat reception
      *      - as result of new P (special flag)
