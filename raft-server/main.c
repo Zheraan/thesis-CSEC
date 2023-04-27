@@ -3,12 +3,15 @@
 #include <unistd.h>
 #include "hosts-list/hosts-list.h"
 #include "raft-comms/heartbeat.h"
+#include "overseer.h"
 
 #define ECFG_MAX_DISPATCH_USEC 2000
 #define ECFG_MAX_CALLBACKS 5
 
 #define LISTEN_MAX_CONNEXIONS 16
 
+static int message_counter = 0;
+overseer_s overseer;
 
 void do_receive(evutil_socket_t listener, short event, void *arg) {
     heartbeat_s hb;
@@ -18,16 +21,25 @@ void do_receive(evutil_socket_t listener, short event, void *arg) {
     if (recvfrom(listener, &hb, sizeof(heartbeat_s), 0, &sender, &sender_len) == -1)
         perror("recvfrom");
 
+    char buf[256];
+    evutil_inet_ntop(AF_INET6,&(sender.sin6_addr),buf, 256);
+    printf("Received from %s the following heartbeat:\n", buf);
     print_hb(&hb, stdout);
+
+    if (++message_counter >= 3) {
+        event_base_loopbreak(((overseer_s *) arg)->eb);
+    }
     return;
 }
 
 int main() {
     hosts_list_s hl;
-    //log_s log;
+    log_s log;
+    overseer.hl = &hl;
+    overseer.log = &log;
 
     // Init the hosts list
-    if (init_hosts("hostfile.txt", &hl) < 1) {
+    if (init_hosts("hostfile.txt", overseer.hl) < 1) {
         fprintf(stderr, "Failed to parse any hosts");
         exit(EXIT_FAILURE);
     }
@@ -45,7 +57,7 @@ int main() {
                                                &max_dispatch_interval,
                                                ECFG_MAX_CALLBACKS,
                                                0) != 0) {
-        perror("Event config init error");
+        fprintf(stderr, "Event config init error");
         event_config_free(ecfg);
         exit(EXIT_FAILURE);
     }
@@ -53,11 +65,12 @@ int main() {
     // Init the event base
     struct event_base *eb = event_base_new_with_config(ecfg);
     if (eb == NULL || event_base_priority_init(eb, 2) != 0) {
-        perror("Event base init error");
+        fprintf(stderr, "Event base init error");
         event_config_free(ecfg);
         event_base_free(eb);
         exit(EXIT_FAILURE);
     }
+    overseer.eb = eb;
 
     // Create the socket
     evutil_socket_t listener = socket(AF_INET6, SOCK_DGRAM, 0);
@@ -69,23 +82,17 @@ int main() {
     }
 
     // Bind the socket
-    if (bind(listener, (struct sockaddr_in6 *) &(hl.hosts[0].addr), sizeof(hl.hosts[0].addr)) != 0) {
+    if (bind(listener,
+             (struct sockaddr_in6 *) &(overseer.hl->hosts[0].addr),
+             sizeof(overseer.hl->hosts[0].addr)) != 0) {
         perror("Socket bind");
         event_config_free(ecfg);
         event_base_free(eb);
         exit(EXIT_FAILURE);
     }
 
-    // Listen to the socket
-    if (listen(listener, LISTEN_MAX_CONNEXIONS) != 0) {
-        perror("Socket listen");
-        event_config_free(ecfg);
-        event_base_free(eb);
-        exit(EXIT_FAILURE);
-    }
-
     // Create the event related to the socket
-    struct event *listener_event = event_new(eb, listener, EV_READ | EV_PERSIST, do_receive, (void *) eb);
+    struct event *listener_event = event_new(eb, listener, EV_READ | EV_PERSIST, do_receive, (void *) &overseer);
     if (listener_event == NULL) {
         fprintf(stderr, "Failed to create an event");
         event_config_free(ecfg);
@@ -108,7 +115,7 @@ int main() {
     if (rv == 1)
         fprintf(stdout, "No events pending or active in the base, cleaning up and finishing...");
     else if (rv == -1)
-        fprintf(stderr, "An error occured while running the loop, cleaning up and finishing...");
+        fprintf(stderr, "An error occurred while running the loop, cleaning up and finishing...");
     else fprintf(stdout, "Cleaning up and finishing...");
 
     // Free any running events first
