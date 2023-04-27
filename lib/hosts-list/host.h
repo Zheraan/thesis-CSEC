@@ -18,9 +18,22 @@ enum host_status{
     HOST_STATUS_UNRESOLVED = -2 // Its address couldn't be resolved at start
 };
 
+enum host_type{
+    HOST_TYPE_M = 0, // For master node
+    HOST_TYPE_S = 1, // For server node
+    HOST_TYPE_CM = 2, // For cluster monitor node
+};
+
+enum host_locality{
+    HOST_LOCALITY_LOCAL = 0,
+    HOST_LOCALITY_DISTANT = 1,
+};
+
 typedef struct host_s {
     char name[256];
     enum host_status status;
+    enum host_type type;
+    enum host_locality locality;
     struct sockaddr_in6 addr;
     socklen_t addr_len;
     char addr_string[256]; // String parsed by the hosts_list initializer corresponding to this host entry
