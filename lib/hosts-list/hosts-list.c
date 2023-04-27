@@ -55,7 +55,9 @@ else
             list->hosts[parsed].status = HOST_STATUS_UNRESOLVED;
         } else {
             list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
+            // Only the first returned entry is used
             memcpy(&(list->hosts[parsed].addr), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
+            list->hosts[parsed].addr_len = res->ai_addrlen;
         }
 
         // Copy the address line in the host entry struct
@@ -97,7 +99,9 @@ int re_resolve_host(hosts_list_s *list, uint32_t host_id) {
     }
 
     list->hosts[host_id].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
-    memcpy(&(list->hosts[host_id].addr), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
+    // Only the first returned entry is used
+    memcpy(&(list->hosts[host_id].addr), res->ai_addr, res->ai_addrlen);
+    list->hosts[host_id].addr_len = res->ai_addrlen;
 
     freeaddrinfo(res);
     return EXIT_SUCCESS;

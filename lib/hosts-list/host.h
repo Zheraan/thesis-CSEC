@@ -22,6 +22,7 @@ typedef struct host_s {
     char name[256];
     enum host_status status;
     struct sockaddr_in6 addr;
+    socklen_t addr_len;
     char addr_string[256]; // String parsed by the hosts_list initializer corresponding to this host entry
 } host_s;
 
