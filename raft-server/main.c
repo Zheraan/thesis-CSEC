@@ -83,8 +83,8 @@ int main() {
 
     // Bind the socket
     if (bind(listener,
-             (struct sockaddr_in6 *) &(overseer.hl->hosts[0].addr),
-             sizeof(overseer.hl->hosts[0].addr)) != 0) {
+             (struct sockaddr_in6 *) &(overseer.hl->hosts[overseer.hl->localhost_id].addr),
+             sizeof(overseer.hl->hosts[overseer.hl->localhost_id].addr)) != 0) {
         perror("Socket bind");
         event_config_free(ecfg);
         event_base_free(eb);

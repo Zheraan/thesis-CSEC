@@ -25,8 +25,8 @@ void do_send(evutil_socket_t sender, short event, void *arg) {
             .term = 0
     };
 
-    struct sockaddr_in6 receiver = (((overseer_s *) arg)->hl->hosts[0].addr);
-    socklen_t receiver_len= (((overseer_s *) arg)->hl->hosts[0].addr_len);
+    struct sockaddr_in6 receiver = (((overseer_s *) arg)->hl->hosts[1].addr);
+    socklen_t receiver_len= (((overseer_s *) arg)->hl->hosts[1].addr_len);
 
     char buf[256];
     evutil_inet_ntop(AF_INET6,&(receiver.sin6_addr),buf, 256);
@@ -111,7 +111,6 @@ int main() {
         close(sender);
         exit(EXIT_FAILURE);
     }
-
 
     struct timeval sender_timeout = {
             .tv_sec = 5,
