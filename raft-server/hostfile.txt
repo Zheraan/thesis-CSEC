@@ -1,2 +1,6 @@
 
-::1
+# Master node named master1 that is distant
+M,master1,D,fd47:9c3b:856a:cf72:0000:0000:0000:0001
+
+# Server node named server1 that is local
+S,server1,L,fd47:9c3b:856a:cf72:0000:0000:0000:0002

@@ -21,6 +21,7 @@
 
 typedef struct hosts_list_s {
     host_s hosts[HOSTS_LIST_SIZE]; //TODO Replace by a hashtable
+    int localhost_id;
     uint32_t nb_hosts;
 } hosts_list_s;
 
@@ -33,5 +34,8 @@ int re_resolve_host(hosts_list_s *list, uint32_t host_id);
 
 // Returns nonzero iff line is a string containing only whitespace (or is empty)
 int is_blank(char const *line);
+
+// Returns nonzero iff line starts with a '#' and therefore is a comment
+int is_comment(char const *line);
 
 #endif //THESIS_CSEC_HOSTS_LIST_H
