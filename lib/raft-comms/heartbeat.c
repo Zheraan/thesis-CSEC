@@ -12,7 +12,7 @@ void print_hb(heartbeat_s *hb, FILE *stream) {
                     "rep_index:     %ld\n"
                     "match_index:   %ld\n"
                     "commit_index:  %ld\n"
-                    "term:          %d\n",
+                    "term:          %d\n\n",
             hb->host_id,
             hb->status,
             hb->flags,

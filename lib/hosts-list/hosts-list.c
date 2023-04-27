@@ -51,7 +51,7 @@ else
 
         if (res == NULL) {
             // In case getaddrinfo failed to resolve the address contained in the line
-            fprintf(stderr, "No host found for '%s'", line);
+            fprintf(stderr, "No host resolved for '%s'", line);
             list->hosts[parsed].status = HOST_STATUS_UNRESOLVED;
         } else {
             list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
@@ -66,6 +66,8 @@ else
         parsed++;
         freeaddrinfo(res);
         res = NULL;
+
+        //TODO implement host names
     }
 
     fclose(file);
