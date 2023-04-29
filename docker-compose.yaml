@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+
+  raft-master:
+    build:
+      context: .
+      dockerfile: raft_master_dockerfile
+    cap_add:
+      - NET_ADMIN
+    networks:
+      global:
+        ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:0010
+    deploy:
+      replicas: 1
+
+  raft-server:
+    build:
+      context: .
+      dockerfile: raft_server_dockerfile
+    cap_add:
+      - NET_ADMIN
+    networks:
+      global:
+        ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:0011
+    deploy:
+      replicas: 1
+
+networks:
+  global:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 2001:db8:2::/64
+          gateway: 2001:0db8:0002:0000:0000:0000:0000:0004

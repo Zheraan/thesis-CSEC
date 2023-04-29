@@ -1,0 +1,5 @@
+.idea
+.gitignore
+.git
+.clang-format
+rot13_server.c

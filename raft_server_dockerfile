@@ -1,0 +1,9 @@
+FROM ubuntu:latest
+
+COPY ./cmake-build-debug/raft-server ./local
+COPY ./raft-server/hostfile.txt ./local
+WORKDIR ./local/
+
+RUN apt-get update -y && apt-get install iproute2 -y
+EXPOSE 35007
+CMD ["./raft_server"]
