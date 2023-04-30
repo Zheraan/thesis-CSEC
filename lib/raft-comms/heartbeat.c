@@ -4,7 +4,7 @@
 
 #include "heartbeat.h"
 
-void print_hb(heartbeat_s *hb, FILE *stream) {
+void hb_print(heartbeat_s *hb, FILE *stream) {
     fprintf(stream, "host_id:       %d\n"
                     "status:        %d\n"
                     "flags:         %d\n"
@@ -25,19 +25,28 @@ void print_hb(heartbeat_s *hb, FILE *stream) {
 }
 
 void heartbeat_sendto(evutil_socket_t sender, short event, void *arg) {
-    heartbeat_s *hb = heartbeat_new((overseer_s *) arg);
+    heartbeat_s *hb = heartbeat_new((overseer_s *) arg, 0);
 
+    // FIXME change to include target of heartbeat instead of hosts[1]
     struct sockaddr_in6 receiver = (((overseer_s *) arg)->hl->hosts[1].addr);
     socklen_t receiver_len = (((overseer_s *) arg)->hl->hosts[1].addr_len);
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
-    printf("Sending to %s the following heartbeat:\n", buf);
-    print_hb(hb, stdout);
+    if (DEBUG_LEVEL > 2) {
+        printf("Sending to %s the following heartbeat:\n", buf);
+        hb_print(hb, stdout);
+    }
 
-    if (sendto(sender, hb, sizeof(heartbeat_s), 0, &receiver, receiver_len) == -1)
+    if (sendto(sender,
+               hb,
+               sizeof(heartbeat_s),
+               0,
+               (const struct sockaddr *) &receiver,
+               receiver_len) == -1)
         perror("sendto");
 
+    // FIXME replace message counter
     if (++message_counter >= 3) {
         event_base_loopbreak(((overseer_s *) arg)->eb);
     }
@@ -57,7 +66,7 @@ void heartbeat_receive(evutil_socket_t listener, short event, void *arg) {
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
     printf("Received from %s the following heartbeat:\n", buf);
-    print_hb(&hb, stdout);
+    hb_print(&hb, stdout);
 
     if (++message_counter >= 3) {
         event_base_loopbreak(((overseer_s *) arg)->eb);
@@ -66,7 +75,7 @@ void heartbeat_receive(evutil_socket_t listener, short event, void *arg) {
 }
 
 
-heartbeat_s *heartbeat_new(overseer_s *overseer) {
+heartbeat_s *heartbeat_new(overseer_s *overseer, int flags) {
     heartbeat_s *nhb = malloc(sizeof(heartbeat_s));
 
     if (nhb == NULL) {
@@ -76,7 +85,7 @@ heartbeat_s *heartbeat_new(overseer_s *overseer) {
 
     nhb->host_id = overseer->hl->localhost_id;
     nhb->status = overseer->hl->hosts[nhb->host_id].status;
-    nhb->flags = 0;
+    nhb->flags = flags;
     nhb->next_index = overseer->log->next_index;
     nhb->rep_index = overseer->log->rep_index;
     nhb->match_index = overseer->log->match_index;

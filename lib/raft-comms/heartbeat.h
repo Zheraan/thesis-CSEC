@@ -32,11 +32,10 @@ typedef struct heartbeat_s {
 extern int message_counter;
 
 // Outputs the state of the structure to the specified output
-void print_hb(heartbeat_s *hb, FILE *stream);
+void hb_print(heartbeat_s *hb, FILE *stream);
 
 void heartbeat_sendto(evutil_socket_t sender, short event, void *arg);
 void heartbeat_receive(evutil_socket_t listener, short event, void *arg);
-heartbeat_s *heartbeat_new(overseer_s *overseer);
-void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg);
+heartbeat_s *heartbeat_new(overseer_s *overseer, int flags);
 
 #endif //THESIS_CSEC_HEARTBEAT_H
