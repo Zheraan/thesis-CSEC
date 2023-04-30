@@ -34,7 +34,7 @@ void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg) {
             hb_print(hb, stdout);
         }
 
-        if (sendto(sender, hb, sizeof(heartbeat_s), 0, &receiver, receiver_len) == -1)
+        if (sendto(sender, hb, sizeof(heartbeat_s), 0, (const struct sockaddr *) &receiver, receiver_len) == -1)
             perror("sendto");
     }
 
