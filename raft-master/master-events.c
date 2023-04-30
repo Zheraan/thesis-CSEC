@@ -5,7 +5,8 @@
 #include "master-events.h"
 
 void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg) {
-    heartbeat_s *hb = heartbeat_new((overseer_s *) arg);
+    // TODO Implement flags
+    heartbeat_s *hb = heartbeat_new((overseer_s *) arg, 0);
     host_s *target;
     host_s *local = &(((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]);
     uint32_t nb_hosts = ((overseer_s *) arg)->hl->nb_hosts;
@@ -30,7 +31,7 @@ void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg) {
         evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
         if (DEBUG_LEVEL >= 2) {
             printf("Sending to %s (Status: %d) the following heartbeat:\n", buf, target->status);
-            print_hb(hb, stdout);
+            hb_print(hb, stdout);
         }
 
         if (sendto(sender, hb, sizeof(heartbeat_s), 0, &receiver, receiver_len) == -1)
