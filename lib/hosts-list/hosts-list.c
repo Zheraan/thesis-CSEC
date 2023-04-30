@@ -4,7 +4,7 @@
 
 #include "hosts-list.h"
 
-uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
+uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
     uint32_t parsed = 0;
     FILE *file = fopen(hostfile, "r");
 
@@ -12,7 +12,7 @@ uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
     list->localhost_id = -1;
 
     if (file == NULL) {
-        perror("init_hosts fopen");
+        perror("hosts_init fopen");
         exit(EXIT_FAILURE);
     }
 
@@ -152,7 +152,7 @@ uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
     return parsed;
 }
 
-int re_resolve_host(hosts_list_s *list, uint32_t host_id) {
+int host_re_resolve(hosts_list_s *list, uint32_t host_id) {
     struct addrinfo *res = NULL;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(struct addrinfo));
