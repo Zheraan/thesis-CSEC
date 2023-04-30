@@ -20,4 +20,6 @@ add_library(
         raft-entry-log/log.h
         raft-entry-log/log-entry.c
         raft-entry-log/log-entry.h
-        raft-comms/heartbeat.c overseer.h)
+        raft-comms/heartbeat.c
+        overseer.h
+        overseer.c)
