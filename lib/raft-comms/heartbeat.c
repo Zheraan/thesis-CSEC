@@ -60,7 +60,7 @@ void heartbeat_receive(evutil_socket_t listener, short event, void *arg) {
     struct sockaddr_in6 sender;
     socklen_t sender_len;
 
-    if (recvfrom(listener, &hb, sizeof(heartbeat_s), 0, &sender, &sender_len) == -1)
+    if (recvfrom(listener, &hb, sizeof(heartbeat_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
         perror("recvfrom");
 
     char buf[256];
