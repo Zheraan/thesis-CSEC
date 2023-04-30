@@ -6,20 +6,23 @@
 #include <event2/event.h>
 #include <unistd.h>
 #include "overseer.h"
-#include "hosts-list/hosts-list.h"
 #include "raft-comms/heartbeat.h"
 
 int message_counter = 0;
 
 int main() {
     overseer_s overseer;
-    if(overseer_init(&overseer) == EXIT_FAILURE){
+    if (overseer_init(&overseer) == EXIT_FAILURE) {
         fprintf(stderr, "Failed to initialize the program state\n");
         exit(EXIT_FAILURE);
     }
 
     // Create the event related to the socket
-    struct event *sender_event = event_new(overseer.eb, *(overseer.udp_socket), EV_PERSIST | EV_TIMEOUT, heartbeat_sendto, (void *) &overseer);
+    struct event *sender_event = event_new(overseer.eb,
+                                           overseer.udp_socket,
+                                           EV_PERSIST | EV_TIMEOUT,
+                                           heartbeat_sendto,
+                                           (void *) &overseer);
     if (sender_event == NULL) {
         fprintf(stderr, "Failed to create an event\n");
         overseer_wipe(&overseer);
@@ -36,8 +39,6 @@ int main() {
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }
-
-
 
     // Run the loop
     int rv = event_base_dispatch(overseer.eb);

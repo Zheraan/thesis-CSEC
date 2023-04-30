@@ -1,110 +1,49 @@
 
 #include <event2/event.h>
 #include <unistd.h>
-#include "hosts-list/hosts-list.h"
-#include "raft-comms/heartbeat.h"
 #include "overseer.h"
-
-#define ECFG_MAX_DISPATCH_USEC 2000
-#define ECFG_MAX_CALLBACKS 5
+#include "raft-comms/heartbeat.h"
 
 int message_counter = 0;
-overseer_s overseer;
 
 int main() {
-    hosts_list_s hl;
-    log_s log;
-    overseer.hl = &hl;
-    overseer.log = &log;
-
-    // Init the hosts list
-    if (init_hosts("hostfile.txt", overseer.hl) < 1) {
-        fprintf(stderr, "Failed to parse any hosts");
-        exit(EXIT_FAILURE);
-    }
-
-    struct timeval max_dispatch_interval = {
-            .tv_sec = 0,
-            .tv_usec = ECFG_MAX_DISPATCH_USEC
-    };
-
-    // Config for the event base
-    struct event_config *ecfg = event_config_new();
-    if (ecfg == NULL ||
-        event_config_set_flag(ecfg, EVENT_BASE_FLAG_NOLOCK) != 0 ||
-        event_config_set_max_dispatch_interval(ecfg,
-                                               &max_dispatch_interval,
-                                               ECFG_MAX_CALLBACKS,
-                                               0) != 0) {
-        fprintf(stderr, "Event config init error");
-        event_config_free(ecfg);
-        exit(EXIT_FAILURE);
-    }
-
-    // Init the event base
-    struct event_base *eb = event_base_new_with_config(ecfg);
-    if (eb == NULL || event_base_priority_init(eb, 2) != 0) {
-        fprintf(stderr, "Event base init error");
-        event_config_free(ecfg);
-        event_base_free(eb);
-        exit(EXIT_FAILURE);
-    }
-    overseer.eb = eb;
-
-    // Create the socket
-    evutil_socket_t listener = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (listener == -1 || evutil_make_socket_nonblocking(listener) != 0) {
-        perror("Socket init error");
-        event_config_free(ecfg);
-        event_base_free(eb);
-        exit(EXIT_FAILURE);
-    }
-
-    // Bind the socket
-    if (bind(listener,
-             (struct sockaddr_in6 *) &(overseer.hl->hosts[overseer.hl->localhost_id].addr),
-             sizeof(overseer.hl->hosts[overseer.hl->localhost_id].addr)) != 0) {
-        perror("Socket bind");
-        event_config_free(ecfg);
-        event_base_free(eb);
+    overseer_s overseer;
+    if (overseer_init(&overseer) == EXIT_FAILURE) {
+        fprintf(stderr, "Failed to initialize the program state\n");
         exit(EXIT_FAILURE);
     }
 
     // Create the event related to the socket
-    struct event *listener_event = event_new(eb, listener, EV_READ | EV_PERSIST, heartbeat_receive, (void *) &overseer);
+    struct event *listener_event = event_new(overseer.eb,
+                                             overseer.udp_socket,
+                                             EV_READ | EV_PERSIST,
+                                             heartbeat_receive,
+                                             (void *) &overseer);
     if (listener_event == NULL) {
-        fprintf(stderr, "Failed to create an event");
-        event_config_free(ecfg);
-        event_base_free(eb);
-        close(listener);
+        fprintf(stderr, "Failed to create an event\n");
+        overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }
 
     // Add the event in the loop
     if (event_add(listener_event, NULL) != 0) {
-        fprintf(stderr, "Failed to add an event");
-        event_config_free(ecfg);
-        event_base_free(eb);
-        close(listener);
+        fprintf(stderr, "Failed to add an event\n");
+        overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }
 
     // Run the loop
-    int rv = event_base_dispatch(eb);
+    int rv = event_base_dispatch(overseer.eb);
     if (rv == 1)
-        fprintf(stdout, "No events pending or active in the base, cleaning up and finishing...");
+        fprintf(stdout, "No events pending or active in the base\n");
     else if (rv == -1)
-        fprintf(stderr, "An error occurred while running the loop, cleaning up and finishing...");
-    else fprintf(stdout, "Cleaning up and finishing...");
+        fprintf(stderr, "An error occurred while running the loop\n");
 
+    fprintf(stdout, "Cleaning up and finishing...\n");
     // Free any running events first
     event_free(listener_event);
-    // Free Any pointers
-    event_config_free(ecfg);
-    event_base_free(eb);
-    // Close sockets
-    if (close(listener) != 0)
-        perror("Error closing socket file descriptor");
+    // Clean program state and close socket
+    overseer_wipe(&overseer);
 
     // Initialize log
     // Initialize term with special start value
