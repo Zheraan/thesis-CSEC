@@ -40,27 +40,24 @@ int overseer_init(overseer_s *overseer){
     }
     overseer->eb = eb;
 
-    // Allocate a socket to fill overseer's pointer
-    evutil_socket_t *udp_socket = malloc(sizeof(evutil_socket_t));
-    if (udp_socket == NULL) {
-        perror("Malloc udp_socket");
+    // Create the socket (since sockets are int aliases it's not necessary to allocate on the stack)
+    overseer->udp_socket = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (overseer->udp_socket == -1 || evutil_make_socket_nonblocking(overseer->udp_socket) != 0) {
+        perror("Socket init error");
         free(hl);
         free(log);
         event_base_free(eb);
         return(EXIT_FAILURE);
     }
 
-    // Create the socket
-    *udp_socket = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (*udp_socket == -1 || evutil_make_socket_nonblocking(*udp_socket) != 0) {
-        perror("Socket init error");
-        free(hl);
-        free(log);
-        event_base_free(eb);
-        free(udp_socket);
+    // Bind the socket to the local address for receiving messages
+    if (bind(overseer->udp_socket,
+             (struct sockaddr_in6 *) &(overseer->hl->hosts[overseer->hl->localhost_id].addr),
+             sizeof(overseer->hl->hosts[overseer->hl->localhost_id].addr)) != 0) {
+        perror("Socket bind");
+        overseer_wipe(overseer);
         return(EXIT_FAILURE);
     }
-    overseer->udp_socket = udp_socket;
 
     return EXIT_SUCCESS;
 }
@@ -104,8 +101,7 @@ void overseer_wipe(overseer_s *overseer){
     free(overseer->hl);
     free(overseer->log);
     event_base_free(overseer->eb);
-    if (close(*(overseer->udp_socket)) != 0)
+    if (close(overseer->udp_socket) != 0)
         perror("Error closing communication socket file descriptor");
-    free(overseer->udp_socket);
     return;
 }
