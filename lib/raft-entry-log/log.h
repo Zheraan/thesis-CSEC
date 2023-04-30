@@ -17,7 +17,12 @@ typedef struct log_s {
     uint32_t P_term; // current P-term
     uint32_t HS_term; // current HS-term
 
+    uint64_t nb_entries;
     log_entry_s entries[LOG_LENGTH]; // Arrays of entries in the log. Defined as static array for performance.
 } log_s;
+
+// Initializes the log's state
+// Returns a pointer to the initialized log (same as argument)
+log_s * log_init(log_s *log);
 
 #endif //RAFT_ENTRY_LOG_LIBRARY_H
