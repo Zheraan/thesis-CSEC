@@ -9,6 +9,10 @@
 #include "hosts-list/hosts-list.h"
 #include "raft-entry-log/log.h"
 
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 2
+#endif
+
 typedef struct overseer_s{
     struct event_base *eb;
     hosts_list_s *hl;

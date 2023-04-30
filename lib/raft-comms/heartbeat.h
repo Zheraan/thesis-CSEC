@@ -7,8 +7,15 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <event2/util.h>
+#include <event2/event.h>
 #include "../hosts-list/host.h"
 #include "../data-op.h"
+#include "../overseer.h"
+
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 2
+#endif
 
 typedef struct heartbeat_s {
     uint32_t host_id;
@@ -22,7 +29,14 @@ typedef struct heartbeat_s {
     uint32_t term;
 } heartbeat_s;
 
+extern int message_counter;
+
 // Outputs the state of the structure to the specified output
 void print_hb(heartbeat_s *hb, FILE *stream);
+
+void heartbeat_sendto(evutil_socket_t sender, short event, void *arg);
+void heartbeat_receive(evutil_socket_t listener, short event, void *arg);
+heartbeat_s *heartbeat_new(overseer_s *overseer);
+void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg);
 
 #endif //THESIS_CSEC_HEARTBEAT_H

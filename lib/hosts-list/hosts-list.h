@@ -12,12 +12,22 @@
 #include <sys/types.h>
 #include <string.h>
 #include <ctype.h>
+#include <event2/util.h>
 #include "host.h"
 
 #ifndef HOSTS_LIST_SIZE
 #define HOSTS_LIST_SIZE 128 // May be redefined
 #endif
 
+#ifdef NO_DNS_LOOKUP // May be defined to skip DNS lookup
+#define __NO_DNS_LOOKUP 1
+#else
+#define __NO_DNS_LOOKUP 0
+#endif
+
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 2
+#endif
 
 typedef struct hosts_list_s {
     host_s hosts[HOSTS_LIST_SIZE]; //TODO Replace by a hashtable

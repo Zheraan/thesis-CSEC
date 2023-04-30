@@ -2,18 +2,7 @@
 // Created by zheraan on 22/04/23.
 //
 
-#include <event2/util.h>
 #include "hosts-list.h"
-
-#ifdef NO_DNS_LOOKUP // May be defined to skip DNS lookup
-#define __NO_DNS_LOOKUP 1
-#else
-#define __NO_DNS_LOOKUP 0
-#endif
-
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 2
-#endif
 
 uint32_t init_hosts(char const *hostfile, hosts_list_s *list) {
     uint32_t parsed = 0;

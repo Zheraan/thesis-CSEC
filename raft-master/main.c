@@ -8,40 +8,8 @@
 #define ECFG_MAX_DISPATCH_USEC 2000
 #define ECFG_MAX_CALLBACKS 5
 
-#define LISTEN_MAX_CONNEXIONS 16
-
-static int message_counter = 0;
+int message_counter = 0;
 overseer_s overseer;
-
-void do_send(evutil_socket_t sender, short event, void *arg) {
-    heartbeat_s hb = {
-            .host_id = 0,
-            .status = HOST_STATUS_P,
-            .flags = 0,
-            .next_index = 0,
-            .rep_index = 0,
-            .match_index = 0,
-            .commit_index = 0,
-            .term = 0
-    };
-
-    struct sockaddr_in6 receiver = (((overseer_s *) arg)->hl->hosts[1].addr);
-    socklen_t receiver_len= (((overseer_s *) arg)->hl->hosts[1].addr_len);
-
-    char buf[256];
-    evutil_inet_ntop(AF_INET6,&(receiver.sin6_addr),buf, 256);
-    printf("Sending to %s the following heartbeat:\n", buf);
-    print_hb(&hb, stdout);
-
-    if (sendto(sender, &hb, sizeof(heartbeat_s), 0, &receiver, receiver_len) == -1)
-        perror("sendto");
-
-    if (++message_counter >= 3) {
-        event_base_loopbreak(((overseer_s *) arg)->eb);
-    }
-
-    return;
-}
 
 int main() {
     hosts_list_s hl;
@@ -103,7 +71,7 @@ int main() {
     }*/
 
     // Create the event related to the socket
-    struct event *sender_event = event_new(eb, sender, EV_PERSIST | EV_TIMEOUT, do_send, (void *) &overseer);
+    struct event *sender_event = event_new(eb, sender, EV_PERSIST | EV_TIMEOUT, heartbeat_sendto, (void *) &overseer);
     if (sender_event == NULL) {
         fprintf(stderr, "Failed to create an event");
         event_config_free(ecfg);
