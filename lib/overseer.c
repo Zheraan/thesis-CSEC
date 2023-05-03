@@ -4,12 +4,12 @@
 
 #include "overseer.h"
 
-int overseer_init(overseer_s *overseer){
+int overseer_init(overseer_s *overseer) {
     // Malloc the hosts list
     hosts_list_s *hl = malloc(sizeof(hosts_list_s));
     if (hl == NULL) {
         perror("Malloc hosts list");
-        return(EXIT_FAILURE);
+        return (EXIT_FAILURE);
     }
     overseer->hl = hl;
 
@@ -18,7 +18,7 @@ int overseer_init(overseer_s *overseer){
     if (hl == NULL) {
         perror("Malloc log");
         free(hl);
-        return(EXIT_FAILURE);
+        return (EXIT_FAILURE);
     }
     overseer->log = log_init(log);
 
@@ -27,7 +27,7 @@ int overseer_init(overseer_s *overseer){
         fprintf(stderr, "Failed to parse any hosts\n");
         free(hl);
         free(log);
-        return(EXIT_FAILURE);
+        return (EXIT_FAILURE);
     }
 
     // Create a configured event base
@@ -36,7 +36,7 @@ int overseer_init(overseer_s *overseer){
         fprintf(stderr, "Failed to create the event base\n");
         free(hl);
         free(log);
-        return(EXIT_FAILURE);
+        return (EXIT_FAILURE);
     }
     overseer->eb = eb;
 
@@ -47,26 +47,26 @@ int overseer_init(overseer_s *overseer){
         free(hl);
         free(log);
         event_base_free(eb);
-        return(EXIT_FAILURE);
+        return (EXIT_FAILURE);
     }
 
     // Bind the socket to the local address for receiving messages
     if (bind(overseer->udp_socket,
-             (struct sockaddr_in6 *) &(overseer->hl->hosts[overseer->hl->localhost_id].addr),
+             (struct sockaddr *) &(overseer->hl->hosts[overseer->hl->localhost_id].addr),
              sizeof(overseer->hl->hosts[overseer->hl->localhost_id].addr)) != 0) {
         perror("Socket bind");
         overseer_wipe(overseer);
-        return(EXIT_FAILURE);
+        return (EXIT_FAILURE);
     }
 
     return EXIT_SUCCESS;
 }
 
-struct event_base *eb_new(){
+struct event_base *eb_new() {
     struct event_config *ecfg = event_config_new();
     if (ecfg == NULL) {
         fprintf(stderr, "Failed to create the event base config\n");
-        return(NULL);
+        return (NULL);
     }
 
     struct timeval max_dispatch_interval = {
@@ -97,9 +97,10 @@ struct event_base *eb_new(){
     return eb;
 }
 
-void overseer_wipe(overseer_s *overseer){
+void overseer_wipe(overseer_s *overseer) {
     free(overseer->hl);
     free(overseer->log);
+    event_list_free(overseer->el);
     event_base_free(overseer->eb);
     if (close(overseer->udp_socket) != 0)
         perror("Error closing communication socket file descriptor");

@@ -5,11 +5,19 @@
 #ifndef THESIS_CSEC_OVERSEER_H
 #define THESIS_CSEC_OVERSEER_H
 
-#include <event2/event.h>
 #include <unistd.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <event2/event.h>
+#include <event2/util.h>
+
+#include "raft-comms/heartbeat.h"
 #include "hosts-list/hosts-list.h"
+#include "hosts-list/host.h"
 #include "raft-entry-log/log.h"
+#include "event-list.h"
 #include "shared-events.h"
+#include "mocked-fs/data-op.h"
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 2
@@ -30,6 +38,7 @@ typedef struct overseer_s{
     hosts_list_s *hl;
     log_s *log;
     evutil_socket_t udp_socket;
+    event_list_s *el;
 }overseer_s;
 
 // Initializes the program state structure passed by address.
