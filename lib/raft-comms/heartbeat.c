@@ -12,7 +12,7 @@ void hb_print(heartbeat_s *hb, FILE *stream) {
                     "rep_index:     %ld\n"
                     "match_index:   %ld\n"
                     "commit_index:  %ld\n"
-                    "term:          %d\n\n",
+                    "term:          %d\n",
             hb->host_id,
             hb->status,
             hb->flags,
@@ -38,17 +38,41 @@ void heartbeat_sendto(evutil_socket_t sender, short event, void *arg) {
         hb_print(hb, stdout);
     }
 
-    if (sendto(sender,
-               hb,
-               sizeof(heartbeat_s),
-               0,
-               (const struct sockaddr *) &receiver,
-               receiver_len) == -1)
-        perror("sendto");
+    errno = 0;
+    do {
+        if (sendto(sender,
+                   hb,
+                   sizeof(heartbeat_s),
+                   0,
+                   (const struct sockaddr *) &receiver,
+                   receiver_len) == -1)
+            perror("sendto");
+    } while (errno == EAGAIN);
 
-    // FIXME replace message counter
-    if (++message_counter >= 3) {
-        event_base_loopbreak(((overseer_s *) arg)->eb);
+    free(hb);
+    return;
+}
+
+void ack_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, int flag) {
+    heartbeat_s *hb = heartbeat_new(overseer, HB_FLAG_HB_ACK | flag);
+
+    char buf[256];
+    evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
+
+    do {
+        errno = 0;
+        if (sendto(overseer->udp_socket,
+                   hb,
+                   sizeof(heartbeat_s),
+                   0,
+                   (const struct sockaddr *) &sockaddr,
+                   socklen) == -1)
+            perror("ack sendto");
+    } while (errno == EAGAIN);
+
+    if (DEBUG_LEVEL >= 1) {
+        printf("Acked back to %s with the following heartbeat:\n", buf);
+        hb_print(hb, stdout);
     }
 
     free(hb);
@@ -60,17 +84,38 @@ void heartbeat_receive(evutil_socket_t listener, short event, void *arg) {
     struct sockaddr_in6 sender;
     socklen_t sender_len;
 
-    if (recvfrom(listener, &hb, sizeof(heartbeat_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
-        perror("recvfrom");
+    do {
+        errno = 0;
+        if (recvfrom(listener, &hb, sizeof(heartbeat_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
+            perror("recvfrom");
+    } while (errno == EAGAIN);
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
-    printf("Received from %s the following heartbeat:\n", buf);
-    hb_print(&hb, stdout);
-
-    if (++message_counter >= 3) {
-        event_base_loopbreak(((overseer_s *) arg)->eb);
+    if (DEBUG_LEVEL >= 1) {
+        printf("Received from %s a heartbeat:\n", buf);
+        if (DEBUG_LEVEL >= 3)
+            hb_print(&hb, stdout);
     }
+
+    // Responses depending on the type of heartbeat
+    if ((hb.flags | HB_FLAG_DEFAULT) == 0) {
+        // Default heartbeat means replying with normal ack
+        if (DEBUG_LEVEL >= 1)
+            printf("-> is DEFAULT\n");
+        ack_sendto(((overseer_s *) arg), sender,sender_len, 0);
+    }
+    if ((hb.flags & HB_FLAG_HB_ACK) == HB_FLAG_HB_ACK) {
+        if (DEBUG_LEVEL >= 1)
+            printf("-> is ACK\n");
+        // TODO Apply any effects of ack
+    }
+    if ((hb.flags & HB_FLAG_P_TAKEOVER) == HB_FLAG_P_TAKEOVER) {
+        if (DEBUG_LEVEL >= 1)
+            printf("-> is P_TAKEOVER\n");
+        // TODO Check term and apply any effects of P takeover if valid
+    }
+
     return;
 }
 

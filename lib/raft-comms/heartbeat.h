@@ -17,6 +17,10 @@
 #define DEBUG_LEVEL 2
 #endif
 
+#define HB_FLAG_DEFAULT 0b0
+#define HB_FLAG_HB_ACK 0b1
+#define HB_FLAG_P_TAKEOVER 0b10
+
 typedef struct heartbeat_s {
     uint32_t host_id;
     enum host_status status;
@@ -29,13 +33,15 @@ typedef struct heartbeat_s {
     uint32_t term;
 } heartbeat_s;
 
-extern int message_counter;
-
 // Outputs the state of the structure to the specified output
 void hb_print(heartbeat_s *hb, FILE *stream);
 
 void heartbeat_sendto(evutil_socket_t sender, short event, void *arg);
+
 void heartbeat_receive(evutil_socket_t listener, short event, void *arg);
+
+void ack_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, int flag);
+
 heartbeat_s *heartbeat_new(overseer_s *overseer, int flags);
 
 #endif //THESIS_CSEC_HEARTBEAT_H
