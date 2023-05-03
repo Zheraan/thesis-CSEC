@@ -1,8 +1,6 @@
 
 #include <event2/event.h>
-#include <unistd.h>
 #include "overseer.h"
-#include "raft-comms/heartbeat.h"
 #include "server-events.h"
 
 int message_counter = 0;
