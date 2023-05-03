@@ -6,7 +6,7 @@
 #define THESIS_CSEC_LOG_ENTRY_H
 
 #include <stdint.h>
-#include "../data-op.h"
+#include "../mocked-fs/data-op.h"
 #include "../hosts-list/hosts-list.h"
 
 enum entry_state{

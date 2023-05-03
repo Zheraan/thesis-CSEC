@@ -10,7 +10,7 @@
 #include <event2/util.h>
 #include <event2/event.h>
 #include "../hosts-list/host.h"
-#include "../data-op.h"
+#include "../mocked-fs/data-op.h"
 #include "../overseer.h"
 
 #ifndef DEBUG_LEVEL
