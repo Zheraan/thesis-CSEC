@@ -7,8 +7,6 @@
 #include "overseer.h"
 #include "master-events.h"
 
-int message_counter = 0;
-
 int main() {
     // Initialize program state
     overseer_s overseer;

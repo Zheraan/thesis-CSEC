@@ -23,7 +23,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
     hints.ai_family = AF_INET6;
     hints.ai_socktype = SOCK_DGRAM;
 
-    if (__NO_DNS_LOOKUP)
+    if (NO_DNS_LOOKUP_)
         hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG | AI_NUMERICHOST;
     else
         hints.ai_flags = AI_NUMERICSERV | AI_ADDRCONFIG;

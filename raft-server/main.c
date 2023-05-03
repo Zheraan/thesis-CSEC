@@ -3,8 +3,6 @@
 #include "overseer.h"
 #include "server-events.h"
 
-int message_counter = 0;
-
 int main() {
     overseer_s overseer;
     if (overseer_init(&overseer) == EXIT_FAILURE) {

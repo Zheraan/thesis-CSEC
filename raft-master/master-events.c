@@ -4,7 +4,7 @@
 
 #include "master-events.h"
 
-void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg) {
+void heartbeat_master_broadcast(evutil_socket_t sender, short event, void *arg) {
     // TODO Implement flags
     heartbeat_s *hb = heartbeat_new((overseer_s *) arg, 0);
     host_s *target;
@@ -36,13 +36,16 @@ void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg) {
             hb_print(hb, stdout);
         }
 
-        if (sendto(sender,
-                   hb,
-                   sizeof(heartbeat_s),
-                   0,
-                   (const struct sockaddr *) &receiver,
-                   receiver_len) == -1)
-            perror("sendto");
+        do {
+            errno = 0;
+            if (sendto(sender,
+                       hb,
+                       sizeof(heartbeat_s),
+                       0,
+                       (const struct sockaddr *) &receiver,
+                       receiver_len) == -1)
+                perror("sendto");
+        } while (errno == EAGAIN);
 
         // TODO Add ack timeout
     }
@@ -56,7 +59,7 @@ int master_heartbeat_init(overseer_s *overseer) {
     struct event *sender_event = event_new(overseer->eb,
                                            overseer->udp_socket,
                                            EV_PERSIST | EV_TIMEOUT,
-                                           heartbeat_broadcast,
+                                           heartbeat_master_broadcast,
                                            (void *) &overseer);
     if (sender_event == NULL) {
         fprintf(stderr, "Failed to create the heartbeat event\n");

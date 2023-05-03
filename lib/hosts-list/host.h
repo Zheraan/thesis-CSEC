@@ -7,7 +7,6 @@
 
 #include <netinet/in.h>
 
-
 enum host_status{
     HOST_STATUS_UNKNOWN = 0, // Unknown, which is the default value after the hosts list is initialized
     HOST_STATUS_P = 1, // P master

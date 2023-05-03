@@ -20,9 +20,9 @@
 #endif
 
 #ifdef NO_DNS_LOOKUP // May be defined to skip DNS lookup
-#define __NO_DNS_LOOKUP 1
+#define NO_DNS_LOOKUP_ 1
 #else
-#define __NO_DNS_LOOKUP 0
+#define NO_DNS_LOOKUP_ 0
 #endif
 
 #ifndef DEBUG_LEVEL
