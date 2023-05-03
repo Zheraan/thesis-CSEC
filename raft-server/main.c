@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include "overseer.h"
 #include "raft-comms/heartbeat.h"
+#include "server-events.h"
 
 int message_counter = 0;
 
@@ -13,21 +14,9 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Create the event related to the socket
-    struct event *listener_event = event_new(overseer.eb,
-                                             overseer.udp_socket,
-                                             EV_READ | EV_PERSIST,
-                                             heartbeat_receive,
-                                             (void *) &overseer);
-    if (listener_event == NULL) {
-        fprintf(stderr, "Failed to create an event\n");
-        overseer_wipe(&overseer);
-        exit(EXIT_FAILURE);
-    }
-
-    // Add the event in the loop
-    if (event_add(listener_event, NULL) != 0) {
-        fprintf(stderr, "Failed to add an event\n");
+    // Initialize event loop
+    if (server_reception_init(&overseer) == EXIT_FAILURE) {
+        fprintf(stderr, "Failed to initialized the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }
@@ -39,10 +28,8 @@ int main() {
     else if (rv == -1)
         fprintf(stderr, "An error occurred while running the loop\n");
 
-    fprintf(stdout, "Cleaning up and finishing...\n");
-    // Free any running events first
-    event_free(listener_event);
     // Clean program state and close socket
+    fprintf(stdout, "Cleaning up and finishing...\n");
     overseer_wipe(&overseer);
 
     // Initialize log
