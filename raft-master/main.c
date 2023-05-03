@@ -4,38 +4,22 @@
 #endif
 
 #include <event2/event.h>
-#include <unistd.h>
 #include "overseer.h"
-#include "raft-comms/heartbeat.h"
+#include "master-events.h"
 
 int message_counter = 0;
 
 int main() {
+    // Initialize program state
     overseer_s overseer;
     if (overseer_init(&overseer) == EXIT_FAILURE) {
         fprintf(stderr, "Failed to initialize the program state\n");
         exit(EXIT_FAILURE);
     }
 
-    // Create the event related to the socket
-    struct event *sender_event = event_new(overseer.eb,
-                                           overseer.udp_socket,
-                                           EV_PERSIST | EV_TIMEOUT,
-                                           heartbeat_sendto,
-                                           (void *) &overseer);
-    if (sender_event == NULL) {
-        fprintf(stderr, "Failed to create an event\n");
-        overseer_wipe(&overseer);
-        exit(EXIT_FAILURE);
-    }
-
-    struct timeval sender_timeout = {
-            .tv_sec = 5,
-            .tv_usec = 0
-    };
-    // Add the event in the loop
-    if (event_add(sender_event, &sender_timeout) != 0) {
-        fprintf(stderr, "Failed to add an event\n");
+    // Initialize event loop
+    if (master_heartbeat_init(&overseer) == EXIT_FAILURE) {
+        fprintf(stderr, "Failed to initialized the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }
@@ -47,10 +31,8 @@ int main() {
     else if (rv == -1)
         fprintf(stderr, "An error occurred while running the loop\n");
 
-    fprintf(stdout, "Cleaning up and finishing...\n");
-    // Free any running events first
-    event_free(sender_event);
     // Clean program state and close socket
+    fprintf(stdout, "Cleaning up and finishing...\n");
     overseer_wipe(&overseer);
 
     // Initialize log

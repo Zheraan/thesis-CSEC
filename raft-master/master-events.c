@@ -17,12 +17,14 @@ void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg) {
     for (int i = 0; i < nb_hosts; i++) {
         target = &(((overseer_s *) arg)->hl->hosts[i]);
 
+        // TODO Add conditional re-resolving of nodes that are of unknown or unreachable status
+
         // Skip iteration if local is P and target isn't either S or HS
         if (local->status == HOST_STATUS_P && (target->status != HOST_STATUS_S || target->status != HOST_STATUS_HS))
             continue;
 
         // Skip iteration if local is HS and target isn't CS
-        if (local->status  == HOST_STATUS_HS && target->status != HOST_STATUS_CS)
+        if (local->status == HOST_STATUS_HS && target->status != HOST_STATUS_CS)
             continue;
 
         receiver = (target->addr);
@@ -34,10 +36,47 @@ void heartbeat_broadcast(evutil_socket_t sender, short event, void *arg) {
             hb_print(hb, stdout);
         }
 
-        if (sendto(sender, hb, sizeof(heartbeat_s), 0, (const struct sockaddr *) &receiver, receiver_len) == -1)
+        if (sendto(sender,
+                   hb,
+                   sizeof(heartbeat_s),
+                   0,
+                   (const struct sockaddr *) &receiver,
+                   receiver_len) == -1)
             perror("sendto");
+
+        // TODO Add ack timeout
     }
 
     free(hb);
     return;
+}
+
+int master_heartbeat_init(overseer_s *overseer) {
+    // Create the event related to the socket
+    struct event *sender_event = event_new(overseer->eb,
+                                           overseer->udp_socket,
+                                           EV_PERSIST | EV_TIMEOUT,
+                                           heartbeat_broadcast,
+                                           (void *) &overseer);
+    if (sender_event == NULL) {
+        fprintf(stderr, "Failed to create the heartbeat event\n");
+        return (EXIT_FAILURE);
+    }
+
+    if (event_list_add(overseer, sender_event) == EXIT_FAILURE) {
+        fprintf(stderr, "Failed to allocate the event list struct for heartbeat event\n");
+        return (EXIT_FAILURE);
+    }
+
+    struct timeval sender_timeout = {
+            .tv_sec = MASTER_HEARTBEAT_TIMEOUT_SEC,
+            .tv_usec = MASTER_HEARTBEAT_TIMEOUT_USEC
+    };
+    // Add the event in the loop
+    if (event_add(sender_event, &sender_timeout) != 0) {
+        fprintf(stderr, "Failed to add the heartbeat event\n");
+        return (EXIT_FAILURE);
+    }
+
+    return EXIT_SUCCESS;
 }
