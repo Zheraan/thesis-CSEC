@@ -7,6 +7,9 @@
 
 #include <event2/event.h>
 #include <stdlib.h>
+
+typedef struct event_list_s event_list_s;
+
 #include "overseer.h"
 
 // Linked list for keeping track of persistent events that need to be freed at some point

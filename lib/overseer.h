@@ -11,6 +11,8 @@
 #include <event2/event.h>
 #include <event2/util.h>
 
+typedef struct overseer_s overseer_s;
+
 #include "raft-comms/heartbeat.h"
 #include "hosts-list/hosts-list.h"
 #include "hosts-list/host.h"
