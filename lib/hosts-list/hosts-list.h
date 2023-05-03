@@ -31,7 +31,7 @@
 
 typedef struct hosts_list_s {
     host_s hosts[HOSTS_LIST_SIZE]; //TODO Replace by a hashtable
-    int localhost_id;
+    uint32_t localhost_id;
     uint32_t nb_hosts;
 } hosts_list_s;
 
