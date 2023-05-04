@@ -16,7 +16,7 @@
 #include "overseer.h"
 
 // Broadcasts a heartbeat to all S and HS if local is P, and to all CS if local is HS
-void heartbeat_master_broadcast(evutil_socket_t sender, short event, void *arg);
+void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *arg);
 
 int master_heartbeat_init(overseer_s *overseer);
 

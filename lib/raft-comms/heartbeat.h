@@ -36,11 +36,10 @@ typedef struct heartbeat_s {
 // Outputs the state of the structure to the specified output
 void hb_print(heartbeat_s *hb, FILE *stream);
 
-void heartbeat_sendto(evutil_socket_t sender, short event, void *arg);
+void heartbeat_receive_cb(evutil_socket_t fd, short event, void *arg);
 
-void heartbeat_receive(evutil_socket_t listener, short event, void *arg);
-
-void ack_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, int flag);
+// Sends an ack (heartbeat with ack flag) to the provided address with any eventual additional flags
+void heartbeat_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, int flag);
 
 heartbeat_s *heartbeat_new(overseer_s *overseer, int flags);
 

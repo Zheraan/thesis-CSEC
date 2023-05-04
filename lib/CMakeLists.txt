@@ -24,4 +24,5 @@ add_library(
         overseer.h
         overseer.c
         event-list.c
-        event-list.h)
+        event-list.h
+)

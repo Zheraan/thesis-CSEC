@@ -1,5 +1,7 @@
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 2
+#endif
 
-#include <event2/event.h>
 #include "overseer.h"
 #include "server-events.h"
 

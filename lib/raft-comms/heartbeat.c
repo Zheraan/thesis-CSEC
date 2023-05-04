@@ -24,37 +24,8 @@ void hb_print(heartbeat_s *hb, FILE *stream) {
     return;
 }
 
-void heartbeat_sendto(evutil_socket_t sender, short event, void *arg) {
-    heartbeat_s *hb = heartbeat_new((overseer_s *) arg, 0);
-
-    // FIXME change to include target of heartbeat instead of hosts[1]
-    struct sockaddr_in6 receiver = (((overseer_s *) arg)->hl->hosts[1].addr);
-    socklen_t receiver_len = (((overseer_s *) arg)->hl->hosts[1].addr_len);
-
-    char buf[256];
-    evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
-    if (DEBUG_LEVEL > 2) {
-        printf("Sending to %s the following heartbeat:\n", buf);
-        hb_print(hb, stdout);
-    }
-
-    errno = 0;
-    do {
-        if (sendto(sender,
-                   hb,
-                   sizeof(heartbeat_s),
-                   0,
-                   (const struct sockaddr *) &receiver,
-                   receiver_len) == -1)
-            perror("sendto");
-    } while (errno == EAGAIN);
-
-    free(hb);
-    return;
-}
-
-void ack_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, int flag) {
-    heartbeat_s *hb = heartbeat_new(overseer, HB_FLAG_HB_ACK | flag);
+void heartbeat_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, int flag) {
+    heartbeat_s *hb = heartbeat_new(overseer, flag);
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
@@ -71,7 +42,7 @@ void ack_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t so
     } while (errno == EAGAIN);
 
     if (DEBUG_LEVEL >= 1) {
-        printf("Acked back to %s with the following heartbeat:\n", buf);
+        printf("Sending to %s the following heartbeat:\n", buf);
         hb_print(hb, stdout);
     }
 
@@ -79,14 +50,14 @@ void ack_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t so
     return;
 }
 
-void heartbeat_receive(evutil_socket_t listener, short event, void *arg) {
+void heartbeat_receive_cb(evutil_socket_t fd, short event, void *arg) {
     heartbeat_s hb;
     struct sockaddr_in6 sender;
     socklen_t sender_len;
 
     do {
         errno = 0;
-        if (recvfrom(listener, &hb, sizeof(heartbeat_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
+        if (recvfrom(fd, &hb, sizeof(heartbeat_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
             perror("recvfrom");
     } while (errno == EAGAIN);
 
@@ -103,12 +74,12 @@ void heartbeat_receive(evutil_socket_t listener, short event, void *arg) {
         // Default heartbeat means replying with normal ack
         if (DEBUG_LEVEL >= 1)
             printf("-> is DEFAULT\n");
-        ack_sendto(((overseer_s *) arg), sender,sender_len, 0);
+        heartbeat_sendto(((overseer_s *) arg), sender, sender_len, HB_FLAG_HB_ACK);
     }
     if ((hb.flags & HB_FLAG_HB_ACK) == HB_FLAG_HB_ACK) {
         if (DEBUG_LEVEL >= 1)
-            printf("-> is ACK\n");
-        // TODO Apply any effects of ack
+            printf("-> is heartbeat ACK\n");
+        // TODO Apply any effects of ack (reset timeout for next ack...)
     }
     if ((hb.flags & HB_FLAG_P_TAKEOVER) == HB_FLAG_P_TAKEOVER) {
         if (DEBUG_LEVEL >= 1)

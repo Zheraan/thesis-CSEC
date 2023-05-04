@@ -31,7 +31,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
 
     char line[256];
 
-    // Read each line in the hostfile
+    // Read each row in the hostfile
     while (fgets(line, sizeof(line), file)) {
 
         // Skip blank lines
@@ -118,7 +118,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         }
 
         if (res == NULL) {
-            // In case getaddrinfo failed to resolve the address contained in the line
+            // In case getaddrinfo failed to resolve the address contained in the row
             fprintf(stderr, "No host resolved for '%s'", token);
             list->hosts[parsed].status = HOST_STATUS_UNRESOLVED;
             if (DEBUG_LEVEL >= 2) {
@@ -138,7 +138,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             }
         }
 
-        // Copy the address line in the host entry struct
+        // Copy the address row in the host entry struct
         // Can be used to try again later in case the host can't be resolved now
         snprintf(list->hosts[parsed].addr_string, 256, "%s", token);
 
@@ -170,7 +170,7 @@ int host_re_resolve(hosts_list_s *list, uint32_t host_id) {
     }
 
     if (res == NULL) {
-        // In case getaddrinfo failed to resolve the address contained in the line
+        // In case getaddrinfo failed to resolve the address contained in the row
         fprintf(stderr, "No host found for '%s'", list->hosts[host_id].addr_string);
         list->hosts[host_id].status = HOST_STATUS_UNRESOLVED;
         freeaddrinfo(res);
