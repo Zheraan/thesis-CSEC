@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <event2/event.h>
 #include <event2/util.h>
 
@@ -20,6 +21,7 @@ typedef struct overseer_s overseer_s;
 #include "event-list.h"
 #include "shared-events.h"
 #include "mocked-fs/data-op.h"
+#include "mocked-fs/mocked-fs.h"
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 2
@@ -41,6 +43,7 @@ typedef struct overseer_s{
     log_s *log;
     evutil_socket_t udp_socket;
     event_list_s *el;
+    mocked_fs_s *mfs;
 }overseer_s;
 
 // Initializes the program state structure passed by address.

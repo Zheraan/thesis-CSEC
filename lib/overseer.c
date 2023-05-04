@@ -9,7 +9,7 @@ int overseer_init(overseer_s *overseer) {
     hosts_list_s *hl = malloc(sizeof(hosts_list_s));
     if (hl == NULL) {
         perror("Malloc hosts list");
-        return (EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
     overseer->hl = hl;
 
@@ -17,26 +17,24 @@ int overseer_init(overseer_s *overseer) {
     log_s *log = malloc(sizeof(log_s));
     if (hl == NULL) {
         perror("Malloc log");
-        free(hl);
-        return (EXIT_FAILURE);
+        overseer_wipe(overseer);
+        return EXIT_FAILURE;
     }
     overseer->log = log_init(log);
 
     // Init the hosts list
     if (hosts_init("hostfile.txt", overseer->hl) < 1) {
         fprintf(stderr, "Failed to parse any hosts\n");
-        free(hl);
-        free(log);
-        return (EXIT_FAILURE);
+        overseer_wipe(overseer);
+        return EXIT_FAILURE;
     }
 
     // Create a configured event base
     struct event_base *eb = eb_new();
     if (eb == NULL) {
         fprintf(stderr, "Failed to create the event base\n");
-        free(hl);
-        free(log);
-        return (EXIT_FAILURE);
+        overseer_wipe(overseer);
+        return EXIT_FAILURE;
     }
     overseer->eb = eb;
 
@@ -44,10 +42,8 @@ int overseer_init(overseer_s *overseer) {
     overseer->udp_socket = socket(AF_INET6, SOCK_DGRAM, 0);
     if (overseer->udp_socket == -1 || evutil_make_socket_nonblocking(overseer->udp_socket) != 0) {
         perror("Socket init error");
-        free(hl);
-        free(log);
-        event_base_free(eb);
-        return (EXIT_FAILURE);
+        overseer_wipe(overseer);
+        return EXIT_FAILURE;
     }
 
     // Bind the socket to the local address for receiving messages
@@ -56,8 +52,19 @@ int overseer_init(overseer_s *overseer) {
              sizeof(overseer->hl->hosts[overseer->hl->localhost_id].addr)) != 0) {
         perror("Socket bind");
         overseer_wipe(overseer);
-        return (EXIT_FAILURE);
+        return EXIT_FAILURE;
     }
+
+    // Allocate and initialize the mocked filesystem
+    mocked_fs_s *nmfs = malloc(sizeof(mocked_fs_s));
+    if (nmfs == NULL) {
+        perror("malloc mfs");
+        overseer_wipe(overseer);
+        return EXIT_FAILURE;
+    }
+    memset(nmfs->array, 0, sizeof(int[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS]));
+    nmfs->nb_ops = 0;
+    overseer->mfs = nmfs;
 
     return EXIT_SUCCESS;
 }
@@ -98,11 +105,17 @@ struct event_base *eb_new() {
 }
 
 void overseer_wipe(overseer_s *overseer) {
-    free(overseer->hl);
-    free(overseer->log);
-    event_list_free(overseer->el);
-    event_base_free(overseer->eb);
-    if (close(overseer->udp_socket) != 0)
+    if (overseer->hl != NULL)
+        free(overseer->hl);
+    if (overseer->hl != NULL)
+        free(overseer->log);
+    if (overseer->hl != NULL)
+        free(overseer->mfs);
+    if (overseer->el != NULL)
+        event_list_free(overseer->el);
+    if (overseer->eb != NULL)
+        event_base_free(overseer->eb);
+    if (overseer->udp_socket != 0 && close(overseer->udp_socket) != 0)
         perror("Error closing communication socket file descriptor");
     return;
 }
