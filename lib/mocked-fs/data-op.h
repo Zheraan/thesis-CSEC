@@ -5,13 +5,18 @@
 #ifndef THESIS_CSEC_DATA_OP_H
 #define THESIS_CSEC_DATA_OP_H
 
-#include "stdint.h"
+#include <stdint.h>
+#include <event2/util.h>
+#include "mocked-fs.h"
 
 typedef struct data_op_s{
     // TODO
-    uint64_t line;
+    uint64_t row;
     uint64_t column;
-    char newchar;
+    int newval;
 } data_op_s;
+
+// Returns a new data op struct initialized with random values, or NULL in case malloc failed
+data_op_s *op_new();
 
 #endif //THESIS_CSEC_DATA_OP_H
