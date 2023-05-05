@@ -47,7 +47,7 @@ int server_random_ops_init(overseer_s *overseer) {
     }
 
     // Add the event in the loop
-    struct timeval ops_timeout = timeout_random(TIMEOUT_TYPE_PROPOSITION);
+    struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_RANDOM_OPS);
     if (errno == EUNKOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
         fprintf(stderr, "Failed to add the reception event\n");
         return EXIT_FAILURE;
