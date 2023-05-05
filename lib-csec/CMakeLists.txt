@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
-project(lib_csec C)
+project(lib-csec C)
 
 set(CMAKE_C_STANDARD 11)
 
 add_library(
-        lib_csec
+        lib-csec
         mocked-fs/data-op.h
         mocked-fs/data-op.c
         shared-events.h
