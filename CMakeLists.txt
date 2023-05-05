@@ -11,11 +11,11 @@ add_library(libevent_extra STATIC IMPORTED)
 set_target_properties(libevent_extra PROPERTIES IMPORTED_LOCATION /usr/local/lib/libevent_extra.a)
 set_target_properties(libevent_extra PROPERTIES INTERFACE_INCLUDE_DIRECTORIES /usr/local/include)
 
-add_subdirectory(lib)
-include_directories(lib)
+add_subdirectory(lib-csec)
+include_directories(lib-csec)
 
 add_subdirectory(raft-server)
-target_link_libraries(raft_server lib_csec libevent_core libevent_extra)
+target_link_libraries(raft_server lib-csec libevent_core libevent_extra)
 
 add_subdirectory(raft-master)
-target_link_libraries(raft_master lib_csec libevent_core libevent_extra)
+target_link_libraries(raft_master lib-csec libevent_core libevent_extra)

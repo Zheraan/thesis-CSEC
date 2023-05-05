@@ -5,8 +5,8 @@ set(CMAKE_C_STANDARD 11)
 
 add_library(
         lib_csec
-        mocked-fs/data-op.c
         mocked-fs/data-op.h
+        mocked-fs/data-op.c
         shared-events.h
         shared-events.c
         hosts-list/host.c
@@ -25,4 +25,5 @@ add_library(
         overseer.c
         event-list.c
         event-list.h
-)
+        timeout.c
+        timeout.h)
