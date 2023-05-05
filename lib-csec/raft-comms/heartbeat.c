@@ -5,14 +5,15 @@
 #include "heartbeat.h"
 
 void hb_print(heartbeat_s *hb, FILE *stream) {
-    fprintf(stream, "host_id:       %d\n"
-                    "status:        %d\n"
-                    "flags:         %d\n"
-                    "next_index:    %ld\n"
-                    "rep_index:     %ld\n"
-                    "match_index:   %ld\n"
-                    "commit_index:  %ld\n"
-                    "term:          %d\n",
+    fprintf(stream,
+            "host_id:       %d\n"
+            "status:        %d\n"
+            "flags:         %d\n"
+            "next_index:    %ld\n"
+            "rep_index:     %ld\n"
+            "match_index:   %ld\n"
+            "commit_index:  %ld\n"
+            "term:          %d\n",
             hb->host_id,
             hb->status,
             hb->flags,

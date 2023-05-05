@@ -5,6 +5,8 @@
 #ifndef THESIS_CSEC_DATA_OP_H
 #define THESIS_CSEC_DATA_OP_H
 
+typedef struct data_op_s data_op_s;
+
 #include <stdint.h>
 #include <event2/util.h>
 #include "mocked-fs.h"
