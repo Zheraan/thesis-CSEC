@@ -13,7 +13,8 @@ int main() {
     }
 
     // Initialize event loop
-    if (server_reception_init(&overseer) == EXIT_FAILURE) {
+    if (server_reception_init(&overseer) == EXIT_FAILURE || // Initialize the message reception handler event
+        server_random_ops_init(&overseer) == EXIT_FAILURE) { // Initialize the random ops generator
         fprintf(stderr, "Failed to initialized the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
