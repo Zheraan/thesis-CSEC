@@ -48,4 +48,7 @@ int is_blank(char const *line);
 // Returns nonzero iff row starts with a '#' and therefore is a comment
 int is_comment(char const *line);
 
+// Returns 1 if there is a node with HOST_STATUS_P in the list, 0 otherwise
+int is_p_available(hosts_list_s *list);
+
 #endif //THESIS_CSEC_HOSTS_LIST_H

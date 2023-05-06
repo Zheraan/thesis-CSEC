@@ -30,27 +30,41 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
 
 
     char line[256];
+    uint32_t nb_lines = 0;
 
     // Read each row in the hostfile
     while (fgets(line, sizeof(line), file)) {
+        nb_lines++; // Counts the number of line for accurate error display
 
         // Skip blank lines
         if (is_blank(line) == 1)
             continue;
 
-        // Skip blank lines
+        // Skip comment lines
         if (is_comment(line) == 1)
             continue;
 
-        // Strip newline in case there is one
+        // Stop if maximum number of hosts is reached and quit
+        if (parsed >= HOSTS_LIST_SIZE) {
+            fprintf(stderr,
+                    "Error: hosts list exceeding set max hosts list size.\n"
+                    "Stopped at line %d.\n"
+                    "Consider redefining HOSTS_LIST_SIZE preprocessor macro at compile time.\n",
+                    nb_lines);
+            freeaddrinfo(res);
+            fclose(file);
+            exit(EXIT_FAILURE);
+        }
+
+        // Strip newline characters in case there are some
         line[strcspn(line, "\r\n")] = 0;
 
         // Parsing type
         const char delim[] = ",";
         char *token = strtok(line, delim);
         if (DEBUG_LEVEL >= 2) {
-            fprintf(stdout, "Parsing host no.%d:\n"
-                            "   -type: %s\n", parsed, token);
+            fprintf(stdout, "Parsing host no.%d at line %d:\n"
+                            "   -type: %s\n", parsed, nb_lines, token);
         }
         switch (token[0]) {
             case 'M':
@@ -206,3 +220,10 @@ int is_comment(char const *line) {
     return 0;
 }
 
+int is_p_available(hosts_list_s *list) {
+    for (int i = 0; i < list->nb_hosts; ++i) {
+        if(list->hosts[i].status == HOST_STATUS_P)
+            return 1;
+    }
+    return 0;
+}
