@@ -33,7 +33,22 @@ ops_queue_s *ops_queue_add(data_op_s *op, mocked_fs_s *mfs){
 }
 
 void ops_queue_element_free(ops_queue_s *element){
-    free(element->op);
+    event_del(element->timeout_event);
+    event_free(element->timeout_event);
     free(element);
+    return;
+}
+
+void ops_queue_free_all(ops_queue_s *queue){
+    if(queue == NULL)
+        return;
+    ops_queue_s *ptr = queue;
+    ops_queue_s *next;
+    do {
+        next = queue->next;
+        free(ptr->op);
+        ops_queue_element_free(ptr);
+        ptr = next;
+    } while (ptr != NULL);
     return;
 }
