@@ -12,24 +12,26 @@
 #define EUNKOWN_TIMEOUT_TYPE (-1)
 
 #ifndef TIMEOUT_OFFSET_USEC
-#define TIMEOUT_OFFSET_USEC 100 // minimum value of timeouts' timeval's usec value, maximum is offset + range
+// minimum value of timeouts' timeval's usec value for randomized timers, maximum is offset + range
+#define TIMEOUT_OFFSET_USEC 100
 #endif
 
 #ifndef TIMEOUT_OFFSET_SEC
-#define TIMEOUT_OFFSET_SEC 0 // minimum value of timeouts' timeval's sec value, maximum is offset + range
+// minimum value of timeouts' timeval's sec value for randomized timers, maximum is offset + range
+#define TIMEOUT_OFFSET_SEC 0
 #endif
 
 // Defines for the range of the usec value in timeouts' timeval
 #ifndef TIMEOUT_RANGE_P_HB_USEC
-#define TIMEOUT_RANGE_P_HB_USEC 500
+#define TIMEOUT_RANGE_P_HB_USEC 0
 #endif
 
 #ifndef TIMEOUT_RANGE_HS_HB_USEC
-#define TIMEOUT_RANGE_HS_HB_USEC 500
+#define TIMEOUT_RANGE_HS_HB_USEC 0
 #endif
 
 #ifndef TIMEOUT_RANGE_ELECTION_USEC
-#define TIMEOUT_RANGE_ELECTION_USEC 500
+#define TIMEOUT_RANGE_ELECTION_USEC 150000 // Default: 150ms
 #endif
 
 #ifndef TIMEOUT_RANGE_FUZZER_USEC
@@ -42,11 +44,11 @@
 
 // Defines for the range of the sec value in timeouts' timeval
 #ifndef TIMEOUT_RANGE_P_HB_SEC
-#define TIMEOUT_RANGE_P_HB_SEC 0
+#define TIMEOUT_RANGE_P_HB_SEC 1
 #endif
 
 #ifndef TIMEOUT_RANGE_HS_HB_SEC
-#define TIMEOUT_RANGE_HS_HB_SEC 0
+#define TIMEOUT_RANGE_HS_HB_SEC 1
 #endif
 
 #ifndef TIMEOUT_RANGE_ELECTION_SEC
@@ -58,12 +60,12 @@
 #endif
 
 #ifndef TIMEOUT_RANGE_RANDOM_OPS_SEC
-#define TIMEOUT_RANGE_RANDOM_OPS_SEC 5
+#define TIMEOUT_RANGE_RANDOM_OPS_SEC 8
 #endif
 
 // Defines for the fixed timeouts values
 #ifndef TIMEOUT_VALUE_PROPOSITION_USEC
-#define TIMEOUT_VALUE_PROPOSITION_USEC 500
+#define TIMEOUT_VALUE_PROPOSITION_USEC 500000 // Default: 500ms
 #endif
 
 #ifndef TIMEOUT_VALUE_PROPOSITION_SEC
@@ -75,17 +77,26 @@
 #endif
 
 #ifndef TIMEOUT_VALUE_ACK_USEC
-#define TIMEOUT_VALUE_ACK_USEC 500
+#define TIMEOUT_VALUE_ACK_USEC 100000 // Default: 100ms
+#endif
+
+#ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC
+#define TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC 0
+#endif
+
+#ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC
+#define TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC 300000 // Default: 300ms
 #endif
 
 enum timeout_type{
     TIMEOUT_TYPE_P_HB = 0, // P master heartbeat timeout type
     TIMEOUT_TYPE_HS_HB = 1, // HS master heartbeat timeout
-    TIMEOUT_TYPE_PROPOSITION = 2, // Data op proposition timeout type
+    TIMEOUT_TYPE_PROPOSITION = 2, // Data op proposition timeout type, after which the proposition is deleted from queue
     TIMEOUT_TYPE_ACK = 3, // Message ack timeout type
     TIMEOUT_TYPE_ELECTION = 4, // Master election timeout type
     TIMEOUT_TYPE_FUZZER = 5, // Fuzzer delay introduction timeout type
     TIMEOUT_TYPE_RANDOM_OPS = 6, // Random data op generator timeout type
+    TIMEOUT_TYPE_PROP_RETRANSMISSION = 7, // Timeout before retransmitting cached ops proposition
 };
 
 // In case of success, returns a timeval containing a value within the defined parameters, either a random value

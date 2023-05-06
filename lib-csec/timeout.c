@@ -56,6 +56,11 @@ struct timeval timeout_gen(enum timeout_type type) {
                 modulo_sec = TIMEOUT_RANGE_RANDOM_OPS_SEC + 1;
             break;
 
+        case TIMEOUT_TYPE_PROP_RETRANSMISSION:
+            ntv.tv_usec = TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC;
+            ntv.tv_sec = TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC;
+            return ntv;
+
         default:
             fprintf(stderr, "Unknown timeout type\n");
             errno = EUNKOWN_TIMEOUT_TYPE;
