@@ -6,7 +6,7 @@
 
 int server_reception_init(overseer_s *overseer) {
     struct event *reception_event = event_new(overseer->eb,
-                                              overseer->udp_socket,
+                                              overseer->socket_hb,
                                               EV_READ | EV_PERSIST,
                                               heartbeat_receive_cb,
                                               (void *) overseer);

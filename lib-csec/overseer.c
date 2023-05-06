@@ -38,24 +38,43 @@ int overseer_init(overseer_s *overseer) {
     }
     overseer->eb = eb;
 
-    // Create the socket (since sockets are int aliases it's not necessary to allocate on the stack)
-    overseer->udp_socket = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (overseer->udp_socket == -1 || evutil_make_socket_nonblocking(overseer->udp_socket) != 0) {
-        perror("Socket init error");
+    // Create the socket
+    overseer->socket_hb = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (overseer->socket_hb == -1 || evutil_make_socket_nonblocking(overseer->socket_hb) != 0) {
+        perror("Socket hb init error");
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
 
     // Bind the socket to the local address for receiving messages
-    if (bind(overseer->udp_socket,
+    if (bind(overseer->socket_hb,
              (struct sockaddr *) &(overseer->hl->hosts[overseer->hl->localhost_id].addr),
              sizeof(overseer->hl->hosts[overseer->hl->localhost_id].addr)) != 0) {
-        perror("Socket bind");
+        perror("Socket hb bind");
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
 
-    // TODO Create second socket for transmissions
+    // Create the socket
+    overseer->socket_tr = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (overseer->socket_tr == -1 || evutil_make_socket_nonblocking(overseer->socket_tr) != 0) {
+        perror("Socket tr init error");
+        overseer_wipe(overseer);
+        return EXIT_FAILURE;
+    }
+
+    // Create a second address struct with same address but different port to be used for the second socket
+    struct sockaddr_in6 naddr = overseer->hl->hosts[overseer->hl->localhost_id].addr;
+    naddr.sin6_port = htons(35008);
+
+    // Bind the socket to the local address for receiving messages
+    if (bind(overseer->socket_tr,
+             (struct sockaddr *) &(overseer->hl->hosts[overseer->hl->localhost_id].addr),
+             sizeof(overseer->hl->hosts[overseer->hl->localhost_id].addr)) != 0) {
+        perror("Socket tr bind");
+        overseer_wipe(overseer);
+        return EXIT_FAILURE;
+    }
 
     // Allocate and initialize the mocked filesystem
     mocked_fs_s *nmfs = malloc(sizeof(mocked_fs_s));
@@ -120,7 +139,7 @@ void overseer_wipe(overseer_s *overseer) {
         event_list_free(overseer->el);
     if (overseer->eb != NULL)
         event_base_free(overseer->eb);
-    if (overseer->udp_socket != 0 && close(overseer->udp_socket) != 0)
+    if (overseer->socket_hb != 0 && close(overseer->socket_hb) != 0)
         perror("Error closing communication socket file descriptor");
     return;
 }

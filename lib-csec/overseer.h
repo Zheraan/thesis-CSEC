@@ -41,7 +41,8 @@ typedef struct overseer_s{
     struct event_base *eb;
     hosts_list_s *hl;
     log_s *log;
-    evutil_socket_t udp_socket;
+    evutil_socket_t socket_hb;
+    evutil_socket_t socket_tr;
     event_list_s *el;
     mocked_fs_s *mfs;
 }overseer_s;

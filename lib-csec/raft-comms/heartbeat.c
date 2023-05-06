@@ -33,7 +33,7 @@ void heartbeat_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, sockle
 
     do {
         errno = 0;
-        if (sendto(overseer->udp_socket,
+        if (sendto(overseer->socket_hb,
                    hb,
                    sizeof(heartbeat_s),
                    0,

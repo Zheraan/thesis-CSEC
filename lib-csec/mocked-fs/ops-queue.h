@@ -5,6 +5,8 @@
 #ifndef THESIS_CSEC_OPS_QUEUE_H
 #define THESIS_CSEC_OPS_QUEUE_H
 
+typedef struct ops_queue_s ops_queue_s;
+
 #include <event2/event.h>
 #include "data-op.h"
 #include "mocked-fs.h"
