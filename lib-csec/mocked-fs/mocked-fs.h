@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "data-op.h"
+#include "ops-queue.h"
 
 #ifndef MOCKED_FS_ARRAY_COLUMNS
 #define MOCKED_FS_ARRAY_COLUMNS 10
@@ -21,6 +22,7 @@
 typedef struct mocked_fs_s{
     int array[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS]; // Array containing the synced data, initialized to all 0
     uint64_t nb_ops; // Number of ops applied since initialization
+    ops_queue_s *queue;
 } mocked_fs_s;
 
 // Prints the contents of the mocked filesystem to the specified stream

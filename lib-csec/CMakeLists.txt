@@ -26,4 +26,6 @@ add_library(
         event-list.c
         event-list.h
         timeout.c
-        timeout.h)
+        timeout.h
+        mocked-fs/ops-queue.c
+        mocked-fs/ops-queue.h)
