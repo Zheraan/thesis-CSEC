@@ -5,6 +5,8 @@
 #ifndef THESIS_CSEC_MOCKED_FS_H
 #define THESIS_CSEC_MOCKED_FS_H
 
+typedef struct mocked_fs_s mocked_fs_s;
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +25,7 @@ typedef struct mocked_fs_s{
     int array[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS]; // Array containing the synced data, initialized to all 0
     uint64_t nb_ops; // Number of ops applied since initialization
     ops_queue_s *queue;
+    data_op_s *cache;
 } mocked_fs_s;
 
 // Prints the contents of the mocked filesystem to the specified stream

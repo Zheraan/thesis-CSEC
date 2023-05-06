@@ -18,7 +18,7 @@ typedef struct data_op_s{
     int newval;
 } data_op_s;
 
-// Returns a new data op struct initialized with random values, or NULL in case malloc failed
+// Returns a newly allocated data op struct initialized with random values, or NULL in case malloc failed
 data_op_s *op_new();
 
 #endif //THESIS_CSEC_DATA_OP_H

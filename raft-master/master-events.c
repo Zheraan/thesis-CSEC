@@ -60,11 +60,14 @@ int master_heartbeat_init(overseer_s *overseer) {
                                            overseer->udp_socket,
                                            EV_PERSIST | EV_TIMEOUT,
                                            master_heartbeat_broadcast_cb,
-                                           (void *) &overseer);
+                                           (void *) overseer);
     if (sender_event == NULL) {
         fprintf(stderr, "Failed to create the heartbeat event\n");
         return (EXIT_FAILURE);
     }
+
+    // Heartbeat has high priority
+    event_priority_set(sender_event, 0);
 
     if (event_list_add(overseer, sender_event) == EXIT_FAILURE) {
         fprintf(stderr, "Failed to allocate the event list struct for heartbeat event\n");

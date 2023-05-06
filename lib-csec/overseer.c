@@ -55,6 +55,8 @@ int overseer_init(overseer_s *overseer) {
         return EXIT_FAILURE;
     }
 
+    // TODO Create second socket for transmissions
+
     // Allocate and initialize the mocked filesystem
     mocked_fs_s *nmfs = malloc(sizeof(mocked_fs_s));
     if (nmfs == NULL) {
@@ -107,10 +109,13 @@ struct event_base *eb_new() {
 void overseer_wipe(overseer_s *overseer) {
     if (overseer->hl != NULL)
         free(overseer->hl);
-    if (overseer->hl != NULL)
+    if (overseer->log != NULL)
         free(overseer->log);
-    if (overseer->hl != NULL)
+    if (overseer->mfs != NULL) {
+        ops_queue_free_all(overseer->mfs->queue);
+        free(overseer->mfs->cache);
         free(overseer->mfs);
+    }
     if (overseer->el != NULL)
         event_list_free(overseer->el);
     if (overseer->eb != NULL)
