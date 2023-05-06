@@ -49,7 +49,7 @@ int main() {
      *          > update hosts list state
      *              - prevent possibility of DOS
      *              - maybe through checking if P is previous HS ?
-     *          > send queued element if any
+     *          > send first queued element if any
      *      > Check term
      *          > Ack with correct term and who is P if wrong
      *      > check match index
@@ -78,41 +78,49 @@ int main() {
      * ------------- Log entries --------------------------------------------------
      *
      * > Data Op reception
-     *      > Create entry with created status
-     *      - Entry queue not empty
-     *          > queue it up
-     *      - Entry queue empty
-     *          > Keep it cached
+     *      > Create op queue element
+     *      > Check if queue is empty
+     *      > Queue it up
+     *      > Set timer for deletion
+     *      - Entry queue was empty when checked
      *          - There is an active P
+     *              > cache it
      *              > Send proposition to P
-     *          - There is no P
-     *              > Queue it up with no P flag
-     *              > Set timeout for deletion but not for retransmission
+     *              > set timeout for retransmission
      *
      * > Replicate entry order
      *      - Term invalid
-     *          > Ack with right term
+     *          - Incoming is lower (should not be possible)
+     *              > Ack with right term and special flag
+     *          - Local is lower
+     *              > Adjust local
      *      - Indexes invalid
      *          > Ask for needed entries if any
+     *              > Dequeue all queued ops if necessary
      *          > Fix the incoherences otherwise
      *      - All valid
      *          > create corresponding pending entry
      *          > Ack back
+     *          > Transmit first queue element
      *
      * > Log entry proposal ack received
      *      - Special flag for invalid indexes and/or terms
-     *          > Abandon created entry
+     *          > Dequeue all queued ops if necessary
      *          > Apply fix, ask for next one if any
      *      - Rejected due to "proposed" state
-     *          > Queue the cached proposition
+     *          > Do nothing (commit entry order will trigger retransmission of first event in queue)
      *      - Validated
      *          > Make entry pending
      *
      * > Commit entry order
      *      - Term invalid
-     *          > Ack with right term
+     *          - Incoming is lower (should not be possible)
+     *              > Ack with right term and special flag
+     *          - Local is lower
+     *              > Adjust local
      *      - Indexes invalid
      *          > Ask for needed entries if any
+     *              > Dequeue all queued ops if necessary
      *          > Fix the incoherences otherwise
      *      - All valid
      *          > commit corresponding pending entry
@@ -121,19 +129,20 @@ int main() {
      *
      *
      *
+     * ------------- Data op queue ------------------------------------------------
+     *
+     * > Deletion timeout
+     *      > Remove all elements from queue to prevent incoherences (subsequent data ops may depend on the head)
+     *
+     * > Retransmission timeout
+     *
+     *
+     *
      * ------------- History snapshotting and message counter reset ---------------
      *
      *
      *
      * ------------- Manual input channel -----------------------------------------
-     *
-     *
-     *
-     * ------------- Entry queue --------------------------------------------------
-     *
-     * > Deletion timeout
-     *
-     * > Retransmission timeout
      *
      *
      *
