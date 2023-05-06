@@ -9,11 +9,14 @@ int server_reception_init(overseer_s *overseer) {
                                               overseer->udp_socket,
                                               EV_READ | EV_PERSIST,
                                               heartbeat_receive_cb,
-                                              (void *) &overseer);
+                                              (void *) overseer);
     if (reception_event == NULL) {
         fprintf(stderr, "Failed to create the reception event\n");
         return EXIT_FAILURE;
     }
+
+    // Message reception has low priority
+    event_priority_set(reception_event, 1);
 
     if (event_list_add(overseer, reception_event) == EXIT_FAILURE) {
         fprintf(stderr, "Failed to allocate the event list struct for reception event\n");
@@ -30,26 +33,29 @@ int server_reception_init(overseer_s *overseer) {
 }
 
 int server_random_ops_init(overseer_s *overseer) {
-    // Create the event related to the socket
+    // Create a persistent event only triggered by timeout
     struct event *nevent = event_new(overseer->eb,
-                                     overseer->udp_socket,
+                                     -1,
                                      EV_TIMEOUT | EV_PERSIST,
                                      server_random_ops_cb,
-                                     (void *) &overseer);
+                                     (void *) overseer);
     if (nevent == NULL) {
-        fprintf(stderr, "Failed to create the reception event\n");
+        fprintf(stderr, "Failed to create the data op event\n");
         return EXIT_FAILURE;
     }
 
+    // Random operation generator has low priority
+    event_priority_set(nevent, 1);
+
     if (event_list_add(overseer, nevent) == EXIT_FAILURE) {
-        fprintf(stderr, "Failed to allocate the event list struct for reception event\n");
+        fprintf(stderr, "Failed to allocate the event list struct for the data op event\n");
         return (EXIT_FAILURE);
     }
 
     // Add the event in the loop
     struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_RANDOM_OPS);
     if (errno == EUNKOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
-        fprintf(stderr, "Failed to add the reception event\n");
+        fprintf(stderr, "Failed to add the data op event\n");
         return EXIT_FAILURE;
     }
 
