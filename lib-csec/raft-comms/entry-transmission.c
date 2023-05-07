@@ -5,7 +5,21 @@
 #include "entry-transmission.h"
 
 void tr_print(const transmission_s *tr, FILE *stream) {
-    // TODO
+    cm_print(&(tr->cm), stream);
+    fprintf(stream,
+            "state: %d\n"
+            "index: %d\n"
+            "term:  %d\n"
+            "data_op:\n"
+            "- column   %ld\n"
+            "- row      %ld\n"
+            "- newval   %d\n",
+            tr->state,
+            tr->index,
+            tr->term,
+            tr->op.column,
+            tr->op.row,
+            tr->op.newval);
     return;
 }
 
@@ -34,7 +48,48 @@ void tr_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen
 }
 
 void tr_receive_cb(evutil_socket_t fd, short event, void *arg) {
-    // TODO tr_receive_cb
+    transmission_s tr;
+    struct sockaddr_in6 sender;
+    socklen_t sender_len;
+
+    do {
+        errno = 0;
+        if (recvfrom(fd, &tr, sizeof(transmission_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
+            perror("recvfrom TR");
+    } while (errno == EAGAIN);
+
+    if (DEBUG_LEVEL >= 1) {
+        char buf[256];
+        evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
+        printf("Received from %s a TR:\n", buf);
+        if (DEBUG_LEVEL >= 3)
+            tr_print(&tr, stdout);
+    }
+
+    // Responses depending on the type of control message
+    switch (tr.cm.type) {
+        case MSG_TYPE_TR_ENTRY :
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is TR ENTRY\n");
+            // TODO Effects of TR ENTRY reception
+            break;
+
+        case MSG_TYPE_TR_COMMIT:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is TR COMMIT\n");
+            // TODO Effects of TR COMMIT reception
+            break;
+
+        case MSG_TYPE_TR_PROPOSITION:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is TR PROPOSITION\n");
+            // TODO Effects of TR PROPOSITION reception
+            break;
+
+        default:
+            fprintf(stderr, "Invalid transmission type %d\n", tr.cm.type);
+    }
+
     return;
 }
 
