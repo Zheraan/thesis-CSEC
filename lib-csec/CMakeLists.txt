@@ -7,8 +7,8 @@ add_library(
         lib-csec
         mocked-fs/data-op.h
         mocked-fs/data-op.c
-        shared-events.h
-        shared-events.c
+        raft-comms/shared-events.h
+        raft-comms/shared-events.c
         hosts-list/host.c
         hosts-list/host.h
         hosts-list/hosts-list.c
@@ -25,7 +25,9 @@ add_library(
         overseer.c
         event-list.c
         event-list.h
-        timeout.c
-        timeout.h
+        raft-comms/timeout.c
+        raft-comms/timeout.h
         mocked-fs/ops-queue.c
-        mocked-fs/ops-queue.h)
+        mocked-fs/ops-queue.h
+        raft-comms/transmission.c
+        raft-comms/transmission.h)

@@ -6,7 +6,7 @@
 #define THESIS_CSEC_TIMEOUT_H
 
 #include <stdio.h>
-#include "errno.h"
+#include <errno.h>
 #include <event2/util.h>
 
 #define EUNKOWN_TIMEOUT_TYPE (-1)
