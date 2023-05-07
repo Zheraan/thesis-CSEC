@@ -57,7 +57,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
 int master_heartbeat_init(overseer_s *overseer) {
     // Create the event related to the socket
     struct event *sender_event = event_new(overseer->eb,
-                                           overseer->socket_hb,
+                                           overseer->socket_cm,
                                            EV_PERSIST | EV_TIMEOUT,
                                            master_heartbeat_broadcast_cb,
                                            (void *) overseer);

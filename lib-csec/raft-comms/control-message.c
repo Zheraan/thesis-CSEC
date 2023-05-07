@@ -4,7 +4,7 @@
 
 #include "control-message.h"
 
-void cm_print(control_message_s *hb, FILE *stream) {
+void cm_print(const control_message_s *hb, FILE *stream) {
     fprintf(stream,
             "host_id:       %d\n"
             "status:        %d\n"
@@ -23,7 +23,7 @@ void cm_print(control_message_s *hb, FILE *stream) {
     return;
 }
 
-void cm_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
+void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
     control_message_s *cm = cm_new(overseer, type);
 
     char buf[256];
@@ -31,7 +31,7 @@ void cm_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t soc
 
     do {
         errno = 0;
-        if (sendto(overseer->socket_hb,
+        if (sendto(overseer->socket_cm,
                    cm,
                    sizeof(control_message_s),
                    0,
@@ -89,6 +89,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             // TODO Check term and apply any effects of P takeover if valid
             break;
 
+            // TODO Implement other message types
         default:
             fprintf(stderr, "Unknown control message type %d\n", cm.type);
     }
@@ -96,21 +97,21 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     return;
 }
 
-control_message_s *cm_new(overseer_s *overseer, enum message_type type) {
-    control_message_s *nhb = malloc(sizeof(control_message_s));
+control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
+    control_message_s *ncm = malloc(sizeof(control_message_s));
 
-    if (nhb == NULL) {
+    if (ncm == NULL) {
         perror("malloc new control message struct");
-        exit(EXIT_FAILURE);
+        return(NULL);
     }
 
-    nhb->host_id = overseer->hl->localhost_id;
-    nhb->status = overseer->hl->hosts[nhb->host_id].status;
-    nhb->type = type;
-    nhb->next_index = overseer->log->next_index;
-    nhb->rep_index = overseer->log->rep_index;
-    nhb->match_index = overseer->log->match_index;
-    nhb->term = overseer->log->P_term;
+    ncm->host_id = overseer->hl->localhost_id;
+    ncm->status = overseer->hl->hosts[ncm->host_id].status;
+    ncm->type = type;
+    ncm->next_index = overseer->log->next_index;
+    ncm->rep_index = overseer->log->rep_index;
+    ncm->match_index = overseer->log->match_index;
+    ncm->term = overseer->log->P_term;
 
-    return nhb;
+    return ncm;
 }

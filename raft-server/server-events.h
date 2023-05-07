@@ -40,7 +40,7 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
 // new log entry proposition to P and sets a timeout for retransmission
 int server_proposition_send_init(overseer_s *overseer, ops_queue_s *element);
 
-// Retransmits the cached proposition
+// Callback for retransmitting the cached proposition
 void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 
 #endif //THESIS_CSEC_SERVER_EVENTS_H

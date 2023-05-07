@@ -6,7 +6,7 @@
 
 int server_reception_init(overseer_s *overseer) {
     struct event *reception_event = event_new(overseer->eb,
-                                              overseer->socket_hb,
+                                              overseer->socket_cm,
                                               EV_READ | EV_PERSIST,
                                               cm_receive_cb,
                                               (void *) overseer);
@@ -111,7 +111,9 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
 
 void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void *arg) {
     // Since ops are queued in order and we can't guarantee that subsequent ops aren't dependent on the first one,
-    // we clear the full queue to avoid incoherences caused by partial applications
+    // we clear the full queue to avoid incoherences caused by partial applications.
+    // Since ops_queue_free_all() also removes dequeuing events tied to queue elements, there is not risk of events
+    // eventually added being accidentally removed.
     ops_queue_free_all(((overseer_s *) arg)->mfs->queue);
     return;
 }

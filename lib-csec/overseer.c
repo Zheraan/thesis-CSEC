@@ -39,18 +39,18 @@ int overseer_init(overseer_s *overseer) {
     overseer->eb = eb;
 
     // Create the socket
-    overseer->socket_hb = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (overseer->socket_hb == -1 || evutil_make_socket_nonblocking(overseer->socket_hb) != 0) {
-        perror("Socket hb init error");
+    overseer->socket_cm = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (overseer->socket_cm == -1 || evutil_make_socket_nonblocking(overseer->socket_cm) != 0) {
+        perror("Socket cm init error");
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
 
     // Bind the socket to the local address for receiving messages
-    if (bind(overseer->socket_hb,
+    if (bind(overseer->socket_cm,
              (struct sockaddr *) &(overseer->hl->hosts[overseer->hl->localhost_id].addr),
              sizeof(overseer->hl->hosts[overseer->hl->localhost_id].addr)) != 0) {
-        perror("Socket hb bind");
+        perror("Socket cm bind");
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
@@ -140,7 +140,7 @@ void overseer_wipe(overseer_s *overseer) {
         event_list_free(overseer->el);
     if (overseer->eb != NULL)
         event_base_free(overseer->eb);
-    if (overseer->socket_hb != 0 && close(overseer->socket_hb) != 0)
+    if (overseer->socket_cm != 0 && close(overseer->socket_cm) != 0)
         perror("Error closing communication socket file descriptor");
     return;
 }

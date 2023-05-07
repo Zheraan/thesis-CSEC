@@ -43,15 +43,16 @@ typedef struct control_message_s {
     uint32_t term; // Sender's current P-term
 } control_message_s;
 
-// Outputs the state of the structure to the specified output
-void cm_print(control_message_s *hb, FILE *stream);
+// Outputs the state of the structure to the specified stream
+void cm_print(const control_message_s *hb, FILE *stream);
+
+// Sends a control message to the provided address with the provided message type
+void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type);
 
 // Callback for receiving control messages
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg);
 
-// Sends a control message to the provided address with the provided message type
-void cm_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type);
-
-control_message_s *cm_new(overseer_s *overseer, enum message_type type);
+// Allocates a new control message struct and initializes it with the overseer's values
+control_message_s *cm_new(const overseer_s *overseer, enum message_type type);
 
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H
