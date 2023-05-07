@@ -8,25 +8,23 @@ void hb_print(heartbeat_s *hb, FILE *stream) {
     fprintf(stream,
             "host_id:       %d\n"
             "status:        %d\n"
-            "flags:         %d\n"
+            "type:         %d\n"
             "next_index:    %ld\n"
             "rep_index:     %ld\n"
             "match_index:   %ld\n"
-            "commit_index:  %ld\n"
             "term:          %d\n",
             hb->host_id,
             hb->status,
-            hb->flags,
+            hb->type,
             hb->next_index,
             hb->rep_index,
             hb->match_index,
-            hb->commit_index,
             hb->term);
     return;
 }
 
-void heartbeat_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, int flag) {
-    heartbeat_s *hb = heartbeat_new(overseer, flag);
+void heartbeat_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
+    heartbeat_s *hb = heartbeat_new(overseer, type);
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
@@ -39,7 +37,7 @@ void heartbeat_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, sockle
                    0,
                    (const struct sockaddr *) &sockaddr,
                    socklen) == -1)
-            perror("ack sendto");
+            perror("heartbeat sendto");
     } while (errno == EAGAIN);
 
     if (DEBUG_LEVEL >= 1) {
@@ -71,28 +69,27 @@ void heartbeat_receive_cb(evutil_socket_t fd, short event, void *arg) {
     }
 
     // Responses depending on the type of heartbeat
-    if ((hb.flags | HB_FLAG_DEFAULT) == 0) {
-        // Default heartbeat means replying with normal ack
+    if (hb.type == MSG_TYPE_HB_DEFAULT) {
+        // Default heartbeat means replying with hb ack
         if (DEBUG_LEVEL >= 1)
-            printf("-> is DEFAULT\n");
-        heartbeat_sendto(((overseer_s *) arg), sender, sender_len, HB_FLAG_HB_ACK);
+            printf("-> is HB DEFAULT\n");
+        heartbeat_sendto(((overseer_s *) arg), sender, sender_len, MSG_TYPE_ACK_HB);
     }
-    if ((hb.flags & HB_FLAG_HB_ACK) == HB_FLAG_HB_ACK) {
+    if (hb.type == MSG_TYPE_ACK_HB) {
         if (DEBUG_LEVEL >= 1)
-            printf("-> is heartbeat ACK\n");
+            printf("-> is HB ACK\n");
         // TODO Apply any effects of ack (reset timeout for next ack...)
     }
-    if ((hb.flags & HB_FLAG_P_TAKEOVER) == HB_FLAG_P_TAKEOVER) {
+    if (hb.type == MSG_TYPE_P_TAKEOVER) {
         if (DEBUG_LEVEL >= 1)
-            printf("-> is P_TAKEOVER\n");
+            printf("-> is P TAKEOVER\n");
         // TODO Check term and apply any effects of P takeover if valid
     }
 
     return;
 }
 
-
-heartbeat_s *heartbeat_new(overseer_s *overseer, int flags) {
+heartbeat_s *heartbeat_new(overseer_s *overseer, enum message_type type) {
     heartbeat_s *nhb = malloc(sizeof(heartbeat_s));
 
     if (nhb == NULL) {
@@ -102,11 +99,10 @@ heartbeat_s *heartbeat_new(overseer_s *overseer, int flags) {
 
     nhb->host_id = overseer->hl->localhost_id;
     nhb->status = overseer->hl->hosts[nhb->host_id].status;
-    nhb->flags = flags;
+    nhb->type = type;
     nhb->next_index = overseer->log->next_index;
     nhb->rep_index = overseer->log->rep_index;
     nhb->match_index = overseer->log->match_index;
-    nhb->commit_index = overseer->log->commit_index;
     nhb->term = overseer->log->P_term;
 
     return nhb;
