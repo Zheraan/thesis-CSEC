@@ -7,7 +7,7 @@
 
 #include <event2/event.h>
 #include "overseer.h"
-#include "raft-comms/heartbeat.h"
+#include "raft-comms/control-message.h"
 #include "raft-comms/timeout.h"
 
 #ifndef QUEUE_ELEMENTS_TIMED_DELETION
@@ -15,7 +15,7 @@
 #define QUEUE_ELEMENTS_TIMED_DELETION 1 // TODO Make timed deletion conditional
 #endif
 
-// Initializes the server-side heartbeat reception event
+// Initializes the server-side control message reception event
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
 int server_reception_init(overseer_s *overseer);
 
@@ -40,7 +40,7 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
 // new log entry proposition to P and sets a timeout for retransmission
 int server_proposition_send_init(overseer_s *overseer, ops_queue_s *element);
 
-// Retransmits the cached
+// Retransmits the cached proposition
 void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 
 #endif //THESIS_CSEC_SERVER_EVENTS_H

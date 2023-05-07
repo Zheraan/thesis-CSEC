@@ -6,7 +6,7 @@
 
 void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *arg) {
     // TODO Implement flags
-    heartbeat_s *hb = heartbeat_new((overseer_s *) arg, MSG_TYPE_HB_DEFAULT);
+    control_message_s *hb = cm_new((overseer_s *) arg, MSG_TYPE_HB_DEFAULT);
     host_s *target;
     host_s *local = &(((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]);
     uint32_t nb_hosts = ((overseer_s *) arg)->hl->nb_hosts;
@@ -33,14 +33,14 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
         if (DEBUG_LEVEL >= 2) {
             printf("Sending to %s (Status: %d) the following heartbeat:\n", buf, target->status);
-            hb_print(hb, stdout);
+            cm_print(hb, stdout);
         }
 
         do {
             errno = 0;
             if (sendto(sender,
                        hb,
-                       sizeof(heartbeat_s),
+                       sizeof(control_message_s),
                        0,
                        (const struct sockaddr *) &receiver,
                        receiver_len) == -1)

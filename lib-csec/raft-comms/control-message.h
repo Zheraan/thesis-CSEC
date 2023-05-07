@@ -2,8 +2,8 @@
 // Created by zheraan on 19/04/23.
 //
 
-#ifndef THESIS_CSEC_HEARTBEAT_H
-#define THESIS_CSEC_HEARTBEAT_H
+#ifndef THESIS_CSEC_CONTROL_MESSAGE_H
+#define THESIS_CSEC_CONTROL_MESSAGE_H
 
 #include <stdint.h>
 #include <stdio.h>
@@ -32,26 +32,26 @@ enum message_type { // TODO Implement all those transmissions
     MSG_TYPE_DEMOTE = 11, // Message to signify a master with outdated term to stand down from its role
 };
 
-typedef struct heartbeat_s {
-    uint32_t host_id; // Heartbeat sender's id in the hosts list
+typedef struct control_message_s {
+    uint32_t host_id; // Message sender's id in the hosts list
     enum host_status status; // Status of the sender
-    enum message_type type; // Flags for determining the type of heartbeat
+    enum message_type type; // Enum for determining the type of control message
 
     uint64_t next_index; // Sender's next index
     uint64_t rep_index; // Sender's replication index (highest index that is either committed or pending)
     uint64_t match_index; // Sender's match index
     uint32_t term; // Sender's current P-term
-} heartbeat_s;
+} control_message_s;
 
 // Outputs the state of the structure to the specified output
-void hb_print(heartbeat_s *hb, FILE *stream);
+void cm_print(control_message_s *hb, FILE *stream);
 
-// Callback for receiving heartbeat messages
-void heartbeat_receive_cb(evutil_socket_t fd, short event, void *arg);
+// Callback for receiving control messages
+void cm_receive_cb(evutil_socket_t fd, short event, void *arg);
 
-// Sends an ack (heartbeat with ack flag) to the provided address with any eventual additional flags
-void heartbeat_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type);
+// Sends a control message to the provided address with the provided message type
+void cm_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type);
 
-heartbeat_s *heartbeat_new(overseer_s *overseer, enum message_type type);
+control_message_s *cm_new(overseer_s *overseer, enum message_type type);
 
-#endif //THESIS_CSEC_HEARTBEAT_H
+#endif //THESIS_CSEC_CONTROL_MESSAGE_H

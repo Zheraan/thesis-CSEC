@@ -14,7 +14,7 @@
 
 typedef struct overseer_s overseer_s;
 
-#include "raft-comms/heartbeat.h"
+#include "raft-comms/control-message.h"
 #include "hosts-list/hosts-list.h"
 #include "hosts-list/host.h"
 #include "raft-entry-log/log.h"

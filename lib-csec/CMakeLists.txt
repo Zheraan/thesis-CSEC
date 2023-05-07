@@ -15,8 +15,8 @@ add_library(
         hosts-list/hosts-list.h
         mocked-fs/mocked-fs.c
         mocked-fs/mocked-fs.h
-        raft-comms/heartbeat.h
-        raft-comms/heartbeat.c
+        raft-comms/control-message.h
+        raft-comms/control-message.c
         raft-entry-log/log.c
         raft-entry-log/log.h
         raft-entry-log/log-entry.c
@@ -29,5 +29,5 @@ add_library(
         raft-comms/timeout.h
         mocked-fs/ops-queue.c
         mocked-fs/ops-queue.h
-        raft-comms/transmission.c
-        raft-comms/transmission.h)
+        raft-comms/entry-transmission.c
+        raft-comms/entry-transmission.h)
