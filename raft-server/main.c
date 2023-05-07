@@ -1,5 +1,5 @@
 #ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 2
+#define DEBUG_LEVEL 4
 #endif
 
 #include "overseer.h"
