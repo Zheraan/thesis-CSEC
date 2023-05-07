@@ -40,8 +40,8 @@ void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen
             perror("cm sendto");
     } while (errno == EAGAIN);
 
-    if (DEBUG_LEVEL >= 1) {
-        printf("Sending to %s the following cm:\n", buf);
+    if (DEBUG_LEVEL >= 3) {
+        printf("Sending to %s the following CM:\n", buf);
         cm_print(cm, stdout);
     }
 
@@ -57,20 +57,20 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     do {
         errno = 0;
         if (recvfrom(fd, &cm, sizeof(control_message_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
-            perror("recvfrom");
+            perror("recvfrom CM");
     } while (errno == EAGAIN);
 
-    char buf[256];
-    evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
     if (DEBUG_LEVEL >= 1) {
-        printf("Received from %s a cm:\n", buf);
+        char buf[256];
+        evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
+        printf("Received from %s a CM:\n", buf);
         if (DEBUG_LEVEL >= 3)
             cm_print(&cm, stdout);
     }
 
     // Responses depending on the type of control message
     switch (cm.type) {
-        case MSG_TYPE_HB_DEFAULT :
+        case MSG_TYPE_HB_DEFAULT:
             if (DEBUG_LEVEL >= 1)
                 printf("-> is HB DEFAULT\n");
             // Default heartbeat means replying with cm ack
@@ -89,9 +89,44 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             // TODO Check term and apply any effects of P takeover if valid
             break;
 
-            // TODO Implement other message types
+        case MSG_TYPE_HS_TAKEOVER:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is HS TAKEOVER\n");
+            // TODO Effects of HS TAKEOVER reception
+            break;
+
+        case MSG_TYPE_LOG_REPAIR:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is LOG REPAIR\n");
+            // TODO Effects of LOG REPAIR reception
+            break;
+
+        case MSG_TYPE_LOG_REPLAY:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is LOG REPLAY\n");
+            // TODO Effects of LOG REPLAY reception
+            break;
+
+        case MSG_TYPE_ACK_ENTRY:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is ACK ENTRY\n");
+            // TODO Effects of ACK ENTRY reception
+            break;
+
+        case MSG_TYPE_ACK_COMMIT:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is ACK COMMIT\n");
+            // TODO Effects of ACK COMMIT reception
+            break;
+
+        case MSG_TYPE_DEMOTE_NOTICE:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is DEMOTE NOTICE\n");
+            // TODO Effects of DEMOTE NOTICE reception
+            break;
+
         default:
-            fprintf(stderr, "Unknown control message type %d\n", cm.type);
+            fprintf(stderr, "Invalid control message type %d\n", cm.type);
     }
 
     return;
@@ -102,7 +137,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
 
     if (ncm == NULL) {
         perror("malloc new control message struct");
-        return(NULL);
+        return (NULL);
     }
 
     ncm->host_id = overseer->hl->localhost_id;

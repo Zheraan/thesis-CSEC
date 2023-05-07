@@ -22,14 +22,14 @@ enum message_type { // TODO Implement all those transmissions
     MSG_TYPE_ACK_HB = 1, // Ack of heartbeat without issues
     MSG_TYPE_P_TAKEOVER = 2, // New P taking over
     MSG_TYPE_HS_TAKEOVER = 3, // New HS taking over
-    MSG_TYPE_REPAIR = 4, // Repairing the log, asking master for entry before next index
-    MSG_TYPE_REPLAY = 5, // Replaying the log, asking master for entry in next index
+    MSG_TYPE_LOG_REPAIR = 4, // Repairing the log, asking master for entry before next index
+    MSG_TYPE_LOG_REPLAY = 5, // Replaying the log, asking master for entry in next index
     MSG_TYPE_TR_ENTRY = 6, // Master sending a new pending entry (only valid within transmissions)
     MSG_TYPE_TR_COMMIT = 7, // Master sending the commit order for an entry (only valid within transmissions)
     MSG_TYPE_TR_PROPOSITION = 8, // Server sending a new entry proposition (only valid within transmissions)
     MSG_TYPE_ACK_ENTRY = 9, // Master sending a new pending entry (only valid within transmissions)
     MSG_TYPE_ACK_COMMIT = 10, // Master sending the commit order for an entry (only valid within transmissions)
-    MSG_TYPE_DEMOTE = 11, // Message to signify a master with outdated term to stand down from its role
+    MSG_TYPE_DEMOTE_NOTICE = 11, // Message to signify a master with outdated term to stand down from its role
 };
 
 typedef struct control_message_s {
