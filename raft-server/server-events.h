@@ -8,7 +8,7 @@
 #include <event2/event.h>
 #include "overseer.h"
 #include "raft-comms/heartbeat.h"
-#include "timeout.h"
+#include "raft-comms/timeout.h"
 
 #ifndef QUEUE_ELEMENTS_TIMED_DELETION
 // Enables the deletion of queued elements after a timeout to avoid stacking outdated elements if network is slow

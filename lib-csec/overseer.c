@@ -128,6 +128,7 @@ struct event_base *eb_new() {
 void overseer_wipe(overseer_s *overseer) {
     if (overseer->hl != NULL)
         free(overseer->hl);
+    // TODO In case local is master, free the replication arrays for all log entries
     if (overseer->log != NULL)
         free(overseer->log);
     if (overseer->mfs != NULL) {

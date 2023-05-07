@@ -6,7 +6,7 @@
 
 void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *arg) {
     // TODO Implement flags
-    heartbeat_s *hb = heartbeat_new((overseer_s *) arg, 0);
+    heartbeat_s *hb = heartbeat_new((overseer_s *) arg, MSG_TYPE_HB_DEFAULT);
     host_s *target;
     host_s *local = &(((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]);
     uint32_t nb_hosts = ((overseer_s *) arg)->hl->nb_hosts;

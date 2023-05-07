@@ -19,7 +19,7 @@ typedef struct overseer_s overseer_s;
 #include "hosts-list/host.h"
 #include "raft-entry-log/log.h"
 #include "event-list.h"
-#include "shared-events.h"
+#include "raft-comms/shared-events.h"
 #include "mocked-fs/data-op.h"
 #include "mocked-fs/mocked-fs.h"
 
