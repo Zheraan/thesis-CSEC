@@ -85,6 +85,9 @@ int overseer_init(overseer_s *overseer) {
     }
     memset(nmfs->array, 0, sizeof(int[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS]));
     nmfs->nb_ops = 0;
+    nmfs->retransmission_attempts = 0;
+    nmfs->op_cache = NULL;
+    nmfs->event_cache = NULL;
     overseer->mfs = nmfs;
 
     return EXIT_SUCCESS;
@@ -133,7 +136,7 @@ void overseer_wipe(overseer_s *overseer) {
         free(overseer->log);
     if (overseer->mfs != NULL) {
         ops_queue_free_all(overseer->mfs->queue);
-        free(overseer->mfs->cache);
+        mfs_free_cache(overseer);
         free(overseer->mfs);
     }
     if (overseer->el != NULL)
