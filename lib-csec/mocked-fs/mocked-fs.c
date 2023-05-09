@@ -16,12 +16,21 @@ void mfs_array_print(mocked_fs_s *array,  FILE *stream){
     return;
 }
 
-int mfs_apply_op(mocked_fs_s *mfs, data_op_s *op){
-    if (op->column >= MOCKED_FS_ARRAY_COLUMNS || op->row >= MOCKED_FS_ARRAY_ROWS){
+int mfs_apply_op(mocked_fs_s *mfs, data_op_s *op) {
+    if (op->column >= MOCKED_FS_ARRAY_COLUMNS || op->row >= MOCKED_FS_ARRAY_ROWS) {
         fprintf(stderr, "Data op out of MFS bounds\n");
         return EXIT_FAILURE;
     }
     mfs->array[op->row][op->column] = op->newval;
     mfs->nb_ops += 1;
     return EXIT_SUCCESS;
+}
+
+void mfs_free_cache(overseer_s *overseer) {
+    free(overseer->mfs->op_cache);
+    overseer->mfs->op_cache = NULL;
+    event_del(overseer->mfs->event_cache);
+    event_free(overseer->mfs->event_cache);
+    overseer->mfs->retransmission_attempts = 0;
+    return;
 }
