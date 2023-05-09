@@ -21,17 +21,21 @@ int log_add_entry(overseer_s *overseer, const transmission_s *tr, enum entry_sta
     nentry->is_cached = 0;
     nentry->server_maj = 0;
     nentry->master_maj = 0;
-    nentry->server_rep = malloc(sizeof(uint8_t) * overseer->hl->nb_hosts);
-    if (nentry->server_rep == NULL) {
-        perror("malloc server rep array for new entry");
-        return EXIT_FAILURE; // Abort in case of failure
-    }
 
-    nentry->master_rep = malloc(sizeof(uint8_t) * overseer->hl->nb_hosts);
-    if (nentry->master_rep == NULL) {
-        perror("malloc master rep array for new entry");
-        free(nentry->server_rep);
-        return EXIT_FAILURE; // Abort in case of failure
+    // If local host is a master node, allocate replication array for the entry
+    if (overseer->hl->hosts[overseer->hl->localhost_id].type == HOST_TYPE_M) {
+        nentry->server_rep = malloc(sizeof(uint8_t) * overseer->hl->nb_hosts);
+        if (nentry->server_rep == NULL) {
+            perror("malloc server rep array for new entry");
+            return EXIT_FAILURE; // Abort in case of failure
+        }
+
+        nentry->master_rep = malloc(sizeof(uint8_t) * overseer->hl->nb_hosts);
+        if (nentry->master_rep == NULL) {
+            perror("malloc master rep array for new entry");
+            free(nentry->server_rep);
+            return EXIT_FAILURE; // Abort in case of failure
+        }
     }
 
     nentry->op.newval = tr->op.newval;
