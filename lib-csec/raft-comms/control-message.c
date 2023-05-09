@@ -25,9 +25,18 @@ void cm_print(const control_message_s *hb, FILE *stream) {
 
 void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
     control_message_s *cm = cm_new(overseer, type);
+    if (cm == NULL) {
+        fprintf(stderr, "Failed to send message of type %d", type);
+        return;
+    }
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Sending to %s the following CM:\n", buf);
+        cm_print(cm, stdout);
+    }
 
     do {
         errno = 0;
@@ -39,11 +48,6 @@ void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen
                    socklen) == -1)
             perror("cm sendto");
     } while (errno == EAGAIN);
-
-    if (DEBUG_LEVEL >= 3) {
-        printf("Sending to %s the following CM:\n", buf);
-        cm_print(cm, stdout);
-    }
 
     free(cm);
     return;
@@ -125,6 +129,12 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             // TODO Effects of DEMOTE NOTICE reception
             break;
 
+        case MSG_TYPE_INDICATE_P:
+            if (DEBUG_LEVEL >= 1)
+                printf("-> is INDICATE P\n");
+            // TODO Effects of INDICATE P reception
+            break;
+
         default:
             fprintf(stderr, "Invalid control message type %d\n", cm.type);
     }
@@ -140,7 +150,17 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
         return (NULL);
     }
 
-    ncm->host_id = overseer->hl->localhost_id;
+    if (type == MSG_TYPE_INDICATE_P) {
+        uint32_t p_id = whois_p(overseer->hl);
+        if (p_id == 1 && errno == ENO_P) {
+            fprintf(stderr, "Requesting INDICATE P message but no host has P status\n");
+            free(ncm);
+            return (NULL);
+        }
+        ncm->host_id = p_id;
+    } else {
+        ncm->host_id = overseer->hl->localhost_id;
+    }
     ncm->status = overseer->hl->hosts[ncm->host_id].status;
     ncm->type = type;
     ncm->next_index = overseer->log->next_index;
