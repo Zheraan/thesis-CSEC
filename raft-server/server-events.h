@@ -15,6 +15,12 @@
 #define QUEUE_ELEMENTS_TIMED_DELETION 1 // TODO Make timed deletion conditional
 #endif
 
+#ifndef PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS
+// Defines how many times should the server attempt to retransmit a proposition before ditching it
+#define PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS 2 \
+// TODO Label P is unreachable if too many attempts failed, or transition to partition mode
+#endif
+
 // Initializes the server-side control message reception event
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
 int server_reception_init(overseer_s *overseer);
@@ -39,6 +45,9 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
 // Caches related data op in case it is removed before retransmission (if needed), then sends it as a
 // new log entry proposition to P and sets a timeout for retransmission
 int server_proposition_send_init(overseer_s *overseer, ops_queue_s *element);
+
+// Initializes the timer for retransmitting the cached proposition
+int server_proposition_retransmission_init(overseer_s *overseer);
 
 // Callback for retransmitting the cached proposition
 void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void *arg);
