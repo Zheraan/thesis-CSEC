@@ -20,8 +20,8 @@ typedef struct transmission_s {
 // Outputs the state of the structure to the specified stream
 void tr_print(const transmission_s *tr, FILE *stream);
 
-// Sends a transmission to the specified address and frees its structure
-void tr_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, transmission_s *tr);
+// Sends a transmission to the specified address
+int tr_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, transmission_s *tr);
 
 // Callback for receiving transmissions
 void tr_receive_cb(evutil_socket_t fd, short event, void *arg);
@@ -29,7 +29,7 @@ void tr_receive_cb(evutil_socket_t fd, short event, void *arg);
 // Allocates a new transmission struct and initializes it with the parameters
 transmission_s *tr_new(const overseer_s *overseer,
                        enum message_type type,
-                       data_op_s op,
+                       const data_op_s *op,
                        uint32_t index,
                        uint32_t term,
                        enum entry_state state);
