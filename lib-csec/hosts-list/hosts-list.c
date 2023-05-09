@@ -222,8 +222,17 @@ int is_comment(char const *line) {
 
 int is_p_available(hosts_list_s *list) {
     for (int i = 0; i < list->nb_hosts; ++i) {
-        if(list->hosts[i].status == HOST_STATUS_P)
+        if (list->hosts[i].status == HOST_STATUS_P)
             return 1;
     }
     return 0;
+}
+
+uint32_t whois_p(hosts_list_s *list) {
+    for (uint32_t i = 0; i < list->nb_hosts; ++i) {
+        if (list->hosts[i].status == HOST_STATUS_P)
+            return i;
+    }
+    errno = ENO_P;
+    return 1;
 }

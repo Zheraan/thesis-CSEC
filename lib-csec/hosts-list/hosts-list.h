@@ -29,6 +29,10 @@
 #define DEBUG_LEVEL 2
 #endif
 
+#ifndef ENO_P
+#define ENO_P (-89)
+#endif
+
 typedef struct hosts_list_s {
     host_s hosts[HOSTS_LIST_SIZE]; //TODO Replace by a hashtable
     uint32_t localhost_id;
@@ -50,5 +54,8 @@ int is_comment(char const *line);
 
 // Returns 1 if there is a node with HOST_STATUS_P in the list, 0 otherwise
 int is_p_available(hosts_list_s *list);
+
+// Returns the ID of the first node with P status encountered, otherwise returns 1 and sets errno to ENO_P
+uint32_t whois_p(hosts_list_s *list);
 
 #endif //THESIS_CSEC_HOSTS_LIST_H
