@@ -27,6 +27,10 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         if (local->status == HOST_STATUS_HS && target->status != HOST_STATUS_CS)
             continue;
 
+        // Skip if target is the local host
+        if (target->locality == HOST_LOCALITY_LOCAL)
+            continue;
+
         receiver = (target->addr);
         receiver_len = (target->addr_len);
 
