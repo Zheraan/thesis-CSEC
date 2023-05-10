@@ -7,15 +7,9 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include "rc-datatypes.h"
+#include "../raft-log/log.h"
 #include "control-message.h"
-
-typedef struct transmission_s {
-    control_message_s cm; // Status of the sender and type of transmission
-    data_op_s op; // Transmitted entry's related data op
-    uint32_t index; // Transmitted entry's index
-    uint32_t term; // Transmitted entry's term
-    enum entry_state state; // Transmitted entry's term
-} transmission_s;
 
 // Outputs the state of the structure to the specified stream
 void tr_print(const transmission_s *tr, FILE *stream);

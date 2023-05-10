@@ -8,15 +8,8 @@
 #include <event2/event.h>
 #include <stdlib.h>
 
-typedef struct event_list_s event_list_s;
-
+#include "datatypes.h"
 #include "overseer.h"
-
-// Linked list for keeping track of persistent events that need to be freed at some point
-typedef struct event_list_s {
-    struct event *e;
-    struct event_list_s *next;
-} event_list_s;
 
 // Frees the linked list of events
 void event_list_free(event_list_s * el);

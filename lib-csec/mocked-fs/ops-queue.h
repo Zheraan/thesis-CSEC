@@ -8,14 +8,9 @@
 typedef struct ops_queue_s ops_queue_s;
 
 #include <event2/event.h>
+#include "mfs-datatypes.h"
 #include "data-op.h"
 #include "mocked-fs.h"
-
-typedef struct ops_queue_s{
-    data_op_s *op;
-    struct ops_queue_s *next; // FIFO queue of data ops
-    struct event *timeout_event;
-} ops_queue_s;
 
 // Frees the memory of a queue element and its timeout event but not its data op
 void ops_queue_element_free(ops_queue_s *element);

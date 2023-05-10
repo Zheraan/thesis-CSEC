@@ -5,22 +5,24 @@ set(CMAKE_C_STANDARD 11)
 
 add_library(
         lib-csec
+        lib-csec.h
+        datatypes.h
+        hosts-list/hl-datatypes.h
+        mocked-fs/mfs-datatypes.h
+        raft-comms/rc-datatypes.h
+        raft-log/rl-datatypes.h
         mocked-fs/data-op.h
         mocked-fs/data-op.c
         raft-comms/shared-events.h
         raft-comms/shared-events.c
-        hosts-list/host.c
-        hosts-list/host.h
         hosts-list/hosts-list.c
         hosts-list/hosts-list.h
         mocked-fs/mocked-fs.c
         mocked-fs/mocked-fs.h
         raft-comms/control-message.h
         raft-comms/control-message.c
-        raft-entry-log/log.c
-        raft-entry-log/log.h
-        raft-entry-log/log-entry.c
-        raft-entry-log/log-entry.h
+        raft-log/log.c
+        raft-log/log.h
         overseer.h
         overseer.c
         event-list.c
@@ -30,4 +32,5 @@ add_library(
         mocked-fs/ops-queue.c
         mocked-fs/ops-queue.h
         raft-comms/entry-transmission.c
-        raft-comms/entry-transmission.h)
+        raft-comms/entry-transmission.h
+)

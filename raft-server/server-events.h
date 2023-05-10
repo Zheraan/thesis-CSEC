@@ -6,9 +6,14 @@
 #define THESIS_CSEC_SERVER_EVENTS_H
 
 #include <event2/event.h>
-#include "overseer.h"
+#include "datatypes.h"
+#include "event-list.h"
 #include "raft-comms/control-message.h"
 #include "raft-comms/timeout.h"
+#include "raft-comms/entry-transmission.h"
+#include "mocked-fs/ops-queue.h"
+#include "hosts-list/hosts-list.h"
+#include "overseer.h"
 
 #ifndef QUEUE_ELEMENTS_TIMED_DELETION
 // Enables the deletion of queued elements after a timeout to avoid stacking outdated elements if network is slow

@@ -13,7 +13,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <event2/util.h>
-#include "host.h"
+#include "hl-datatypes.h"
 
 #ifndef HOSTS_LIST_SIZE
 #define HOSTS_LIST_SIZE 128 // May be redefined
@@ -32,12 +32,6 @@
 #ifndef ENO_P
 #define ENO_P (-89)
 #endif
-
-typedef struct hosts_list_s {
-    host_s hosts[HOSTS_LIST_SIZE]; //TODO Replace by a hashtable
-    uint32_t localhost_id;
-    uint32_t nb_hosts;
-} hosts_list_s;
 
 // Returns the number of hosts parsed from the hostfile (one address per row) into the list.
 uint32_t hosts_init(char const *hostfile, hosts_list_s *list);

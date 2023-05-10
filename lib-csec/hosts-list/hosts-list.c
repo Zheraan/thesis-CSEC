@@ -69,15 +69,15 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         switch (token[0]) {
             case 'M':
             case 'm':
-                list->hosts[parsed].type = HOST_TYPE_M;
+                list->hosts[parsed].type = NODE_TYPE_M;
                 break;
             case 'S':
             case 's':
-                list->hosts[parsed].type = HOST_TYPE_S;
+                list->hosts[parsed].type = NODE_TYPE_S;
                 break;
             case 'C':
             case 'c':
-                list->hosts[parsed].type = HOST_TYPE_CM;
+                list->hosts[parsed].type = NODE_TYPE_CM;
                 break;
             default:
                 fprintf(stderr, "Failure to parse host: invalid host type \"%s\"", token);
