@@ -4,7 +4,6 @@ COPY ./cmake-build-debug/raft-master ./local
 COPY ./raft-master/hostfile.txt ./local
 WORKDIR ./local/
 
-RUN apt-get update -y && apt-get install iproute2 -y
 EXPOSE 35007
 EXPOSE 35008
 CMD ["./raft_master"]
