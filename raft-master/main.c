@@ -1,3 +1,4 @@
+// TODO Insert file description, copyright, etc
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 4
@@ -7,18 +8,36 @@
 #include "master-events.h"
 
 int main() {
+    if (DEBUG_LEVEL >= 1) {
+        printf("Starting program state initialization ...\n");
+        fflush(stdout);
+    }
     // Initialize program state
     overseer_s overseer;
     if (overseer_init(&overseer) == EXIT_FAILURE) {
         fprintf(stderr, "Failed to initialize the program state\n");
         exit(EXIT_FAILURE);
     }
+    if (DEBUG_LEVEL >= 1) {
+        printf("Done.\n"
+               "Starting event loop initialization ...\n");
+    }
+
+    // TODO remove test statement
+    overseer.hl->hosts[overseer.hl->localhost_id].status = HOST_STATUS_P;
 
     // Initialize event loop
-    if (master_heartbeat_init(&overseer) == EXIT_FAILURE) {
+    // TODO Remove heartbeat to have it on only initialized when transitioning to HS (and thus it remains for P)
+    //  then remove when demoted to CS
+    if (master_heartbeat_init(&overseer) == EXIT_FAILURE || // Initialize heartbeat events
+        cm_reception_init(&overseer) == EXIT_FAILURE) { // Initialize control message reception events
         fprintf(stderr, "Failed to initialized the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
+    }
+    if (DEBUG_LEVEL >= 1) {
+        printf("Done.\n"
+               "Launching raft-master.\n");
     }
 
     // Run the loop

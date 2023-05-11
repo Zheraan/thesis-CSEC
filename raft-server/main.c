@@ -1,3 +1,5 @@
+// TODO Insert file description, copyright, etc
+
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 4
 #endif
@@ -6,18 +8,34 @@
 #include "server-events.h"
 
 int main() {
+    if (DEBUG_LEVEL >= 1) {
+        printf("Starting program state initialization ...\n");
+        fflush(stdout);
+    }
+    // Initialize program state
     overseer_s overseer;
     if (overseer_init(&overseer) == EXIT_FAILURE) {
         fprintf(stderr, "Failed to initialize the program state\n");
+        fflush(stderr);
         exit(EXIT_FAILURE);
+    }
+    if (DEBUG_LEVEL >= 1) {
+        printf("Done.\n"
+               "Starting event loop initialization ...\n");
+        fflush(stdout);
     }
 
     // Initialize event loop
-    if (server_reception_init(&overseer) == EXIT_FAILURE || // Initialize the message reception handler event
+    if (cm_reception_init(&overseer) == EXIT_FAILURE || // Initialize the message reception handler event
         server_random_ops_init(&overseer) == EXIT_FAILURE) { // Initialize the random ops generator
-        fprintf(stderr, "Failed to initialized the event loop\n");
+        fprintf(stderr, "Failed to initialize the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
+    }
+    if (DEBUG_LEVEL >= 1) {
+        printf("Done.\n"
+               "Launching raft-server.\n");
+        fflush(stdout);
     }
 
     // Run the loop

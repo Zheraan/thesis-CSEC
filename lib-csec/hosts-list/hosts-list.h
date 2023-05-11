@@ -25,10 +25,6 @@
 #define NO_DNS_LOOKUP_ 0
 #endif
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 2
-#endif
-
 #ifndef ENO_P
 #define ENO_P (-89)
 #endif

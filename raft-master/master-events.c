@@ -5,8 +5,10 @@
 #include "master-events.h"
 
 void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *arg) {
-    // TODO Implement flags
-    control_message_s *hb = cm_new((overseer_s *) arg, MSG_TYPE_HB_DEFAULT);
+    if (DEBUG_LEVEL >= 3) {
+        printf("Broadcasting heartbeat ... ");
+        fflush(stdout);
+    }
     host_s *target;
     host_s *local = &(((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]);
     uint32_t nb_hosts = ((overseer_s *) arg)->hl->nb_hosts;
@@ -35,30 +37,38 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         receiver_len = (target->addr_len);
 
         evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
-        if (DEBUG_LEVEL >= 2) {
-            printf("Sending to %s (Status: %d) the following heartbeat:\n", buf, target->status);
-            cm_print(hb, stdout);
+        if (DEBUG_LEVEL >= 3) {
+            printf("Heartbeat: ");
         }
 
-        do {
-            errno = 0;
-            if (sendto(sender,
-                       hb,
-                       sizeof(control_message_s),
-                       0,
-                       (const struct sockaddr *) &receiver,
-                       receiver_len) == -1)
-                perror("sendto");
-        } while (errno == EAGAIN);
+        if (cm_sendto(((overseer_s *) arg),
+                      receiver,
+                      receiver_len,
+                      MSG_TYPE_HB_DEFAULT) == EXIT_FAILURE) {
+            fprintf(stderr, "Failed to send heartbeat\n");
+            return;
+        }
 
         // TODO Add ack timeout
     }
 
-    free(hb);
+    if (master_heartbeat_init((overseer_s *) arg) == EXIT_FAILURE) {
+        fprintf(stderr, "Fatal Error: heartbeat event couldn't be set\n");
+        exit(EXIT_FAILURE); // TODO Crash handler
+    }
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
     return;
 }
 
 int master_heartbeat_init(overseer_s *overseer) {
+    if (DEBUG_LEVEL >= 3) {
+        printf("- Initializing heartbeat events ... ");
+        fflush(stdout);
+    }
     // Create the event related to the socket
     struct event *sender_event = event_new(overseer->eb,
                                            overseer->socket_cm,
@@ -88,6 +98,10 @@ int master_heartbeat_init(overseer_s *overseer) {
         return (EXIT_FAILURE);
     }
 
+    if (DEBUG_LEVEL >= 3) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
     return EXIT_SUCCESS;
 }
 
