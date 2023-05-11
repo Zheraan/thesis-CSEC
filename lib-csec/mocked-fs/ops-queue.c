@@ -39,9 +39,10 @@ void ops_queue_element_free(ops_queue_s *element){
     return;
 }
 
-void ops_queue_free_all(ops_queue_s *queue){
-    if(queue == NULL)
-        return;
+int ops_queue_free_all(ops_queue_s *queue) {
+    if (queue == NULL)
+        return 0;
+    int nb_elem = 0;
     ops_queue_s *ptr = queue;
     ops_queue_s *next;
     do {
@@ -49,6 +50,7 @@ void ops_queue_free_all(ops_queue_s *queue){
         free(ptr->op);
         ops_queue_element_free(ptr);
         ptr = next;
+        nb_elem++;
     } while (ptr != NULL);
-    return;
+    return nb_elem;
 }
