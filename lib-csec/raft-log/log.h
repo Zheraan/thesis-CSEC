@@ -13,4 +13,6 @@ log_s *log_init(log_s *log);
 // Returns EXIT_FAILURE in case of failure (ie. log is full) or EXIT_SUCCESS otherwise.
 int log_add_entry(overseer_s *overseer, const transmission_s *tr, enum entry_state state);
 
+void log_free(log_s *log);
+
 #endif //RAFT_ENTRY_LOG_LIBRARY_H

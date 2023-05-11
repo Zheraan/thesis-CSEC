@@ -129,11 +129,15 @@ struct event_base *eb_new() {
 }
 
 void overseer_wipe(overseer_s *overseer) {
+    // If the local node is a Master node, it is necessary to free the replication arrays in the entries as well
+    if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M) {
+        if (overseer->log != NULL)
+            log_free(overseer->log);
+    } else {
+        free(overseer->log);
+    }
     if (overseer->hl != NULL)
         free(overseer->hl);
-    // TODO In case local is master, free the replication arrays for all log entries
-    if (overseer->log != NULL)
-        free(overseer->log);
     if (overseer->mfs != NULL) {
         ops_queue_free_all(overseer->mfs->queue);
         mfs_free_cache(overseer);
