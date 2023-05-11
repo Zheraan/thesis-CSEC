@@ -5,14 +5,7 @@
 #ifndef THESIS_CSEC_MASTER_EVENTS_H
 #define THESIS_CSEC_MASTER_EVENTS_H
 
-#ifndef MASTER_HEARTBEAT_TIMEOUT_SEC
-#define MASTER_HEARTBEAT_TIMEOUT_SEC 2 // tv_sec component of the heartbeat timeout
-#endif
-
-#ifndef MASTER_HEARTBEAT_TIMEOUT_USEC
-#define MASTER_HEARTBEAT_TIMEOUT_USEC 0 // tv_usec component of the heartbeat timeout
-#endif
-
+#include "raft-comms/timeout.h"
 #include "raft-comms/control-message.h"
 #include "overseer.h"
 

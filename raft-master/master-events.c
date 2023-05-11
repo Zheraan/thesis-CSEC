@@ -72,7 +72,7 @@ int master_heartbeat_init(overseer_s *overseer) {
     // Create the event related to the socket
     struct event *sender_event = event_new(overseer->eb,
                                            overseer->socket_cm,
-                                           EV_PERSIST | EV_TIMEOUT,
+                                           EV_TIMEOUT,
                                            master_heartbeat_broadcast_cb,
                                            (void *) overseer);
     if (sender_event == NULL) {
@@ -88,10 +88,14 @@ int master_heartbeat_init(overseer_s *overseer) {
         return (EXIT_FAILURE);
     }
 
-    struct timeval sender_timeout = {
-            .tv_sec = MASTER_HEARTBEAT_TIMEOUT_SEC,
-            .tv_usec = MASTER_HEARTBEAT_TIMEOUT_USEC
-    };
+    // Using the right timeout value depending on type
+    struct timeval sender_timeout;
+    if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P)
+        sender_timeout = timeout_gen(TIMEOUT_TYPE_P_HB);
+    else if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_HS)
+        sender_timeout = timeout_gen(TIMEOUT_TYPE_HS_HB);
+
+    else fprintf(stderr, "bro wtf\n"); // Shouldn't be possible
     // Add the event in the loop
     if (event_add(sender_event, &sender_timeout) != 0) {
         fprintf(stderr, "Failed to add the heartbeat event\n");
