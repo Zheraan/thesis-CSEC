@@ -26,10 +26,6 @@
 // TODO Label P is unreachable if too many attempts failed, or transition to partition mode
 #endif
 
-// Initializes the server-side control message reception event
-// Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
-int server_reception_init(overseer_s *overseer);
-
 // Initializes the server-side random operation generation event, with a randomized timeout
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
 int server_random_ops_init(overseer_s *overseer);

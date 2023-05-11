@@ -4,34 +4,6 @@
 
 #include "server-events.h"
 
-int server_reception_init(overseer_s *overseer) {
-    struct event *reception_event = event_new(overseer->eb,
-                                              overseer->socket_cm,
-                                              EV_READ | EV_PERSIST,
-                                              cm_receive_cb,
-                                              (void *) overseer);
-    if (reception_event == NULL) {
-        fprintf(stderr, "Failed to create the reception event\n");
-        return EXIT_FAILURE;
-    }
-
-    // Message reception has low priority
-    event_priority_set(reception_event, 1);
-
-    if (event_list_add(overseer, reception_event) == EXIT_FAILURE) {
-        fprintf(stderr, "Failed to allocate the event list struct for reception event\n");
-        return (EXIT_FAILURE);
-    }
-
-    // Add the event in the loop
-    if (event_add(reception_event, NULL) != 0) {
-        fprintf(stderr, "Failed to add the reception event\n");
-        return EXIT_FAILURE;
-    }
-
-    return EXIT_SUCCESS;
-}
-
 int server_random_ops_init(overseer_s *overseer) {
     // Create a persistent event only triggered by timeout
     struct event *nevent = event_new(overseer->eb,
