@@ -18,10 +18,6 @@
 #include "mocked-fs/ops-queue.h"
 #include "event-list.h"
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 2
-#endif
-
 #ifndef ECFG_MAX_DISPATCH_USEC
 #define ECFG_MAX_DISPATCH_USEC 2000
 #endif
