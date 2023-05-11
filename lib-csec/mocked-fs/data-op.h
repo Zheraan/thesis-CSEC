@@ -12,4 +12,7 @@
 // Returns a newly allocated data op struct initialized with random values, or NULL in case malloc failed
 data_op_s *op_new();
 
+// Prints a data op structure to the standard output
+void op_print(const data_op_s *op, FILE *stream);
+
 #endif //THESIS_CSEC_DATA_OP_H
