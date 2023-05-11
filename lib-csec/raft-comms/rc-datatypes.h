@@ -17,82 +17,91 @@
 // Error code for unknown timeout type
 #define EUNKOWN_TIMEOUT_TYPE (-1)
 
-#ifndef TIMEOUT_OFFSET_USEC
-// minimum value of timeouts' timeval's usec value for randomized timers, maximum is offset + range
-#define TIMEOUT_OFFSET_USEC 100
-#endif
-
-#ifndef TIMEOUT_OFFSET_SEC
-// minimum value of timeouts' timeval's sec value for randomized timers, maximum is offset + range
-#define TIMEOUT_OFFSET_SEC 0
-#endif
-
-// Defines for the range of the usec value in timeouts' timeval
-#ifndef TIMEOUT_RANGE_P_HB_USEC
-#define TIMEOUT_RANGE_P_HB_USEC 0
-#endif
-
-#ifndef TIMEOUT_RANGE_HS_HB_USEC
-#define TIMEOUT_RANGE_HS_HB_USEC 0
-#endif
-
+// Timeout duration range for elections. Default value of 500ms
 #ifndef TIMEOUT_RANGE_ELECTION_USEC
-#define TIMEOUT_RANGE_ELECTION_USEC 150000 // Default value of 150ms
+#define TIMEOUT_RANGE_ELECTION_USEC 500000
 #endif
-
-#ifndef TIMEOUT_RANGE_FUZZER_USEC
-#define TIMEOUT_RANGE_FUZZER_USEC 0
-#endif
-
-#ifndef TIMEOUT_RANGE_RANDOM_OPS_USEC
-#define TIMEOUT_RANGE_RANDOM_OPS_USEC 0
-#endif
-
-// Defines for the range of the sec value in timeouts' timeval
-#ifndef TIMEOUT_RANGE_P_HB_SEC
-#define TIMEOUT_RANGE_P_HB_SEC 1
-#endif
-
-#ifndef TIMEOUT_RANGE_HS_HB_SEC
-#define TIMEOUT_RANGE_HS_HB_SEC 1
-#endif
-
 #ifndef TIMEOUT_RANGE_ELECTION_SEC
 #define TIMEOUT_RANGE_ELECTION_SEC 0
 #endif
+// Timeout duration offset for elections. Default value of 150ms
+#ifndef TIMEOUT_OFFSET_ELECTION_USEC
+#define TIMEOUT_OFFSET_ELECTION_USEC 150000
+#endif
+#ifndef TIMEOUT_OFFSET_ELECTION_SEC
+#define TIMEOUT_OFFSET_ELECTION_SEC 0
+#endif
 
+// Timeout duration range for the fuzzer. Default value of 1s
+#ifndef TIMEOUT_RANGE_FUZZER_USEC
+#define TIMEOUT_RANGE_FUZZER_USEC 0
+#endif
 #ifndef TIMEOUT_RANGE_FUZZER_SEC
 #define TIMEOUT_RANGE_FUZZER_SEC 1
 #endif
+// Timeout duration offset for the fuzzer. Default value of 10ms
+#ifndef TIMEOUT_OFFSET_FUZZER_SEC
+#define TIMEOUT_OFFSET_FUZZER_SEC 0
+#endif
+#ifndef TIMEOUT_OFFSET_FUZZER_USEC
+#define TIMEOUT_OFFSET_FUZZER_USEC 10000
+#endif
 
+// Timeout duration range for the random op generator. Default value of 8s
+#ifndef TIMEOUT_RANGE_RANDOM_OPS_USEC
+#define TIMEOUT_RANGE_RANDOM_OPS_USEC 0
+#endif
 #ifndef TIMEOUT_RANGE_RANDOM_OPS_SEC
 #define TIMEOUT_RANGE_RANDOM_OPS_SEC 8
 #endif
-
-// Defines for the fixed timeouts values
-#ifndef TIMEOUT_VALUE_PROPOSITION_USEC
-#define TIMEOUT_VALUE_PROPOSITION_USEC 500000 // Default value of 500ms
+// Timeout duration offset for the random op generator. Default value of 20ms
+#ifndef TIMEOUT_OFFSET_RANDOM_OPS_SEC
+#define TIMEOUT_OFFSET_RANDOM_OPS_SEC 0
+#endif
+#ifndef TIMEOUT_OFFSET_RANDOM_OPS_USEC
+#define TIMEOUT_OFFSET_RANDOM_OPS_USEC 20000
 #endif
 
+// Timeout duration for propositions. Default value of 500ms
+#ifndef TIMEOUT_VALUE_PROPOSITION_USEC
+#define TIMEOUT_VALUE_PROPOSITION_USEC 500000
+#endif
 #ifndef TIMEOUT_VALUE_PROPOSITION_SEC
 #define TIMEOUT_VALUE_PROPOSITION_SEC 0
 #endif
 
+// Timeout duration for Acks. Default value of 150ms
 #ifndef TIMEOUT_VALUE_ACK_SEC
 #define TIMEOUT_VALUE_ACK_SEC 0
 #endif
-
 #ifndef TIMEOUT_VALUE_ACK_USEC
-#define TIMEOUT_VALUE_ACK_USEC 100000 // Default value of 100ms
+#define TIMEOUT_VALUE_ACK_USEC 150000
 #endif
 
+// Timeout duration for the proposition retransmission. Default value of 300ms
 #ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC
 #define TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC 0
 #endif
-
 #ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC
-#define TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC 300000 // Default value of 300ms
+#define TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC 300000
 #endif
+
+// Timeout duration for P's heartbeat. Default value of 2s
+#ifndef TIMEOUT_VALUE_P_HB_SEC
+#define TIMEOUT_VALUE_P_HB_SEC 2
+#endif
+#ifndef TIMEOUT_VALUE_P_HB_USEC
+#define TIMEOUT_VALUE_P_HB_USEC 0
+#endif
+
+// Timeout duration for HS's heartbeat. Default value of 2s
+#ifndef TIMEOUT_VALUE_HS_HB_SEC
+#define TIMEOUT_VALUE_HS_HB_SEC 2
+#endif
+#ifndef TIMEOUT_VALUE_HS_HB_USEC
+#define TIMEOUT_VALUE_HS_HB_USEC 0
+#endif
+
 
 // Control message type values, including those only used within the transmission struct
 enum message_type {
