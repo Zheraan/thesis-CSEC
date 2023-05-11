@@ -31,6 +31,9 @@ int tr_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_
         printf("Sending to %s the following TR:\n", buf);
         tr_print(tr, stdout);
     }
+    // Ensuring we are sending to the transmission port, since the stored addresses in the hosts-list contain the right
+    // address but with the Control Message port (35007)
+    sockaddr.sin6_port = htons(35008);
 
     do {
         errno = 0;
@@ -86,8 +89,14 @@ void tr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                 printf("-> is TR PROPOSITION\n");
             // If local node isn't P, send correction on who is P
             if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status != HOST_STATUS_P) {
-                fprintf(stderr, "Invalid transmission type %d\n", tr.cm.type);
-                cm_sendto((overseer_s *) arg, sender, sender_len, MSG_TYPE_INDICATE_P);
+                if (DEBUG_LEVEL >= 1)
+                    printf("Local node isn't P, answering with INDICATE P ... ");
+                if (cm_sendto(((overseer_s *) arg), sender, sender_len, MSG_TYPE_INDICATE_P) == EXIT_FAILURE) {
+                    fprintf(stderr, "Failed to Ack heartbeat\n");
+                    return;
+                }
+                if (DEBUG_LEVEL >= 1)
+                    printf("Done.\n");
                 return;
             }
 
