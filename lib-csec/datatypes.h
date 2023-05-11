@@ -5,6 +5,10 @@
 #ifndef THESIS_CSEC_DATATYPES_H
 #define THESIS_CSEC_DATATYPES_H
 
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 4
+#endif
+
 enum entry_state;
 enum timeout_type;
 enum message_type;
