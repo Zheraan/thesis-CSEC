@@ -12,15 +12,15 @@
 #include "../hosts-list/hosts-list.h"
 #include "../overseer.h"
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 2
-#endif
-
 // Outputs the state of the structure to the specified stream
 void cm_print(const control_message_s *hb, FILE *stream);
 
+// Initializes the server-side control message reception event
+// Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
+int cm_reception_init(overseer_s *overseer);
+
 // Sends a control message to the provided address with the provided message type
-void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type);
+int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type);
 
 // Callback for receiving control messages
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg);

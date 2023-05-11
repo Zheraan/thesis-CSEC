@@ -23,11 +23,11 @@ void cm_print(const control_message_s *hb, FILE *stream) {
     return;
 }
 
-void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
+int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
     control_message_s *cm = cm_new(overseer, type);
     if (cm == NULL) {
         fprintf(stderr, "Failed to send message of type %d", type);
-        return;
+        return EXIT_FAILURE;
     }
 
     char buf[256];
@@ -38,6 +38,7 @@ void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen
         cm_print(cm, stdout);
     }
 
+    int success = 1;
     do {
         errno = 0;
         if (sendto(overseer->socket_cm,
@@ -45,12 +46,52 @@ void cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen
                    sizeof(control_message_s),
                    0,
                    (const struct sockaddr *) &sockaddr,
-                   socklen) == -1)
+                   socklen) == -1) {
             perror("cm sendto");
+            success = 0;
+        }
     } while (errno == EAGAIN);
 
     free(cm);
-    return;
+    if (success)
+        return EXIT_SUCCESS;
+    return EXIT_FAILURE;
+}
+
+int cm_reception_init(overseer_s *overseer) {
+    if (DEBUG_LEVEL >= 3) {
+        printf("- Initializing control message reception events ... ");
+        fflush(stdout);
+    }
+    struct event *reception_event = event_new(overseer->eb,
+                                              overseer->socket_cm,
+                                              EV_READ | EV_PERSIST,
+                                              cm_receive_cb,
+                                              (void *) overseer);
+    if (reception_event == NULL) {
+        fprintf(stderr, "Failed to create the reception event\n");
+        return EXIT_FAILURE;
+    }
+
+    // Message reception has low priority
+    event_priority_set(reception_event, 1);
+
+    if (event_list_add(overseer, reception_event) == EXIT_FAILURE) {
+        fprintf(stderr, "Failed to allocate the event list struct for reception event\n");
+        return (EXIT_FAILURE);
+    }
+
+    // Add the event in the loop
+    if (event_add(reception_event, NULL) != 0) {
+        fprintf(stderr, "Failed to add the reception event\n");
+        return EXIT_FAILURE;
+    }
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
+    return EXIT_SUCCESS;
 }
 
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
@@ -64,7 +105,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             perror("recvfrom CM");
     } while (errno == EAGAIN);
 
-    if (DEBUG_LEVEL >= 1) {
+    if (DEBUG_LEVEL >= 2) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
         printf("Received from %s a CM:\n", buf);
@@ -72,65 +113,74 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             cm_print(&cm, stdout);
     }
 
+    // TODO Update status in the hosts list with metadata
+    // TODO Check indexes for sending a correction CM
+
     // Responses depending on the type of control message
     switch (cm.type) {
         case MSG_TYPE_HB_DEFAULT:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is HB DEFAULT\n");
             // Default heartbeat means replying with cm ack
-            cm_sendto(((overseer_s *) arg), sender, sender_len, MSG_TYPE_ACK_HB);
+            if (cm_sendto(((overseer_s *) arg),
+                          sender,
+                          sender_len,
+                          MSG_TYPE_ACK_HB) == EXIT_FAILURE) {
+                fprintf(stderr, "Failed to Ack heartbeat\n");
+                return;
+            }
             break;
 
         case MSG_TYPE_ACK_HB:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is HB ACK\n");
             // TODO Apply any effects of ack (reset timeout for next ack...)
             break;
 
         case MSG_TYPE_P_TAKEOVER:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is P TAKEOVER\n");
             // TODO Check term and apply any effects of P takeover if valid
             break;
 
         case MSG_TYPE_HS_TAKEOVER:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is HS TAKEOVER\n");
             // TODO Effects of HS TAKEOVER reception
             break;
 
         case MSG_TYPE_LOG_REPAIR:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is LOG REPAIR\n");
             // TODO Effects of LOG REPAIR reception
             break;
 
         case MSG_TYPE_LOG_REPLAY:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is LOG REPLAY\n");
             // TODO Effects of LOG REPLAY reception
             break;
 
         case MSG_TYPE_ACK_ENTRY:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is ACK ENTRY\n");
             // TODO Effects of ACK ENTRY reception
             break;
 
         case MSG_TYPE_ACK_COMMIT:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is ACK COMMIT\n");
             // TODO Effects of ACK COMMIT reception
             break;
 
         case MSG_TYPE_DEMOTE_NOTICE:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is DEMOTE NOTICE\n");
             // TODO Effects of DEMOTE NOTICE reception
             break;
 
         case MSG_TYPE_INDICATE_P:
-            if (DEBUG_LEVEL >= 1)
+            if (DEBUG_LEVEL >= 2)
                 printf("-> is INDICATE P\n");
             // TODO Effects of INDICATE P reception
             break;
