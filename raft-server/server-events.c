@@ -5,10 +5,14 @@
 #include "server-events.h"
 
 int server_random_ops_init(overseer_s *overseer) {
-    // Create a persistent event only triggered by timeout
+    if (DEBUG_LEVEL >= 3) {
+        printf("- Initializing random ops generation events ... ");
+        fflush(stdout);
+    }
+    // Create a non-persistent event only triggered by timeout
     struct event *nevent = event_new(overseer->eb,
                                      -1,
-                                     EV_TIMEOUT | EV_PERSIST,
+                                     EV_TIMEOUT,
                                      server_random_ops_cb,
                                      (void *) overseer);
     if (nevent == NULL) {
@@ -31,6 +35,10 @@ int server_random_ops_init(overseer_s *overseer) {
         return EXIT_FAILURE;
     }
 
+    if (DEBUG_LEVEL >= 3) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
     return EXIT_SUCCESS;
 }
 
@@ -42,13 +50,21 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
 
     // Create random op
     data_op_s *nop = op_new();
-    if (nop == NULL)
+    if (nop == NULL) {
+        fprintf(stderr, "Failed to generate a new data op\n");
         return; // Abort in case of failure
+    }
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Generated a new op:\n");
+        op_print(nop, stdout);
+    }
 
     // Add it to the queue
     ops_queue_s *nqelem = ops_queue_add(nop, ((overseer_s *) arg)->mfs);
     if (nqelem == NULL) {
         free(nop); // Cleanup and abort in case of failure
+        fprintf(stderr, "Failed to add a new op in the queue\n");
         return;
     }
 
@@ -64,18 +80,30 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
                 }
             }
         }
-        ops_queue_free_all(nqelem);// Cleanup and abort in case of failure, including subsequent elements
+        // Cleanup and abort in case of failure, including subsequent elements
+        fprintf(stderr,
+                "Failed to initialize queue element deletion timeout.\n"
+                "Reset the queue: %d elements freed.\n",
+                ops_queue_free_all(nqelem));
         return;
     }
 
     // If queue was empty when checked before adding the new element, if there is an available P and the cache is empty
     if (queue_was_empty && is_p_available(((overseer_s *) arg)->hl) && ((overseer_s *) arg)->mfs->op_cache == NULL) {
-        if (server_proposition_send_init((overseer_s *) arg, nqelem) == EXIT_FAILURE) {
+        if (server_proposition_transmit((overseer_s *) arg, nqelem) == EXIT_FAILURE) {
             // Cleanup and abort in case of failure, including subsequent elements
             // Note: no risk of dangling pointer since queue was empty
-            ops_queue_free_all(nqelem);
+            fprintf(stderr,
+                    "Failed to transmit proposition.\n"
+                    "Reset the queue: %d elements freed.\n",
+                    ops_queue_free_all(nqelem));
             return;
         }
+    }
+
+    if (server_random_ops_init((overseer_s *) arg) == EXIT_FAILURE) {
+        fprintf(stderr, "Fatal Error: random ops generator event couldn't be set\n");
+        exit(EXIT_FAILURE); // TODO Crash handler
     }
 
     return;
@@ -86,11 +114,17 @@ void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void
     // we clear the full queue to avoid incoherences caused by partial applications.
     // Since ops_queue_free_all() also removes dequeuing events tied to queue elements, there is not risk of events
     // eventually added being accidentally removed.
-    ops_queue_free_all(((overseer_s *) arg)->mfs->queue);
+    int nb_freed = ops_queue_free_all(((overseer_s *) arg)->mfs->queue);
+    if (DEBUG_LEVEL >= 1)
+        printf("Proposition queue element timed out: %d elements freed.\n", nb_freed);
     return;
 }
 
 int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *element) {
+    if (DEBUG_LEVEL >= 4) {
+        printf("- Initializing queue element deletion event ... ");
+        fflush(stdout);
+    }
     // Create a non-persistent event triggered only by timeout
     struct event *nevent = event_new(overseer->eb,
                                      -1,
@@ -117,10 +151,18 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
         return EXIT_FAILURE;
     }
 
+    if (DEBUG_LEVEL >= 4) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
     return EXIT_SUCCESS;
 }
 
-int server_proposition_send_init(overseer_s *overseer, ops_queue_s *element) {
+int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element) {
+    if (DEBUG_LEVEL >= 4) {
+        printf("Starting proposition transmission ... ");
+        fflush(stdout);
+    }
     // Copy the data op in the queue element into the op_cache in case it is removed before retransmission
     data_op_s *nop = malloc(sizeof(data_op_s));
     if (nop == NULL) {
@@ -153,7 +195,7 @@ int server_proposition_send_init(overseer_s *overseer, ops_queue_s *element) {
         if (tr_sendto(overseer,
                       overseer->hl->hosts[p_id].addr,
                       overseer->hl->hosts[p_id].addr_len,
-                      ntr)) {
+                      ntr) == EXIT_FAILURE) {
             fprintf(stderr, "Failed transmitting the proposition\n");
             free(ntr);
             return EXIT_FAILURE;
@@ -163,14 +205,25 @@ int server_proposition_send_init(overseer_s *overseer, ops_queue_s *element) {
 
     if (PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS > 0) {
         // set timer for retransmission in case server doesn't receive any ack
-        server_proposition_retransmission_init(overseer);
+        if (server_proposition_retransmission_init(overseer) == EXIT_FAILURE) {
+            fprintf(stderr, "Failed initializing retransmission event.\n");
+            return EXIT_FAILURE;
+        }
     }
 
     // TODO when ack comes, mfs_free_cache
+    if (DEBUG_LEVEL >= 4) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
     return EXIT_SUCCESS;
 }
 
 int server_proposition_retransmission_init(overseer_s *overseer) {
+    if (DEBUG_LEVEL >= 4) {
+        printf("- Initializing proposition retransmission event ... ");
+        fflush(stdout);
+    }
     // Create a non-persistent event triggered only by timeout
     struct event *nevent = event_new(overseer->eb,
                                      -1,
@@ -198,10 +251,20 @@ int server_proposition_retransmission_init(overseer_s *overseer) {
         return EXIT_FAILURE;
     }
 
+    if (DEBUG_LEVEL >= 4) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
     return EXIT_SUCCESS;
 }
 
 void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
+    if (DEBUG_LEVEL >= 3) {
+        printf("Proposition retransmission timed out, reattempting transmission (attempt %d) ... ",
+               ((overseer_s *) arg)->mfs->retransmission_attempts);
+        fflush(stdout);
+    }
+    int success = 1;
     // Create new proposition with cached data
     transmission_s *ntr = tr_new((overseer_s *) arg,
                                  MSG_TYPE_TR_PROPOSITION,
@@ -211,16 +274,19 @@ void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void 
                                  ENTRY_STATE_PENDING);
     if (ntr == NULL) {
         fprintf(stderr, "Failed creating new transmission for retransmitting proposition\n");
+        success = 0;
     } else {
         // Send proposition to P
         uint32_t p_id = whois_p(((overseer_s *) arg)->hl);
         if (p_id == 1 && errno == ENO_P) {
             fprintf(stderr, "Trying to retransmit proposition but no host has P status\n");
+            success = 0;
         } else if (tr_sendto((overseer_s *) arg,
                              ((overseer_s *) arg)->hl->hosts[p_id].addr,
                              ((overseer_s *) arg)->hl->hosts[p_id].addr_len,
                              ntr)) {
             fprintf(stderr, "Failed transmitting the proposition\n");
+            success = 0;
         }
         free(ntr);
     }
@@ -233,6 +299,11 @@ void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void 
         mfs_free_cache((overseer_s *) arg);
     } else { // Otherwise add retransmission event
         server_proposition_retransmission_init((overseer_s *) arg);
+    }
+
+    if (DEBUG_LEVEL >= 3 && success == 1) {
+        printf("Done.\n");
+        fflush(stdout);
     }
     return;
 }

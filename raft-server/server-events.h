@@ -45,7 +45,7 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
 
 // Caches related data op in case it is removed before retransmission (if needed), then sends it as a
 // new log entry proposition to P and sets a timeout for retransmission
-int server_proposition_send_init(overseer_s *overseer, ops_queue_s *element);
+int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element);
 
 // Initializes the timer for retransmitting the cached proposition
 int server_proposition_retransmission_init(overseer_s *overseer);
