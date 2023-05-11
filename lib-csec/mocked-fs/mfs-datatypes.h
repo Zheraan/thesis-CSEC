@@ -15,6 +15,10 @@
 #define MOCKED_FS_ARRAY_ROWS 2
 #endif
 
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 4
+#endif
+
 typedef struct data_op_s {
     // Vertical position of the op in the mocked filesystem
     uint64_t row;

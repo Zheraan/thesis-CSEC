@@ -11,6 +11,10 @@
 #define HOSTS_LIST_SIZE 128 // May be redefined
 #endif
 
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 4
+#endif
+
 // Status of a host, if it is available and what type is it if so
 enum host_status {
     // Unknown, which is the default value after the hosts list is initialized

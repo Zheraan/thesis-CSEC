@@ -12,6 +12,10 @@
 #define LOG_LENGTH 2048 // Log length, in number of entries. May be redefined
 #endif
 
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 4
+#endif
+
 // Defines the entry's state
 enum entry_state {
     ENTRY_STATE_QUEUED = 0,

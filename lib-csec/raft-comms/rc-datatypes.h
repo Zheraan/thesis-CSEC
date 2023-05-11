@@ -10,6 +10,11 @@
 #include "../raft-log/rl-datatypes.h"
 #include "../mocked-fs/data-op.h"
 
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 4
+#endif
+
+// Error code for unknown timeout type
 #define EUNKOWN_TIMEOUT_TYPE (-1)
 
 #ifndef TIMEOUT_OFFSET_USEC
