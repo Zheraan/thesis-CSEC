@@ -26,7 +26,7 @@ void cm_print(const control_message_s *hb, FILE *stream) {
 int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
     control_message_s *cm = cm_new(overseer, type);
     if (cm == NULL) {
-        fprintf(stderr, "Failed to send message of type %d", type);
+        fprintf(stderr, "Failed to create message of type %d", type);
         return EXIT_FAILURE;
     }
 
@@ -53,41 +53,47 @@ int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_
     } while (errno == EAGAIN);
 
     free(cm);
-    if (success)
+    if (success) {
+        if (DEBUG_LEVEL >= 3) {
+            printf("Done.\n");
+            fflush(stdout);
+        }
         return EXIT_SUCCESS;
+    }
     return EXIT_FAILURE;
 }
 
 int cm_reception_init(overseer_s *overseer) {
-    if (DEBUG_LEVEL >= 3) {
-        printf("- Initializing control message reception events ... ");
+    if (DEBUG_LEVEL >= 4) {
+        printf("- Initializing next control message reception event ... ");
         fflush(stdout);
     }
     struct event *reception_event = event_new(overseer->eb,
                                               overseer->socket_cm,
-                                              EV_READ | EV_PERSIST,
+                                              EV_READ,
                                               cm_receive_cb,
                                               (void *) overseer);
     if (reception_event == NULL) {
-        fprintf(stderr, "Failed to create the reception event\n");
-        return EXIT_FAILURE;
+        fprintf(stderr, "Fatal error: failed to create the next CM reception event\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
     }
 
     // Message reception has low priority
     event_priority_set(reception_event, 1);
 
-    if (event_list_add(overseer, reception_event) == EXIT_FAILURE) {
-        fprintf(stderr, "Failed to allocate the event list struct for reception event\n");
-        return (EXIT_FAILURE);
-    }
+    if (overseer->cm_reception_event != NULL) // Freeing the past event if any
+        event_free(overseer->cm_reception_event);
+    overseer->cm_reception_event = reception_event;
 
     // Add the event in the loop
     if (event_add(reception_event, NULL) != 0) {
-        fprintf(stderr, "Failed to add the reception event\n");
-        return EXIT_FAILURE;
+        fprintf(stderr, "Fatal error: failed to add the next CM reception event\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
     }
 
-    if (DEBUG_LEVEL >= 3) {
+    if (DEBUG_LEVEL >= 4) {
         printf("Done.\n");
         fflush(stdout);
     }
@@ -95,6 +101,11 @@ int cm_reception_init(overseer_s *overseer) {
 }
 
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
+    if (DEBUG_LEVEL >= 4) {
+        printf("Start of CM reception callback ---------\n");
+        fflush(stdout);
+    }
+
     control_message_s cm;
     struct sockaddr_in6 sender;
     socklen_t sender_len;
@@ -189,6 +200,12 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             fprintf(stderr, "Invalid control message type %d\n", cm.type);
     }
 
+    cm_reception_init((overseer_s *) arg); // Fatal error in case of failure anyway, so no need for a check
+
+    if (DEBUG_LEVEL >= 4) {
+        printf("End of CM reception callback ---------\n");
+        fflush(stdout);
+    }
     return;
 }
 
