@@ -26,7 +26,7 @@ ops_queue_s *ops_queue_add(data_op_s *op, mocked_fs_s *mfs){
         return nqueue;
     }
 
-    ops_queue_s *i;
+    ops_queue_s *i = mfs->queue;
     for (; i->next == NULL; i = i->next); // Go to end of queue
     i->next = nqueue; // Append new element
     return nqueue;
@@ -40,6 +40,7 @@ void ops_queue_element_free(ops_queue_s *element){
 }
 
 int ops_queue_free_all(overseer_s *overseer, ops_queue_s *queue) {
+    // TODO inspect: potential memory leak because deletion events don't seem to be deleted properly
     if (queue == NULL)
         return 0;
     int nb_elem = 0;
