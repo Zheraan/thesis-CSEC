@@ -34,7 +34,7 @@
 
 // Timeout duration range for the fuzzer. Default value of 2s
 #ifndef TIMEOUT_RANGE_FUZZER_USEC
-#define TIMEOUT_RANGE_FUZZER_USEC 999,999
+#define TIMEOUT_RANGE_FUZZER_USEC 999999
 #endif
 #ifndef TIMEOUT_RANGE_FUZZER_SEC
 #define TIMEOUT_RANGE_FUZZER_SEC 1
@@ -49,7 +49,7 @@
 
 // Timeout duration range for the random op generator. Default value of 8s
 #ifndef TIMEOUT_RANGE_RANDOM_OPS_USEC
-#define TIMEOUT_RANGE_RANDOM_OPS_USEC 999,999
+#define TIMEOUT_RANGE_RANDOM_OPS_USEC 999999
 #endif
 #ifndef TIMEOUT_RANGE_RANDOM_OPS_SEC
 #define TIMEOUT_RANGE_RANDOM_OPS_SEC 7
