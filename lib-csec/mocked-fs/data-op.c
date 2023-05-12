@@ -14,8 +14,8 @@ data_op_s *op_new(){
     // Randomly pick a new character
     uint8_t buf;
     evutil_secure_rng_get_bytes(&buf, sizeof(uint8_t));
-    buf %= 95; // Ensure value is no bigger than the alphanumeric range
-    nop->newval = buf + 32; // Ensure value is within the alphanumeric range
+    buf %= 93; // Ensure value is no bigger than the printable character range
+    nop->newval = buf + 33; // Ensure value is a printable character
 
     // Randomly pick a row
     evutil_secure_rng_get_bytes(&buf, sizeof(uint8_t));
@@ -34,7 +34,7 @@ void op_print(const data_op_s *op, FILE *stream) {
     fprintf(stream,
             "column:    %ld\n"
             "row:       %ld\n"
-            "newval:    %d\n",
+            "newval:    %c\n",
             op->column,
             op->row,
             op->newval);

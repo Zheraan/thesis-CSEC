@@ -9,7 +9,7 @@
 #include "mfs-datatypes.h"
 #include "mocked-fs.h"
 
-// Returns a newly allocated data op struct initialized with random values, or NULL in case malloc failed
+// Returns a newly allocated data op struct initialized with random values, or NULL in case malloc failed.
 data_op_s *op_new();
 
 // Prints a data op structure to the standard output
