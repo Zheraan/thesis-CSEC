@@ -49,6 +49,8 @@ struct overseer_s {
     mocked_fs_s *mfs;
     // Pointer to keep track of heartbeat events for master nodes, and random op generator for server nodes
     struct event *special_event;
+    // Pointer to keep track of control message reception events
+    struct event *cm_reception_event;
     // Socket for sending and receiving control messages
     evutil_socket_t socket_cm;
     // Socket for sending and receiving transmissions
