@@ -17,21 +17,22 @@ int server_random_ops_init(overseer_s *overseer) {
                                      (void *) overseer);
     if (nevent == NULL) {
         fprintf(stderr, "Failed to create the data op event\n");
+        fflush(stderr);
         return EXIT_FAILURE;
     }
 
     // Random operation generator has low priority
     event_priority_set(nevent, 1);
 
-    if (event_list_add(overseer, nevent) == EXIT_FAILURE) {
-        fprintf(stderr, "Failed to allocate the event list struct for the data op event\n");
-        return (EXIT_FAILURE);
-    }
+    if (overseer->special_event != NULL) // Freeing the past heartbeat if any
+        event_free(overseer->special_event);
+    overseer->special_event = nevent;
 
     // Add the event in the loop
     struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_RANDOM_OPS);
     if (errno == EUNKOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
         fprintf(stderr, "Failed to add the data op event\n");
+        fflush(stderr);
         return EXIT_FAILURE;
     }
 
@@ -43,6 +44,9 @@ int server_random_ops_init(overseer_s *overseer) {
 }
 
 void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
+    if (DEBUG_LEVEL >= 4)
+        printf("Start of random op callback ---------\n");
+
     // Check if queue is empty
     int queue_was_empty = 1;
     if (((overseer_s *) arg)->mfs->queue != NULL)
@@ -52,6 +56,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     data_op_s *nop = op_new();
     if (nop == NULL) {
         fprintf(stderr, "Failed to generate a new data op\n");
+        fflush(stderr);
         return; // Abort in case of failure
     }
 
@@ -65,6 +70,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     if (nqelem == NULL) {
         free(nop); // Cleanup and abort in case of failure
         fprintf(stderr, "Failed to add a new op in the queue\n");
+        fflush(stderr);
         return;
     }
 
@@ -83,29 +89,37 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         // Cleanup and abort in case of failure, including subsequent elements
         fprintf(stderr,
                 "Failed to initialize queue element deletion timeout.\n"
-                "Reset the queue: %d elements freed.\n",
-                ops_queue_free_all(nqelem));
+                "Clear queue from element: %d element(s) freed.\n",
+                ops_queue_free_all((overseer_s *) arg, nqelem));
+        fflush(stderr);
         return;
     }
 
     // If queue was empty when checked before adding the new element, if there is an available P and the cache is empty
     if (queue_was_empty && is_p_available(((overseer_s *) arg)->hl) && ((overseer_s *) arg)->mfs->op_cache == NULL) {
+        // Then transmit the proposition
         if (server_proposition_transmit((overseer_s *) arg, nqelem) == EXIT_FAILURE) {
             // Cleanup and abort in case of failure, including subsequent elements
             // Note: no risk of dangling pointer since queue was empty
             fprintf(stderr,
                     "Failed to transmit proposition.\n"
                     "Reset the queue: %d elements freed.\n",
-                    ops_queue_free_all(nqelem));
+                    ops_queue_free_all((overseer_s *) arg, nqelem));
+            fflush(stderr);
             return;
         }
     }
 
     if (server_random_ops_init((overseer_s *) arg) == EXIT_FAILURE) {
         fprintf(stderr, "Fatal Error: random ops generator event couldn't be set\n");
+        fflush(stderr);
         exit(EXIT_FAILURE); // TODO Crash handler
     }
 
+    if (DEBUG_LEVEL >= 4) {
+        printf("End of random op callback ---------\n");
+        fflush(stdout);
+    }
     return;
 }
 
@@ -114,9 +128,9 @@ void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void
     // we clear the full queue to avoid incoherences caused by partial applications.
     // Since ops_queue_free_all() also removes dequeuing events tied to queue elements, there is not risk of events
     // eventually added being accidentally removed.
-    int nb_freed = ops_queue_free_all(((overseer_s *) arg)->mfs->queue);
+    int nb_freed = ops_queue_free_all((overseer_s *) arg, ((overseer_s *) arg)->mfs->queue);
     if (DEBUG_LEVEL >= 1)
-        printf("Proposition queue element timed out: %d elements freed.\n", nb_freed);
+        printf("Proposition queue element timed out: %d element(s) freed.\n", nb_freed);
     return;
 }
 
@@ -261,7 +275,7 @@ int server_proposition_retransmission_init(overseer_s *overseer) {
 void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 3) {
         printf("Proposition retransmission timed out, reattempting transmission (attempt %d) ... ",
-               ((overseer_s *) arg)->mfs->retransmission_attempts);
+               ((overseer_s *) arg)->mfs->retransmission_attempts + 1);
         fflush(stdout);
     }
     int success = 1;

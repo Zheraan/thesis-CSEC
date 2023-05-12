@@ -39,10 +39,18 @@ void ops_queue_element_free(ops_queue_s *element){
     return;
 }
 
-int ops_queue_free_all(ops_queue_s *queue) {
+int ops_queue_free_all(overseer_s *overseer, ops_queue_s *queue) {
     if (queue == NULL)
         return 0;
     int nb_elem = 0;
+    for (ops_queue_s *ite = overseer->mfs->queue; ite != queue; ite = ite->next) {
+        if (ite == NULL) {
+            fprintf(stderr, "Queue element in parameter was not part of the queue\n");
+            return -1;
+        }
+        if (ite == queue)
+            ite->next = NULL; // Clearing dangling pointer in case the queue element was not the first
+    }
     ops_queue_s *ptr = queue;
     ops_queue_s *next;
     do {
@@ -52,5 +60,8 @@ int ops_queue_free_all(ops_queue_s *queue) {
         ptr = next;
         nb_elem++;
     } while (ptr != NULL);
+
+    if (overseer->mfs->queue == queue)
+        overseer->mfs->queue = NULL; // Clearing dangling pointer in case the queue element was the first
     return nb_elem;
 }

@@ -10,7 +10,7 @@ int overseer_init(overseer_s *overseer) {
     overseer->log = NULL;
     overseer->eb = NULL;
     overseer->el = NULL;
-    overseer->hb_event = NULL;
+    overseer->special_event = NULL;
 
     // Malloc the hosts list
     hosts_list_s *hl = malloc(sizeof(hosts_list_s));
@@ -118,6 +118,7 @@ int overseer_init(overseer_s *overseer) {
     nmfs->retransmission_attempts = 0;
     nmfs->op_cache = NULL;
     nmfs->event_cache = NULL;
+    nmfs->queue = NULL;
     overseer->mfs = nmfs;
 
     return EXIT_SUCCESS;
@@ -187,7 +188,7 @@ void overseer_wipe(overseer_s *overseer) {
     }
 
     if (overseer->mfs != NULL) {
-        ops_queue_free_all(overseer->mfs->queue);
+        ops_queue_free_all(overseer, overseer->mfs->queue);
         mfs_free_cache(overseer);
         printf("bruh");
         fflush(stdout);
@@ -215,8 +216,8 @@ void overseer_wipe(overseer_s *overseer) {
         fflush(stdout);
     }
 
-    if (overseer->hb_event != NULL)
-        event_free(overseer->hb_event);
+    if (overseer->special_event != NULL)
+        event_free(overseer->special_event);
 
     if (overseer->socket_cm != 0 && close(overseer->socket_cm) != 0)
         perror("Error closing communication socket file descriptor");

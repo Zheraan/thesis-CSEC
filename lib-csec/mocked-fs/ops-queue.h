@@ -16,8 +16,8 @@ typedef struct ops_queue_s ops_queue_s;
 void ops_queue_element_free(ops_queue_s *element);
 
 // Frees the pointed element in the queue and all subsequent ones, their timeout events and their data ops.
-// Returns the number of element that were deleted.
-int ops_queue_free_all(ops_queue_s *queue);
+// Returns the number of element that were deleted, or -1 in case of error.
+int ops_queue_free_all(overseer_s *overseer, ops_queue_s *queue);
 
 // Removes the first element in the queue to and returns it, or returns NULL if the queue is empty
 ops_queue_s *ops_queue_pop(mocked_fs_s *mfs);
