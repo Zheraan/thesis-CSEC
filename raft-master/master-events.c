@@ -5,6 +5,10 @@
 #include "master-events.h"
 
 void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *arg) {
+    if (DEBUG_LEVEL >= 4) {
+        printf("Start of HB broadcast callback ----------------------------------------------------\n");
+        fflush(stdout);
+    }
     if (DEBUG_LEVEL >= 3) {
         printf("Broadcasting heartbeat ... ");
         fflush(stdout);
@@ -68,6 +72,10 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
 
     if (DEBUG_LEVEL >= 3) {
         printf("Done (%d heartbeats sent).\n", nb_heartbeats);
+        fflush(stdout);
+    }
+    if (DEBUG_LEVEL >= 4) {
+        printf("End of HB broadcast callback ------------------------------------------------------\n");
         fflush(stdout);
     }
     return;

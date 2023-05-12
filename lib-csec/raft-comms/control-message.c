@@ -20,6 +20,7 @@ void cm_print(const control_message_s *hb, FILE *stream) {
             hb->rep_index,
             hb->match_index,
             hb->term);
+    fflush(stream);
     return;
 }
 
@@ -27,6 +28,7 @@ int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_
     control_message_s *cm = cm_new(overseer, type);
     if (cm == NULL) {
         fprintf(stderr, "Failed to create message of type %d", type);
+        fflush(stderr);
         return EXIT_FAILURE;
     }
 
@@ -47,7 +49,8 @@ int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_
                    0,
                    (const struct sockaddr *) &sockaddr,
                    socklen) == -1) {
-            perror("cm sendto");
+            perror("CM sendto");
+            fflush(stderr);
             success = 0;
         }
     } while (errno == EAGAIN);
@@ -102,18 +105,25 @@ int cm_reception_init(overseer_s *overseer) {
 
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 4) {
-        printf("Start of CM reception callback ---------\n");
+        printf("Start of CM reception callback ----------------------------------------------------\n");
         fflush(stdout);
     }
 
     control_message_s cm;
     struct sockaddr_in6 sender;
-    socklen_t sender_len;
+    socklen_t sender_len = sizeof(sender);
 
     do {
         errno = 0;
-        if (recvfrom(fd, &cm, sizeof(control_message_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
-            perror("recvfrom CM");
+        if (recvfrom(fd,
+                     &cm,
+                     sizeof(control_message_s),
+                     0,
+                     (struct sockaddr *) &sender,
+                     &sender_len) == -1) {
+            perror("CM recvfrom");
+            fflush(stderr);
+        }
     } while (errno == EAGAIN);
 
     if (DEBUG_LEVEL >= 2) {
@@ -138,6 +148,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
                           sender_len,
                           MSG_TYPE_ACK_HB) == EXIT_FAILURE) {
                 fprintf(stderr, "Failed to Ack heartbeat\n");
+                fflush(stderr);
                 return;
             }
             break;
@@ -198,12 +209,13 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
         default:
             fprintf(stderr, "Invalid control message type %d\n", cm.type);
+            fflush(stderr);
     }
 
     cm_reception_init((overseer_s *) arg); // Fatal error in case of failure anyway, so no need for a check
 
     if (DEBUG_LEVEL >= 4) {
-        printf("End of CM reception callback ---------\n");
+        printf("End of CM reception callback ------------------------------------------------------\n");
         fflush(stdout);
     }
     return;
@@ -214,6 +226,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
 
     if (ncm == NULL) {
         perror("malloc new control message struct");
+        fflush(stderr);
         return (NULL);
     }
 
@@ -221,6 +234,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
         uint32_t p_id = whois_p(overseer->hl);
         if (p_id == 1 && errno == ENO_P) {
             fprintf(stderr, "Requesting INDICATE P message but no host has P status\n");
+            fflush(stderr);
             free(ncm);
             return (NULL);
         }

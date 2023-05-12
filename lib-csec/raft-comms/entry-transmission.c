@@ -52,9 +52,14 @@ int tr_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_
 }
 
 void tr_receive_cb(evutil_socket_t fd, short event, void *arg) {
+    if (DEBUG_LEVEL >= 4) {
+        printf("Start of TR reception callback ----------------------------------------------------\n");
+        fflush(stdout);
+    }
+
     transmission_s tr;
     struct sockaddr_in6 sender;
-    socklen_t sender_len;
+    socklen_t sender_len = sizeof(sender);
 
     do {
         errno = 0;
@@ -91,7 +96,10 @@ void tr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status != HOST_STATUS_P) {
                 if (DEBUG_LEVEL >= 1)
                     printf("Local node isn't P, answering with INDICATE P ... ");
-                if (cm_sendto(((overseer_s *) arg), sender, sender_len, MSG_TYPE_INDICATE_P) == EXIT_FAILURE) {
+                if (cm_sendto(((overseer_s *) arg),
+                              sender,
+                              sender_len,
+                              MSG_TYPE_INDICATE_P) == EXIT_FAILURE) {
                     fprintf(stderr, "Failed to Ack heartbeat\n");
                     return;
                 }
@@ -110,6 +118,10 @@ void tr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             fprintf(stderr, "Invalid transmission type %d\n", tr.cm.type);
     }
 
+    if (DEBUG_LEVEL >= 4) {
+        printf("End of TR reception callback ------------------------------------------------------\n");
+        fflush(stdout);
+    }
     return;
 }
 
