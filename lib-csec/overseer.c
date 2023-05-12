@@ -10,6 +10,7 @@ int overseer_init(overseer_s *overseer) {
     overseer->log = NULL;
     overseer->eb = NULL;
     overseer->el = NULL;
+    overseer->hb_event = NULL;
 
     // Malloc the hosts list
     hosts_list_s *hl = malloc(sizeof(hosts_list_s));
@@ -213,6 +214,9 @@ void overseer_wipe(overseer_s *overseer) {
                "- Closing sockets ... ");
         fflush(stdout);
     }
+
+    if (overseer->hb_event != NULL)
+        event_free(overseer->hb_event);
 
     if (overseer->socket_cm != 0 && close(overseer->socket_cm) != 0)
         perror("Error closing communication socket file descriptor");

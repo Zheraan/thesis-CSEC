@@ -47,6 +47,7 @@ struct overseer_s {
     log_s *log;
     event_list_s *el;
     mocked_fs_s *mfs;
+    struct event *hb_event;
     // Socket for sending and receiving control messages
     evutil_socket_t socket_cm;
     // Socket for sending and receiving transmissions

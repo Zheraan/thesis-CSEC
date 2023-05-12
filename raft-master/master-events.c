@@ -46,6 +46,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
                       receiver_len,
                       MSG_TYPE_HB_DEFAULT) == EXIT_FAILURE) {
             fprintf(stderr, "Failed to send heartbeat\n");
+            fflush(stderr);
             return;
         }
 
@@ -54,6 +55,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
 
     if (master_heartbeat_init((overseer_s *) arg) == EXIT_FAILURE) {
         fprintf(stderr, "Fatal Error: heartbeat event couldn't be set\n");
+        fflush(stderr);
         exit(EXIT_FAILURE); // TODO Crash handler
     }
 
@@ -70,23 +72,23 @@ int master_heartbeat_init(overseer_s *overseer) {
         fflush(stdout);
     }
     // Create the event related to the socket
-    struct event *sender_event = event_new(overseer->eb,
-                                           overseer->socket_cm,
-                                           EV_TIMEOUT,
-                                           master_heartbeat_broadcast_cb,
-                                           (void *) overseer);
-    if (sender_event == NULL) {
+    struct event *hb_event = event_new(overseer->eb,
+                                       overseer->socket_cm,
+                                       EV_TIMEOUT,
+                                       master_heartbeat_broadcast_cb,
+                                       (void *) overseer);
+    if (hb_event == NULL) {
         fprintf(stderr, "Failed to create the heartbeat event\n");
+        fflush(stderr);
         return (EXIT_FAILURE);
     }
 
     // Heartbeat has high priority
-    event_priority_set(sender_event, 0);
+    event_priority_set(hb_event, 0);
 
-    if (event_list_add(overseer, sender_event) == EXIT_FAILURE) {
-        fprintf(stderr, "Failed to allocate the event list struct for heartbeat event\n");
-        return (EXIT_FAILURE);
-    }
+    if (overseer->hb_event != NULL) // Freeing the past heartbeat if any
+        event_free(overseer->hb_event);
+    overseer->hb_event = hb_event;
 
     // Using the right timeout value depending on type
     struct timeval sender_timeout;
@@ -94,11 +96,12 @@ int master_heartbeat_init(overseer_s *overseer) {
         sender_timeout = timeout_gen(TIMEOUT_TYPE_P_HB);
     else if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_HS)
         sender_timeout = timeout_gen(TIMEOUT_TYPE_HS_HB);
-
     else fprintf(stderr, "bro wtf\n"); // Shouldn't be possible
+
     // Add the event in the loop
-    if (event_add(sender_event, &sender_timeout) != 0) {
+    if (event_add(hb_event, &sender_timeout) != 0) {
         fprintf(stderr, "Failed to add the heartbeat event\n");
+        fflush(stderr);
         return (EXIT_FAILURE);
     }
 
