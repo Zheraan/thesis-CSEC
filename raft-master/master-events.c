@@ -86,9 +86,9 @@ int master_heartbeat_init(overseer_s *overseer) {
     // Heartbeat has high priority
     event_priority_set(hb_event, 0);
 
-    if (overseer->hb_event != NULL) // Freeing the past heartbeat if any
-        event_free(overseer->hb_event);
-    overseer->hb_event = hb_event;
+    if (overseer->special_event != NULL) // Freeing the past heartbeat if any
+        event_free(overseer->special_event);
+    overseer->special_event = hb_event;
 
     // Using the right timeout value depending on type
     struct timeval sender_timeout;
