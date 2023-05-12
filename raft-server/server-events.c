@@ -129,8 +129,10 @@ void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void
     // Since ops_queue_free_all() also removes dequeuing events tied to queue elements, there is not risk of events
     // eventually added being accidentally removed.
     int nb_freed = ops_queue_free_all((overseer_s *) arg, ((overseer_s *) arg)->mfs->queue);
-    if (DEBUG_LEVEL >= 1)
+    if (DEBUG_LEVEL >= 1) {
         printf("Proposition queue element timed out: %d element(s) freed.\n", nb_freed);
+        fflush(stdout);
+    }
     return;
 }
 
@@ -225,7 +227,7 @@ int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element) {
         }
     }
 
-    // TODO when ack comes, mfs_free_cache
+    // TODO when ack comes, mfs_free_cache && send next prop
     if (DEBUG_LEVEL >= 4) {
         printf("Done.\n");
         fflush(stdout);

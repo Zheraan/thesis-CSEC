@@ -64,7 +64,7 @@ int log_add_entry(overseer_s *overseer, const transmission_s *tr, enum entry_sta
 }
 
 void log_free(log_s *log) {
-    for (int i = 0; i < log->next_index; ++i) {
+    for (uint64_t i = 0; i < log->next_index; ++i) {
         free(log->entries[i].server_rep);
         free(log->entries[i].master_rep);
     }
