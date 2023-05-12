@@ -32,9 +32,9 @@
 #define TIMEOUT_OFFSET_ELECTION_SEC 0
 #endif
 
-// Timeout duration range for the fuzzer. Default value of 1s
+// Timeout duration range for the fuzzer. Default value of 2s
 #ifndef TIMEOUT_RANGE_FUZZER_USEC
-#define TIMEOUT_RANGE_FUZZER_USEC 0
+#define TIMEOUT_RANGE_FUZZER_USEC 999,999
 #endif
 #ifndef TIMEOUT_RANGE_FUZZER_SEC
 #define TIMEOUT_RANGE_FUZZER_SEC 1
@@ -49,17 +49,17 @@
 
 // Timeout duration range for the random op generator. Default value of 8s
 #ifndef TIMEOUT_RANGE_RANDOM_OPS_USEC
-#define TIMEOUT_RANGE_RANDOM_OPS_USEC 0
+#define TIMEOUT_RANGE_RANDOM_OPS_USEC 999,999
 #endif
 #ifndef TIMEOUT_RANGE_RANDOM_OPS_SEC
-#define TIMEOUT_RANGE_RANDOM_OPS_SEC 8
+#define TIMEOUT_RANGE_RANDOM_OPS_SEC 7
 #endif
-// Timeout duration offset for the random op generator. Default value of 20ms
+// Timeout duration offset for the random op generator. Default value of 0ms
 #ifndef TIMEOUT_OFFSET_RANDOM_OPS_SEC
 #define TIMEOUT_OFFSET_RANDOM_OPS_SEC 0
 #endif
 #ifndef TIMEOUT_OFFSET_RANDOM_OPS_USEC
-#define TIMEOUT_OFFSET_RANDOM_OPS_USEC 20000
+#define TIMEOUT_OFFSET_RANDOM_OPS_USEC 0
 #endif
 
 // Timeout duration for propositions. Default value of 500ms

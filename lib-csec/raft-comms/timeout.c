@@ -27,19 +27,19 @@ struct timeval timeout_gen(enum timeout_type type) {
             ntv.tv_usec = TIMEOUT_VALUE_PROPOSITION_USEC;
             ntv.tv_sec = TIMEOUT_VALUE_PROPOSITION_SEC;
             randomize = 0;
-            return ntv;
+            break;
 
         case TIMEOUT_TYPE_ACK:
             ntv.tv_usec = TIMEOUT_VALUE_ACK_USEC;
             ntv.tv_sec = TIMEOUT_VALUE_ACK_SEC;
             randomize = 0;
-            return ntv;
+            break;
 
         case TIMEOUT_TYPE_PROP_RETRANSMISSION:
             ntv.tv_usec = TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC;
             ntv.tv_sec = TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC;
             randomize = 0;
-            return ntv;
+            break;
 
         case TIMEOUT_TYPE_ELECTION:
             if (TIMEOUT_RANGE_ELECTION_USEC > 0)
@@ -70,13 +70,14 @@ struct timeval timeout_gen(enum timeout_type type) {
 
         default:
             fprintf(stderr, "Unknown timeout type\n");
+            fflush(stderr);
             errno = EUNKOWN_TIMEOUT_TYPE;
             return ntv;
     }
 
     if (randomize) {
         if (modulo_usec > 0) {
-            evutil_secure_rng_get_bytes(&buf, sizeof(int));
+            evutil_secure_rng_get_bytes(&buf, sizeof(uint32_t));
             buf %= modulo_usec; // Set the value inside the range
             ntv.tv_usec = buf + offset_usec; // Add the offset
         } else {
@@ -84,7 +85,7 @@ struct timeval timeout_gen(enum timeout_type type) {
         }
 
         if (modulo_sec > 0) {
-            evutil_secure_rng_get_bytes(&buf, sizeof(int));
+            evutil_secure_rng_get_bytes(&buf, sizeof(uint32_t));
             buf %= modulo_sec; // Set the value inside the range
             ntv.tv_sec = buf + offset_sec; // Add the offset
         } else {
