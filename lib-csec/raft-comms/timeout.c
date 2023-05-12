@@ -7,33 +7,38 @@
 struct timeval timeout_gen(enum timeout_type type) {
     struct timeval ntv;
 
-    uint32_t buf, modulo_sec = 0, modulo_usec = 0, offset_sec = 0, offset_usec = 0;
+    uint32_t buf, modulo_sec = 0, modulo_usec = 0, offset_sec = 0, offset_usec = 0, randomize = 1;
 
     // Define the timeout range depending on the defined parameters
     switch (type) {
         case TIMEOUT_TYPE_P_HB:
             ntv.tv_usec = TIMEOUT_VALUE_P_HB_USEC;
             ntv.tv_sec = TIMEOUT_VALUE_P_HB_SEC;
+            randomize = 0;
             break;
 
         case TIMEOUT_TYPE_HS_HB:
             ntv.tv_usec = TIMEOUT_VALUE_HS_HB_USEC;
             ntv.tv_sec = TIMEOUT_VALUE_HS_HB_SEC;
+            randomize = 0;
             break;
 
         case TIMEOUT_TYPE_PROPOSITION:
             ntv.tv_usec = TIMEOUT_VALUE_PROPOSITION_USEC;
             ntv.tv_sec = TIMEOUT_VALUE_PROPOSITION_SEC;
+            randomize = 0;
             return ntv;
 
         case TIMEOUT_TYPE_ACK:
             ntv.tv_usec = TIMEOUT_VALUE_ACK_USEC;
             ntv.tv_sec = TIMEOUT_VALUE_ACK_SEC;
+            randomize = 0;
             return ntv;
 
         case TIMEOUT_TYPE_PROP_RETRANSMISSION:
             ntv.tv_usec = TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC;
             ntv.tv_sec = TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC;
+            randomize = 0;
             return ntv;
 
         case TIMEOUT_TYPE_ELECTION:
@@ -69,20 +74,22 @@ struct timeval timeout_gen(enum timeout_type type) {
             return ntv;
     }
 
-    if (modulo_usec > 0) {
-        evutil_secure_rng_get_bytes(&buf, sizeof(int));
-        buf %= modulo_usec; // Set the value inside the range
-        ntv.tv_usec = buf + offset_usec; // Add the offset
-    } else {
-        ntv.tv_usec = 0 + offset_usec;
-    }
+    if (randomize) {
+        if (modulo_usec > 0) {
+            evutil_secure_rng_get_bytes(&buf, sizeof(int));
+            buf %= modulo_usec; // Set the value inside the range
+            ntv.tv_usec = buf + offset_usec; // Add the offset
+        } else {
+            ntv.tv_usec = 0 + offset_usec;
+        }
 
-    if (modulo_sec > 0) {
-        evutil_secure_rng_get_bytes(&buf, sizeof(int));
-        buf %= modulo_sec; // Set the value inside the range
-        ntv.tv_sec = buf + offset_sec; // Add the offset
-    } else {
-        ntv.tv_sec = 0 + offset_sec;
+        if (modulo_sec > 0) {
+            evutil_secure_rng_get_bytes(&buf, sizeof(int));
+            buf %= modulo_sec; // Set the value inside the range
+            ntv.tv_sec = buf + offset_sec; // Add the offset
+        } else {
+            ntv.tv_sec = 0 + offset_sec;
+        }
     }
 
     if (DEBUG_LEVEL >= 4)
