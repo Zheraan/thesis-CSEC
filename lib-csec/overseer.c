@@ -100,7 +100,7 @@ int overseer_init(overseer_s *overseer) {
 
     // Bind the socket to the local address for receiving messages
     if (bind(overseer->socket_tr,
-             (struct sockaddr *) &(overseer->hl->hosts[overseer->hl->localhost_id].addr),
+             (struct sockaddr *) &naddr,
              sizeof(overseer->hl->hosts[overseer->hl->localhost_id].addr)) != 0) {
         perror("Socket tr bind");
         overseer_wipe(overseer);

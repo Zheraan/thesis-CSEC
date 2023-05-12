@@ -20,11 +20,6 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
     for (uint32_t i = 0; i < nb_hosts; i++) {
         target = &(((overseer_s *) arg)->hl->hosts[i]);
 
-        if (DEBUG_LEVEL >= 4) {
-            printf("\n- Bruh: %s of status %d and type %d", target->name, target->status, target->type);
-            fflush(stdout);
-        }
-
         // TODO Add conditional re-resolving of nodes that are of unknown or unreachable status
 
         // Skip iteration if local is P and target is a CS node
