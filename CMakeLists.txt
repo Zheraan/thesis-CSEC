@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(thesis_csec C)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wvla -Wno-unused-parameter")
 set(CMAKE_C_STANDARD 17)
 
 add_library(libevent_core STATIC IMPORTED)
