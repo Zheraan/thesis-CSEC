@@ -5,18 +5,17 @@
 #include "hosts-list.h"
 
 uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
-    uint32_t parsed = 0;
+    uint32_t parsed = 0, resolved = 0;
     FILE *file = fopen(hostfile, "r");
 
     // Initializing
-    list->localhost_id = -1;
+    list->localhost_id = (uint32_t) -1; // Setting to the max value
 
     if (file == NULL) {
         perror("hosts_init fopen");
         exit(EXIT_FAILURE);
     }
 
-    struct sockaddr_storage result;
     struct addrinfo *res = NULL;
     struct addrinfo hints;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -104,7 +103,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         } else if (strncmp(token, "l", 1) == 0 ||
                    strncmp(token, "L", 1) == 0) {
             list->hosts[parsed].locality = HOST_LOCALITY_LOCAL;
-            if (list->localhost_id != -1) {
+            if (list->localhost_id != (uint32_t) -1) { // Checking we did not already set the value
                 fprintf(stderr, "Failure to parse hostfile: several local hosts defined");
                 freeaddrinfo(res);
                 fclose(file);
@@ -150,6 +149,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                         " (resolved to %s)\n\n",
                         buf);
             }
+            resolved++;
         }
 
         // Copy the address row in the host entry struct
@@ -163,6 +163,9 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
 
     fclose(file);
     list->nb_hosts = parsed;
+    if (DEBUG_LEVEL >= 1) {
+        printf("%d hosts parsed from file \"%s\" (%d/%d resolved)\n", parsed, hostfile, resolved, parsed);
+    }
     return parsed;
 }
 
@@ -221,7 +224,7 @@ int is_comment(char const *line) {
 }
 
 int is_p_available(hosts_list_s *list) {
-    for (int i = 0; i < list->nb_hosts; ++i) {
+    for (uint32_t i = 0; i < list->nb_hosts; ++i) {
         if (list->hosts[i].status == HOST_STATUS_P)
             return 1;
     }
