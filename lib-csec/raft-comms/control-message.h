@@ -31,4 +31,11 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg);
 // host's hosts list. If no node has P status in this case, NULL is returned.
 control_message_s *cm_new(const overseer_s *overseer, enum message_type type);
 
+// Checks the metadata in the control message and returns a value indicating if any action needs to be taken.
+// In case the message's term equals the local term, commits any uncommitted data that needs to be.
+// Also updates the sender's status in the hosts-list.
+enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb);
+
+int cm_check_action(overseer_s *overseer, enum cm_check_rv rv);
+
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

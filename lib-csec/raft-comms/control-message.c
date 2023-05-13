@@ -8,16 +8,16 @@ void cm_print(const control_message_s *hb, FILE *stream) {
     fprintf(stream,
             "host_id:       %d\n"
             "status:        %d\n"
-            "type:         %d\n"
+            "type:          %d\n"
             "next_index:    %ld\n"
-            "rep_index:     %ld\n"
+            "commit_index:  %ld\n"
             "match_index:   %ld\n"
             "term:          %d\n",
             hb->host_id,
             hb->status,
             hb->type,
             hb->next_index,
-            hb->rep_index,
+            hb->commit_index,
             hb->match_index,
             hb->term);
     fflush(stream);
@@ -134,8 +134,8 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             cm_print(&cm, stdout);
     }
 
-    // TODO Update status in the hosts list with metadata
-    // TODO Check indexes for sending a correction CM
+    enum cm_check_rv crv = cm_check_metadata((overseer_s *) arg, &cm);
+    cm_check_action((overseer_s *) arg, crv); // TODO Failure handling
 
     // Responses depending on the type of control message
     switch (cm.type) {
@@ -195,16 +195,16 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             // TODO Effects of ACK COMMIT reception
             break;
 
-        case MSG_TYPE_DEMOTE_NOTICE:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is DEMOTE NOTICE\n");
-            // TODO Effects of DEMOTE NOTICE reception
-            break;
-
         case MSG_TYPE_INDICATE_P:
             if (DEBUG_LEVEL >= 2)
                 printf("-> is INDICATE P\n");
             // TODO Effects of INDICATE P reception
+            break;
+
+        case MSG_TYPE_INDICATE_HS:
+            if (DEBUG_LEVEL >= 2)
+                printf("-> is INDICATE HS\n");
+            // TODO implement Indicate HS and HS term
             break;
 
         default:
@@ -245,9 +245,73 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
     ncm->status = overseer->hl->hosts[ncm->host_id].status;
     ncm->type = type;
     ncm->next_index = overseer->log->next_index;
-    ncm->rep_index = overseer->log->rep_index;
     ncm->match_index = overseer->log->match_index;
+    ncm->commit_index = overseer->log->commit_index;
     ncm->term = overseer->log->P_term;
 
     return ncm;
+}
+
+enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb) {
+    // If local P-term is outdated
+    if (hb->term > overseer->log->P_term) {
+        // Adjust local P-term
+        overseer->log->P_term = hb->term;
+
+        // Indicate P messages have
+        if (hb->type != MSG_TYPE_INDICATE_P) {
+            // If sender is either P or HS, adjust the identity of HS or P in the hosts list (resetting current P or HS)
+            if (hb->status == HOST_STATUS_P || hb->status == HOST_STATUS_HS) {
+                if (hl_change_master(overseer->hl, hb->status, hb->host_id) == EXIT_FAILURE) {
+                    fprintf(stderr, "CM check metadata error: failed to adjust master status\n");
+                    return CHECK_RV_FAILURE;
+                }
+            }
+                // Else set the status of the sender in the hosts list
+            else overseer->hl->hosts[hb->host_id].status = hb->status;
+
+            // And ask for repair in case log entries are outdated (cannot rely on indexes only if term was wrong)
+            return CHECK_RV_NEED_REPAIR;
+        }
+        // TODO handle if message is Indicate P
+    }
+
+        // If dist P-term is outdated
+    else if (hb->term < overseer->log->P_term) {
+        if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P)
+            return CHECK_RV_NEED_INDICATE_P;
+        else return CHECK_RV_NEED_TR_LATEST;
+    }
+
+    // Else P-terms are equal
+    // TODO Implement HS-term
+    // If local commit index is outdated (and term and next index were up-to-date)
+    if (hb->commit_index > overseer->log->commit_index) {
+        // TODO Commit up to commit index
+    }
+        // Else if dist is outdated do nothing ? TODO check if it is not necessary to notify sender
+
+        // Set the status of the sender in the hosts list
+    else overseer->hl->hosts[hb->host_id].status = hb->status; // TODO figure a way to make a security check on this
+
+    // If local next index is outdated
+    if (hb->next_index > overseer->log->next_index) {
+        // Ask P for the next missing entry
+        return CHECK_RV_NEED_REPLAY;
+    }
+
+        // If dist next index is outdated
+    else if (hb->next_index < overseer->log->next_index) {
+        // If local is P
+        if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P)
+            return CHECK_RV_NEED_TR_NEXT; // Send value entry corresponding to sender's next index
+        // Else do nothing ? TODO check if it is not necessary to notify sender
+    }
+
+    return CHECK_RV_CLEAN;
+}
+
+int cm_check_action(overseer_s *overseer, enum cm_check_rv rv) {
+    // TODO
+    return EXIT_SUCCESS;
 }
