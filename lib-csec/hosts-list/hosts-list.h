@@ -48,4 +48,7 @@ int is_p_available(hosts_list_s *list);
 // Returns the ID of the first node with P status encountered, otherwise returns 1 and sets errno to ENO_P
 uint32_t whois_p(hosts_list_s *list);
 
+// Resets any master node with the given status to CS, and sets the node with the given ID to the given status
+int hl_change_master(hosts_list_s *list, enum host_status status, uint32_t id);
+
 #endif //THESIS_CSEC_HOSTS_LIST_H

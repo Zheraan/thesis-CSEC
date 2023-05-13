@@ -79,7 +79,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                 list->hosts[parsed].type = NODE_TYPE_CM;
                 break;
             default:
-                fprintf(stderr, "Failure to parse host: invalid host type \"%s\"", token);
+                fprintf(stderr, "Failure to parse host: invalid host type \"%s\"\n", token);
                 freeaddrinfo(res);
                 fclose(file);
                 exit(EXIT_FAILURE);
@@ -104,7 +104,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                    strncmp(token, "L", 1) == 0) {
             list->hosts[parsed].locality = HOST_LOCALITY_LOCAL;
             if (list->localhost_id != (uint32_t) -1) { // Checking we did not already set the value
-                fprintf(stderr, "Failure to parse hostfile: several local hosts defined");
+                fprintf(stderr, "Failure to parse hostfile: several local hosts defined\n");
                 freeaddrinfo(res);
                 fclose(file);
                 exit(EXIT_FAILURE);
@@ -124,7 +124,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         }
         int rc = getaddrinfo(token, "35007", &hints, &res);
         if (rc != 0) {
-            fprintf(stderr, "Failure to parse host with address '%s': %s (%d)", token, gai_strerror(rc), rc);
+            fprintf(stderr, "Failure to parse host with address '%s': %s (%d)\n", token, gai_strerror(rc), rc);
             freeaddrinfo(res);
             fclose(file);
             exit(EXIT_FAILURE);
@@ -180,7 +180,7 @@ int host_re_resolve(hosts_list_s *list, uint32_t host_id) {
     int rc = getaddrinfo(list->hosts[host_id].addr_string, "35007", &hints, &res);
     if (rc != 0) {
         fprintf(stderr,
-                "Failure to parse host '%s': %s (%d)",
+                "Failure to parse host '%s': %s (%d)\n",
                 list->hosts[host_id].addr_string,
                 gai_strerror(rc), rc);
         exit(EXIT_FAILURE);
@@ -188,7 +188,7 @@ int host_re_resolve(hosts_list_s *list, uint32_t host_id) {
 
     if (res == NULL) {
         // In case getaddrinfo failed to resolve the address contained in the row
-        fprintf(stderr, "No host found for '%s'", list->hosts[host_id].addr_string);
+        fprintf(stderr, "No host found for '%s'\n", list->hosts[host_id].addr_string);
         list->hosts[host_id].status = HOST_STATUS_UNRESOLVED;
         freeaddrinfo(res);
         return EXIT_FAILURE;
@@ -238,4 +238,26 @@ uint32_t whois_p(hosts_list_s *list) {
     }
     errno = ENO_P;
     return 1;
+}
+
+int hl_change_master(hosts_list_s *list, enum host_status status, uint32_t id) {
+    if (id >= list->nb_hosts) {
+        fprintf(stderr, "HL change master error: host ID out of hosts list range\n");
+        return EXIT_FAILURE;
+    }
+    if (status != HOST_STATUS_P && status != HOST_STATUS_HS) {
+        fprintf(stderr,
+                "HL change master error: invalid parameter status %d, only 1 (P) and 2 (HS) are valid)\n",
+                status);
+        return EXIT_FAILURE;
+    }
+    for (uint32_t i = 0; i < list->nb_hosts; ++i) {
+        // If current id is of the given status (HS or P), resets it to CS
+        if (list->hosts[i].status == status && list->hosts[i].type == NODE_TYPE_M)
+            list->hosts[i].status = HOST_STATUS_CS;
+        // Sets the status for the node with the given ID
+        if (i == id)
+            list->hosts[i].status = status;
+    }
+    return EXIT_SUCCESS;
 }
