@@ -15,7 +15,7 @@
 #endif
 
 // Error code for unknown timeout type
-#define EUNKOWN_TIMEOUT_TYPE (-1)
+#define EUNKNOWN_TIMEOUT_TYPE (-1)
 
 // Timeout duration range for elections. Default value of 500ms
 #ifndef TIMEOUT_RANGE_ELECTION_USEC
@@ -117,7 +117,7 @@ enum message_type {
     MSG_TYPE_LOG_REPAIR = 4,
     // Replaying the log, asking master for entry in next index
     MSG_TYPE_LOG_REPLAY = 5,
-    // Master sending a new pending entry (only valid within transmissions)
+    // Master sending a new entry (only valid within transmissions)
     MSG_TYPE_TR_ENTRY = 6,
     // Master sending the commit order for an entry (only valid within transmissions)
     MSG_TYPE_TR_COMMIT = 7,
@@ -127,10 +127,31 @@ enum message_type {
     MSG_TYPE_ACK_ENTRY = 9,
     // Master sending the commit order for an entry (only valid within transmissions)
     MSG_TYPE_ACK_COMMIT = 10,
-    // Message to signify a master with outdated term to stand down from its role
-    MSG_TYPE_DEMOTE_NOTICE = 11,
-    // Message for indicating who is P in case host that is not P received a message sent to P
-    MSG_TYPE_INDICATE_P = 12,
+    // Message for indicating who is P in case host that is not P received a message sent to P or if the sender
+    // of a message had an outdated P-term
+    MSG_TYPE_INDICATE_P = 11,
+    // Message for indicating who is HS in case host that is not HS received a message sent to HS or if the sender
+    // of a message had an outdated HS-term
+    MSG_TYPE_INDICATE_HS = 12,
+};
+
+// Control message metadata check return values specifying the action to take if any
+enum cm_check_rv {
+// Return value indicating that everything is in order and no action is required
+    CHECK_RV_CLEAN = 0,
+// Return value indicating that the check failed
+    CHECK_RV_FAILURE = 1,
+// Return value indicating that it is necessary to send a Log Repair request to P
+    CHECK_RV_NEED_REPAIR = 2,
+// Return value indicating that it is necessary to send a Log Replay request to P
+    CHECK_RV_NEED_REPLAY = 3,
+// Return value indicating that it is necessary to reply an Indicate P CM to the sender
+    CHECK_RV_NEED_INDICATE_P = 4,
+// Return value indicating that it is necessary to reply with a transmission of the latest entry to the sender
+    CHECK_RV_NEED_TR_LATEST = 5,
+// Return value indicating that it is necessary to reply with a transmission of the entry corresponding to
+// the sender's next index
+    CHECK_RV_NEED_TR_NEXT = 6,
 };
 
 enum timeout_type {
@@ -162,8 +183,8 @@ typedef struct control_message_s {
 
     // Sender's next index
     uint64_t next_index;
-    // Sender's replication index (highest index that is either committed or pending)
-    uint64_t rep_index;
+    // Sender's commit index
+    uint64_t commit_index;
     // Sender's match index
     uint64_t match_index;
     // Sender's current P-term
