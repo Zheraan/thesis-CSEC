@@ -12,7 +12,7 @@ ops_queue_s *ops_queue_pop(mocked_fs_s *mfs){
     return res;
 }
 
-ops_queue_s *ops_queue_add(data_op_s *op, mocked_fs_s *mfs){
+ops_queue_s *ops_queue_add(const data_op_s *op, mocked_fs_s *mfs) {
     ops_queue_s *nqueue = malloc(sizeof(ops_queue_s));
     if (nqueue == NULL) {
         perror("malloc new ops queue element");
@@ -21,7 +21,7 @@ ops_queue_s *ops_queue_add(data_op_s *op, mocked_fs_s *mfs){
     nqueue->next = NULL;
     nqueue->op = op;
 
-    if (mfs->queue == NULL){ // If queue empty
+    if (mfs->queue == NULL) { // If queue empty
         mfs->queue = nqueue; // Append new one
         return nqueue;
     }

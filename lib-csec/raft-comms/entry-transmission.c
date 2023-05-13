@@ -107,11 +107,13 @@ void tr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                     printf("Done.\n");
                 return;
             }
-
+            // Else local is P:
+            // add entry to the log
             if (log_add_entry((overseer_s *) arg, &tr, ENTRY_STATE_PENDING) == EXIT_FAILURE) {
                 fprintf(stderr, "Failed to add a new log entry from proposition\n");
                 return;
             }
+            // TODO Sync the proposition with other nodes
             break;
 
         default:

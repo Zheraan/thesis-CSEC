@@ -30,7 +30,7 @@ int server_random_ops_init(overseer_s *overseer) {
 
     // Add the event in the loop
     struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_RANDOM_OPS);
-    if (errno == EUNKOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
+    if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
         fprintf(stderr, "Failed to add the data op event\n");
         fflush(stderr);
         return EXIT_FAILURE;
@@ -160,7 +160,7 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
 
     // Add the event in the loop
     struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_PROPOSITION);
-    if (errno == EUNKOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
+    if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
         fprintf(stderr, "Failed to add a queue element deletion event\n");
         event_free(nevent);
         element->timeout_event = NULL; // Avoid dangling pointer
@@ -259,7 +259,7 @@ int server_proposition_retransmission_init(overseer_s *overseer) {
 
     // Add the event in the loop
     struct timeval retransmission_timeout = timeout_gen(TIMEOUT_TYPE_PROP_RETRANSMISSION);
-    if (errno == EUNKOWN_TIMEOUT_TYPE || event_add(nevent, &retransmission_timeout) != 0) {
+    if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &retransmission_timeout) != 0) {
         fprintf(stderr, "Failed to add a proposition retransmission event\n");
         event_free(nevent);
         free(overseer->mfs->op_cache);

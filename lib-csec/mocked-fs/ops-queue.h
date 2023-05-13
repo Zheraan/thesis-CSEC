@@ -24,6 +24,6 @@ ops_queue_s *ops_queue_pop(mocked_fs_s *mfs);
 
 // Allocates a new queue element and sets it data op to the one in parameter, and adds it to the queue in the mfs
 // Returns a pointer on the newly allocated element or NULL in case of failure
-ops_queue_s *ops_queue_add(data_op_s *op, mocked_fs_s *mfs);
+ops_queue_s *ops_queue_add(const data_op_s *op, mocked_fs_s *mfs);
 
 #endif //THESIS_CSEC_OPS_QUEUE_H
