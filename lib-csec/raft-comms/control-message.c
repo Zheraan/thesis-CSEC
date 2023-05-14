@@ -4,6 +4,37 @@
 
 #include "control-message.h"
 
+control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
+    control_message_s *ncm = malloc(sizeof(control_message_s));
+
+    if (ncm == NULL) {
+        perror("malloc new control message struct");
+        fflush(stderr);
+        return (NULL);
+    }
+
+    if (type == MSG_TYPE_INDICATE_P) {
+        uint32_t p_id = whois_p(overseer->hl);
+        if (p_id == 1 && errno == ENO_P) {
+            fprintf(stderr, "Requesting INDICATE P message but no host has P status\n");
+            fflush(stderr);
+            free(ncm);
+            return (NULL);
+        }
+        ncm->host_id = p_id;
+    } else {
+        ncm->host_id = overseer->hl->localhost_id;
+    }
+    ncm->status = overseer->hl->hosts[ncm->host_id].status;
+    ncm->type = type;
+    ncm->next_index = overseer->log->next_index;
+    ncm->match_index = overseer->log->match_index;
+    ncm->commit_index = overseer->log->commit_index;
+    ncm->term = overseer->log->P_term;
+
+    return ncm;
+}
+
 void cm_print(const control_message_s *hb, FILE *stream) {
     fprintf(stream,
             "host_id:       %d\n"
@@ -221,37 +252,6 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     return;
 }
 
-control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
-    control_message_s *ncm = malloc(sizeof(control_message_s));
-
-    if (ncm == NULL) {
-        perror("malloc new control message struct");
-        fflush(stderr);
-        return (NULL);
-    }
-
-    if (type == MSG_TYPE_INDICATE_P) {
-        uint32_t p_id = whois_p(overseer->hl);
-        if (p_id == 1 && errno == ENO_P) {
-            fprintf(stderr, "Requesting INDICATE P message but no host has P status\n");
-            fflush(stderr);
-            free(ncm);
-            return (NULL);
-        }
-        ncm->host_id = p_id;
-    } else {
-        ncm->host_id = overseer->hl->localhost_id;
-    }
-    ncm->status = overseer->hl->hosts[ncm->host_id].status;
-    ncm->type = type;
-    ncm->next_index = overseer->log->next_index;
-    ncm->match_index = overseer->log->match_index;
-    ncm->commit_index = overseer->log->commit_index;
-    ncm->term = overseer->log->P_term;
-
-    return ncm;
-}
-
 enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb) {
     // If local P-term is outdated
     if (hb->term > overseer->log->P_term) {
@@ -311,7 +311,91 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
     return CHECK_RV_CLEAN;
 }
 
-int cm_check_action(overseer_s *overseer, enum cm_check_rv rv) {
-    // TODO
+int cm_check_action(overseer_s *overseer, enum cm_check_rv rv) { // TODO
+    switch (rv) {
+        case CHECK_RV_CLEAN:
+        case CHECK_RV_FAILURE:
+            // Do nothing
+            break;
+        case CHECK_RV_NEED_REPAIR:
+            break;
+        case CHECK_RV_NEED_REPLAY:
+            break;
+        case CHECK_RV_NEED_INDICATE_P:
+            break;
+        case CHECK_RV_NEED_TR_LATEST:
+            break;
+        case CHECK_RV_NEED_TR_NEXT:
+            break;
+        default:
+            break;
+    }
     return EXIT_SUCCESS;
+}
+
+int cm_retransmission_init(overseer_s *overseer,
+                           struct sockaddr_in6 sockaddr,
+                           socklen_t socklen,
+                           enum message_type type,
+                           uint8_t attempts) {
+    if (attempts == 0)
+        return EXIT_SUCCESS;
+
+    if (DEBUG_LEVEL >= 4) {
+        printf("- Initializing CM retransmission event ... ");
+        fflush(stdout);
+    }
+
+    if (rt_cache_add_new(overseer, attempts, sockaddr, socklen, type, NULL) != EXIT_SUCCESS) {
+        fprintf(stderr, "Failed creating retransmission cache\n");
+        fflush(stderr);
+        return EXIT_FAILURE;
+    }
+
+    if (DEBUG_LEVEL >= 4) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
+    return EXIT_SUCCESS;
+}
+
+void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
+    if (DEBUG_LEVEL >= 3) {
+        printf("CM retransmission timed out, reattempting transmission (attempt %d) ... ",
+               ((retransmission_cache_s *) arg)->cur_attempts + 1);
+        fflush(stdout);
+    }
+    int success = 1;
+
+    // Send proposition to P
+    if (cm_sendto(((retransmission_cache_s *) arg)->overseer,
+                  ((retransmission_cache_s *) arg)->addr,
+                  ((retransmission_cache_s *) arg)->socklen,
+                  ((retransmission_cache_s *) arg)->type)) {
+        fprintf(stderr, "Failed retransmitting the control message\n");
+        success = 0;
+    }
+
+    // Increase attempts number
+    ((retransmission_cache_s *) arg)->cur_attempts++;
+
+    // If attempts max reached, remove cache entry
+    if (((retransmission_cache_s *) arg)->cur_attempts >= ((retransmission_cache_s *) arg)->max_attempts) {
+        rt_cache_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id);
+    } else { // Otherwise add retransmission event
+        // Add the event in the loop
+        struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
+        if (errno == EUNKNOWN_TIMEOUT_TYPE ||
+            event_add(((retransmission_cache_s *) arg)->ev, &ops_timeout) != 0) {
+            fprintf(stderr, "Failed to add the CM retransmission event\n");
+            fflush(stderr);
+            success = 0;
+        }
+    }
+
+    if (DEBUG_LEVEL >= 3 && success == 1) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
+    return;
 }
