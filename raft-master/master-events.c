@@ -44,7 +44,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         }
 
         receiver = (target->addr);
-        receiver_len = (target->addr_len);
+        receiver_len = (target->socklen);
 
         evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
         if (DEBUG_LEVEL >= 3) {

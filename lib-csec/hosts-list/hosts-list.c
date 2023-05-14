@@ -141,7 +141,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
             // Only the first returned entry is used
             memcpy(&(list->hosts[parsed].addr), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
-            list->hosts[parsed].addr_len = res->ai_addrlen;
+            list->hosts[parsed].socklen = res->ai_addrlen;
             if (DEBUG_LEVEL >= 2) {
                 char buf[256];
                 evutil_inet_ntop(AF_INET6, &(list->hosts[parsed].addr.sin6_addr), buf, 256);
@@ -197,7 +197,7 @@ int host_re_resolve(hosts_list_s *list, uint32_t host_id) {
     list->hosts[host_id].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
     // Only the first returned entry is used
     memcpy(&(list->hosts[host_id].addr), res->ai_addr, res->ai_addrlen);
-    list->hosts[host_id].addr_len = res->ai_addrlen;
+    list->hosts[host_id].socklen = res->ai_addrlen;
 
     freeaddrinfo(res);
     return EXIT_SUCCESS;

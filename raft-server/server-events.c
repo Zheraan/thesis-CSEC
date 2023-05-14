@@ -210,7 +210,7 @@ int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element) {
         }
         if (tr_sendto(overseer,
                       overseer->hl->hosts[p_id].addr,
-                      overseer->hl->hosts[p_id].addr_len,
+                      overseer->hl->hosts[p_id].socklen,
                       ntr) == EXIT_FAILURE) {
             fprintf(stderr, "Failed transmitting the proposition\n");
             free(ntr);
@@ -299,7 +299,7 @@ void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void 
             success = 0;
         } else if (tr_sendto((overseer_s *) arg,
                              ((overseer_s *) arg)->hl->hosts[p_id].addr,
-                             ((overseer_s *) arg)->hl->hosts[p_id].addr_len,
+                             ((overseer_s *) arg)->hl->hosts[p_id].socklen,
                              ntr)) {
             fprintf(stderr, "Failed transmitting the proposition\n");
             success = 0;

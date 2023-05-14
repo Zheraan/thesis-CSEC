@@ -61,7 +61,7 @@ typedef struct host_s {
     // IPv6 address of the host
     struct sockaddr_in6 addr;
     // Address length of the host
-    socklen_t addr_len;
+    socklen_t socklen;
     // String parsed by the hosts_list initializer corresponding to this host entry, used for re-resolution
     char addr_string[256];
 } host_s;
