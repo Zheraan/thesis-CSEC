@@ -8,7 +8,6 @@
 #define THESIS_CSEC_LIB_CSEC_H
 
 #include "datatypes.h"
-#include "event-list.h"
 #include "overseer.h"
 
 #endif //THESIS_CSEC_LIB_CSEC_H

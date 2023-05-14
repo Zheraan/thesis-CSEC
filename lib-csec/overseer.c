@@ -9,7 +9,7 @@ int overseer_init(overseer_s *overseer) {
     overseer->mfs = NULL;
     overseer->log = NULL;
     overseer->eb = NULL;
-    overseer->el = NULL;
+    overseer->rt_cache = NULL;
     overseer->special_event = NULL;
     overseer->cm_reception_event = NULL;
 
@@ -201,8 +201,7 @@ void overseer_wipe(overseer_s *overseer) {
         fflush(stdout);
     }
 
-    if (overseer->el != NULL)
-        event_list_free(overseer->el);
+    rt_cache_free_all(overseer);
     if (DEBUG_LEVEL >= 3) {
         printf("Done.\n"
                "- Event-base ... ");

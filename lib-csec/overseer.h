@@ -16,7 +16,7 @@
 #include "hosts-list/hosts-list.h"
 #include "raft-log/log.h"
 #include "mocked-fs/ops-queue.h"
-#include "event-list.h"
+#include "raft-comms/retransmission-cache.h"
 
 #ifndef ECFG_MAX_DISPATCH_USEC
 #define ECFG_MAX_DISPATCH_USEC 2000

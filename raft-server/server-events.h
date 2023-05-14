@@ -7,7 +7,7 @@
 
 #include <event2/event.h>
 #include "datatypes.h"
-#include "event-list.h"
+#include "raft-comms/retransmission-cache.h"
 #include "raft-comms/control-message.h"
 #include "raft-comms/timeout.h"
 #include "raft-comms/entry-transmission.h"

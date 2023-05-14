@@ -25,8 +25,8 @@ add_library(
         raft-log/log.h
         overseer.h
         overseer.c
-        event-list.c
-        event-list.h
+        raft-comms/retransmission-cache.c
+        raft-comms/retransmission-cache.h
         raft-comms/timeout.c
         raft-comms/timeout.h
         mocked-fs/ops-queue.c

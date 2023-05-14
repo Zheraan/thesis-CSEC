@@ -204,4 +204,32 @@ typedef struct transmission_s {
     enum entry_state state;
 } transmission_s;
 
+// Struct to hold a message or transmission that needs to be retransmitted and freed later, in a linked list
+// fashion
+typedef struct retransmission_cache_s {
+    // ID of the retransmission. Every new retransmission cache has an ID of the previous element +1;
+    // Whenever it hits the maximum value, the next one will be 0 by voluntary overflow.
+    uint16_t id;
+    // Pointer to the next list element
+    struct retransmission_cache_s *next;
+    // Transmission that needs to be resent.
+    // Control messages can be generated on the spot from the program state and the message type, so it is
+    // not necessary to have a pointer for them. However, transmissions are not
+    transmission_s *tr;
+    // Number of retransmission attempts made
+    uint8_t cur_attempts;
+    // Max number of retransmissions
+    uint8_t max_attempts;
+    // Address of the target
+    struct sockaddr_in6 addr;
+    // Socklen of the target
+    socklen_t socklen;
+    // Type of message
+    enum message_type type;
+    // Pointer to the program state
+    overseer_s *overseer;
+    // Related event
+    struct event *ev;
+} retransmission_cache_s;
+
 #endif //THESIS_CSEC_RC_DATATYPES_H
