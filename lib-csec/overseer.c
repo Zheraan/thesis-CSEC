@@ -76,9 +76,9 @@ int overseer_init(overseer_s *overseer) {
     }
 
     // Create the socket
-    overseer->socket_tr = socket(AF_INET6, SOCK_DGRAM, 0);
-    if (overseer->socket_tr == -1 || evutil_make_socket_nonblocking(overseer->socket_tr) != 0) {
-        perror("Socket tr init error");
+    overseer->socket_etr = socket(AF_INET6, SOCK_DGRAM, 0);
+    if (overseer->socket_etr == -1 || evutil_make_socket_nonblocking(overseer->socket_etr) != 0) {
+        perror("Socket etr init error");
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
@@ -88,21 +88,21 @@ int overseer_init(overseer_s *overseer) {
     naddr.sin6_port = htons(35008);
 
     // Set options
-    if (setsockopt(overseer->socket_tr,
+    if (setsockopt(overseer->socket_etr,
                    SOL_SOCKET,
                    SO_REUSEADDR,
                    &option,
                    sizeof(option)) == -1) {
-        perror("Socket tr set options");
+        perror("Socket etr set options");
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
 
     // Bind the socket to the local address for receiving messages
-    if (bind(overseer->socket_tr,
+    if (bind(overseer->socket_etr,
              (struct sockaddr *) &naddr,
              sizeof(overseer->hl->hosts[overseer->hl->localhost_id].addr)) != 0) {
-        perror("Socket tr bind");
+        perror("Socket etr bind");
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
@@ -223,7 +223,7 @@ void overseer_wipe(overseer_s *overseer) {
 
     if (overseer->socket_cm != 0 && close(overseer->socket_cm) != 0)
         perror("Error closing communication socket file descriptor");
-    if (overseer->socket_tr != 0 && close(overseer->socket_tr) != 0)
+    if (overseer->socket_etr != 0 && close(overseer->socket_etr) != 0)
         perror("Error closing communication socket file descriptor");
     if (DEBUG_LEVEL >= 3) {
         printf("Done.\n"

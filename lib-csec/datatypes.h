@@ -23,7 +23,7 @@ typedef struct data_op_s data_op_s;
 typedef struct ops_queue_s ops_queue_s;
 typedef struct mocked_fs_s mocked_fs_s;
 typedef struct control_message_s control_message_s;
-typedef struct transmission_s transmission_s;
+typedef struct entry_transmission_s entry_transmission_s;
 typedef struct log_entry_s log_entry_s;
 typedef struct log_s log_s;
 typedef struct retransmission_cache_s retransmission_cache_s;
@@ -48,7 +48,7 @@ struct overseer_s {
     // Socket for sending and receiving control messages
     evutil_socket_t socket_cm;
     // Socket for sending and receiving transmissions
-    evutil_socket_t socket_tr;
+    evutil_socket_t socket_etr;
 };
 
 #endif //THESIS_CSEC_DATATYPES_H

@@ -17,6 +17,16 @@
 // Error code for unknown timeout type
 #define EUNKNOWN_TIMEOUT_TYPE (-1)
 
+#ifndef CM_DEFAULT_RT_ATTEMPTS
+// Default number of retransmission attempts for Control Messages
+#define CM_DEFAULT_RT_ATTEMPTS 2
+#endif
+
+#ifndef ETR_DEFAULT_RT_ATTEMPTS
+// Default number of retransmission attempts for Control Messages
+#define ETR_DEFAULT_RT_ATTEMPTS 2
+#endif
+
 // Timeout duration range for elections. Default value of 500ms
 #ifndef TIMEOUT_RANGE_ELECTION_USEC
 #define TIMEOUT_RANGE_ELECTION_USEC 500000
@@ -103,55 +113,66 @@
 #endif
 
 
-// Control message type values, including those only used within the transmission struct
+// Control message type values, including those only used within the transmission struct.
+// Message types concerning CMs have values <=100, and those concerning ETRs have values >100
 enum message_type {
+    // CM Message types ---------------------------------------------------------------------------
     // Default heartbeat
     MSG_TYPE_HB_DEFAULT = 0,
-    // Ack of heartbeat without issues
-    MSG_TYPE_ACK_HB = 1,
     // New P taking over
     MSG_TYPE_P_TAKEOVER = 2,
     // New HS taking over
     MSG_TYPE_HS_TAKEOVER = 3,
+
     // Repairing the log, asking master for entry before next index
     MSG_TYPE_LOG_REPAIR = 4,
     // Replaying the log, asking master for entry in next index
     MSG_TYPE_LOG_REPLAY = 5,
-    // Master sending a new entry (only valid within transmissions)
-    MSG_TYPE_TR_ENTRY = 6,
-    // Master sending the commit order for an entry (only valid within transmissions)
-    MSG_TYPE_TR_COMMIT = 7,
-    // Server sending a new entry proposition to P (only valid within transmissions)
-    MSG_TYPE_TR_PROPOSITION = 8,
-    // Master sending a new pending entry (only valid within transmissions)
-    MSG_TYPE_ACK_ENTRY = 9,
-    // Master sending the commit order for an entry (only valid within transmissions)
-    MSG_TYPE_ACK_COMMIT = 10,
+
+    // Ack of heartbeat without issues, also sent back for takeover messages
+    MSG_TYPE_ACK_HB = 1,
+    // Ack message for an ETR Entry
+    MSG_TYPE_ACK_ENTRY = 6,
+    // Ack message for an ETR Commit
+    MSG_TYPE_ACK_COMMIT = 7,
     // Message for indicating who is P in case host that is not P received a message sent to P or if the sender
     // of a message had an outdated P-term
-    MSG_TYPE_INDICATE_P = 11,
+
+    MSG_TYPE_INDICATE_P = 8,
     // Message for indicating who is HS in case host that is not HS received a message sent to HS or if the sender
     // of a message had an outdated HS-term
-    MSG_TYPE_INDICATE_HS = 12,
+    MSG_TYPE_INDICATE_HS = 9,
+
+    // ETR Message types (only valid within transmissions) ----------------------------------------
+    // Master sending a new entry to add to the log as pending
+    MSG_TYPE_ETR_NEW = 101,
+    // Master sending the commit order for a pending entry
+    MSG_TYPE_ETR_COMMIT = 102,
+    // Server sending a new entry proposition to P
+    MSG_TYPE_ETR_PROPOSITION = 103,
+    // Master sending an entry that is NOT a new entry to add as pending, but one sent in order to fix
+    // the receiver's log as result of a Log Repair or Log Replay
+    MSG_TYPE_ETR_LOGFIX = 104,
 };
 
 // Control message metadata check return values specifying the action to take if any
 enum cm_check_rv {
-// Return value indicating that everything is in order and no action is required
+    // Return value indicating that everything is in order and no additional action is required
     CHECK_RV_CLEAN = 0,
-// Return value indicating that the check failed
+    // Return value indicating that the check failed
     CHECK_RV_FAILURE = 1,
-// Return value indicating that it is necessary to send a Log Repair request to P
+    // Return value indicating that it is necessary to send a Log Repair request to P
     CHECK_RV_NEED_REPAIR = 2,
-// Return value indicating that it is necessary to send a Log Replay request to P
+    // Return value indicating that it is necessary to send a Log Replay request to P
     CHECK_RV_NEED_REPLAY = 3,
-// Return value indicating that it is necessary to reply an Indicate P CM to the sender
+    // Return value indicating that it is necessary to reply an Indicate P CM to the sender
     CHECK_RV_NEED_INDICATE_P = 4,
-// Return value indicating that it is necessary to reply with a transmission of the latest entry to the sender
-    CHECK_RV_NEED_TR_LATEST = 5,
-// Return value indicating that it is necessary to reply with a transmission of the entry corresponding to
-// the sender's next index
-    CHECK_RV_NEED_TR_NEXT = 6,
+    // Return value indicating that it is necessary to reply with a transmission of the latest entry to the sender
+    // if P is local, and indicate P otherwise
+    CHECK_RV_NEED_ETR_LATEST = 5,
+    // Return value indicating that it is necessary to reply with a transmission of the entry corresponding to
+    // the sender's next index (only if P is local)
+    CHECK_RV_NEED_ETR_NEXT = 6,
 };
 
 enum timeout_type {
@@ -180,6 +201,8 @@ typedef struct control_message_s {
     enum host_status status;
     // Enum for determining the type of control message
     enum message_type type;
+    // Message number to determine what ack refers to or what number an ack for this message should have
+    uint32_t ack_number; // TODO implement this
 
     // Sender's next index
     uint64_t next_index;
@@ -191,7 +214,7 @@ typedef struct control_message_s {
     uint32_t term;
 } control_message_s;
 
-typedef struct transmission_s {
+typedef struct entry_transmission_s {
     // Status of the sender and type of transmission
     control_message_s cm;
     // Transmitted entry's related data op
@@ -202,7 +225,7 @@ typedef struct transmission_s {
     uint32_t term;
     // Transmitted entry's state
     enum entry_state state;
-} transmission_s;
+} entry_transmission_s;
 
 // Struct to hold a message or transmission that needs to be retransmitted and freed later, in a linked list
 // fashion
@@ -215,7 +238,7 @@ typedef struct retransmission_cache_s {
     // Transmission that needs to be resent.
     // Control messages can be generated on the spot from the program state and the message type, so it is
     // not necessary to have a pointer for them. However, transmissions are not
-    transmission_s *tr;
+    entry_transmission_s *etr;
     // Number of retransmission attempts made
     uint8_t cur_attempts;
     // Max number of retransmissions

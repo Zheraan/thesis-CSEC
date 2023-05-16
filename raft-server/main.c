@@ -14,7 +14,7 @@ int main() {
     }
     // Initialize program state
     overseer_s overseer;
-    if (overseer_init(&overseer) == EXIT_FAILURE) {
+    if (overseer_init(&overseer) != EXIT_SUCCESS) {
         fprintf(stderr, "Failed to initialize the program state\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
@@ -26,8 +26,8 @@ int main() {
     }
 
     // Initialize event loop
-    if (cm_reception_init(&overseer) == EXIT_FAILURE || // Initialize the message reception handler event
-        server_random_ops_init(&overseer) == EXIT_FAILURE) { // Initialize the random ops generator
+    if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the message reception handler event
+        server_random_ops_init(&overseer) != EXIT_SUCCESS) { // Initialize the random ops generator
         fprintf(stderr, "Failed to initialize the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);

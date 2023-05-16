@@ -10,7 +10,7 @@ log_s *log_init(log_s *log) {
     return log;
 }
 
-int log_add_entry(overseer_s *overseer, const transmission_s *tr, enum entry_state state) {
+int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum entry_state state) {
     if (overseer->log->next_index == LOG_LENGTH) {
         fprintf(stderr, "Log full\n");
         return EXIT_FAILURE;
@@ -63,10 +63,21 @@ int log_add_entry(overseer_s *overseer, const transmission_s *tr, enum entry_sta
 }
 
 void log_free(log_s *log) {
-    for (uint64_t i = 0; i < log->next_index; ++i) {
-        free(log->entries[i].server_rep);
-        free(log->entries[i].master_rep);
-    }
+    for (uint64_t i = 0; i < log->next_index; ++i)
+        log_entry_replication_arrays_free(&(log->entries[i]));
     free(log);
     return;
+}
+
+void log_entry_replication_arrays_free(log_entry_s *entry) {
+    free(entry->server_rep);
+    free(entry->master_rep);
+    entry->master_rep = NULL;
+    entry->server_rep = NULL;
+    return;
+}
+
+log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id) {
+    if (log->next_index >= id) return NULL;
+    return &(log->entries[id]);
 }

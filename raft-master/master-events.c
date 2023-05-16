@@ -54,7 +54,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         if (cm_sendto(((overseer_s *) arg),
                       receiver,
                       receiver_len,
-                      MSG_TYPE_HB_DEFAULT) == EXIT_FAILURE) {
+                      MSG_TYPE_HB_DEFAULT) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send heartbeat\n");
             fflush(stderr);
             return;
@@ -64,7 +64,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
     }
 
     // Set the next event
-    if (master_heartbeat_init((overseer_s *) arg) == EXIT_FAILURE) {
+    if (master_heartbeat_init((overseer_s *) arg) != EXIT_SUCCESS) {
         fprintf(stderr, "Fatal Error: next heartbeat event couldn't be set\n");
         fflush(stderr);
         exit(EXIT_FAILURE); // TODO Crash handler

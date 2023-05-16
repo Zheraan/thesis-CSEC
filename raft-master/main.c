@@ -14,7 +14,7 @@ int main() {
     }
     // Initialize program state
     overseer_s overseer;
-    if (overseer_init(&overseer) == EXIT_FAILURE) {
+    if (overseer_init(&overseer) != EXIT_SUCCESS) {
         fprintf(stderr, "Failed to initialize the program state\n");
         exit(EXIT_FAILURE);
     }
@@ -29,8 +29,8 @@ int main() {
     // Initialize event loop
     // TODO Remove heartbeat to have it on only initialized when transitioning to HS (and thus it remains for P)
     //  then remove when demoted to CS
-    if (master_heartbeat_init(&overseer) == EXIT_FAILURE || // Initialize heartbeat events
-        cm_reception_init(&overseer) == EXIT_FAILURE) { // Initialize control message reception events
+    if (master_heartbeat_init(&overseer) != EXIT_SUCCESS || // Initialize heartbeat events
+        cm_reception_init(&overseer) != EXIT_SUCCESS) { // Initialize control message reception events
         fprintf(stderr, "Failed to initialized the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
