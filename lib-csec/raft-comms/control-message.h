@@ -22,7 +22,8 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type);
 // Outputs the state of the structure to the specified stream
 void cm_print(const control_message_s *hb, FILE *stream);
 
-// Sends a control message to the provided address with the provided message type
+// Sends a control message to the provided address with the provided message type.
+// Returns EXIT_SUCCESS or EXIT_FAILURE depending on result
 int cm_sendto(const overseer_s *overseer,
               struct sockaddr_in6 sockaddr,
               socklen_t socklen,
@@ -41,16 +42,20 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg);
 enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb);
 
 // Depending on the return value of cm_check_metadata(), takes the appropriate action
-int cm_check_action(overseer_s *overseer, enum cm_check_rv rv);
+int cm_check_action(overseer_s *overseer,
+                    enum cm_check_rv rv,
+                    struct sockaddr_in6 addr,
+                    socklen_t socklen,
+                    control_message_s *cm);
 
-// Initializes the retransmission event of a control message, caching the necessary data for doing so
-int cm_retransmission_init(overseer_s *overseer,
+// Callback for retransmitting events, cleans up after the maximum number of attempts has been made
+void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
+
+// Sends a CM, then initializes events and structure in the cache for retransmitting a CM
+int cm_sendto_with_rt_init(overseer_s *overseer,
                            struct sockaddr_in6 sockaddr,
                            socklen_t socklen,
                            enum message_type type,
                            uint8_t attempts);
-
-// Callback for retransmitting events, cleans up after the maximum number of attempts has been made
-void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

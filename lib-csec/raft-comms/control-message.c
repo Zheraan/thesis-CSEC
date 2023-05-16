@@ -166,7 +166,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     }
 
     enum cm_check_rv crv = cm_check_metadata((overseer_s *) arg, &cm);
-    cm_check_action((overseer_s *) arg, crv); // TODO Failure handling
+    cm_check_action((overseer_s *) arg, crv, sender, sender_len, &cm); // TODO Failure handling
 
     // Responses depending on the type of control message
     switch (cm.type) {
@@ -177,7 +177,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             if (cm_sendto(((overseer_s *) arg),
                           sender,
                           sender_len,
-                          MSG_TYPE_ACK_HB) == EXIT_FAILURE) {
+                          MSG_TYPE_ACK_HB) != EXIT_SUCCESS) {
                 fprintf(stderr, "Failed to Ack heartbeat\n");
                 fflush(stderr);
                 return;
@@ -262,7 +262,7 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
         if (hb->type != MSG_TYPE_INDICATE_P) {
             // If sender is either P or HS, adjust the identity of HS or P in the hosts list (resetting current P or HS)
             if (hb->status == HOST_STATUS_P || hb->status == HOST_STATUS_HS) {
-                if (hl_change_master(overseer->hl, hb->status, hb->host_id) == EXIT_FAILURE) {
+                if (hl_change_master(overseer->hl, hb->status, hb->host_id) != EXIT_SUCCESS) {
                     fprintf(stderr, "CM check metadata error: failed to adjust master status\n");
                     return CHECK_RV_FAILURE;
                 }
@@ -273,87 +273,209 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
             // And ask for repair in case log entries are outdated (cannot rely on indexes only if term was wrong)
             return CHECK_RV_NEED_REPAIR;
         }
-        // TODO handle if message is Indicate P
+        // If message is Indicate P, it is handled in the receiver function
     }
 
         // If dist P-term is outdated
     else if (hb->term < overseer->log->P_term) {
         if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P)
             return CHECK_RV_NEED_INDICATE_P;
-        else return CHECK_RV_NEED_TR_LATEST;
+        else return CHECK_RV_NEED_ETR_LATEST;
     }
 
-    // Else P-terms are equal
-    // TODO Implement HS-term
-    // If local commit index is outdated (and term and next index were up-to-date)
-    if (hb->commit_index > overseer->log->commit_index) {
+    // Rest of function: P-terms are equal
+    // TODO Implement HS-term checks too
+
+    // If local commit index is outdated and local is not P (and term was up-to-date)
+    if (hb->commit_index > overseer->log->commit_index &&
+        overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P) {
         // TODO Commit up to commit index
     }
-        // Else if dist is outdated do nothing ? TODO check if it is not necessary to notify sender
-
-        // Set the status of the sender in the hosts list
+        // Else if dist is outdated do nothing and set the status of the sender in the hosts list
     else overseer->hl->hosts[hb->host_id].status = hb->status; // TODO figure a way to make a security check on this
 
-    // If local next index is outdated
-    if (hb->next_index > overseer->log->next_index) {
-        // Ask P for the next missing entry
-        return CHECK_RV_NEED_REPLAY;
-    }
-
-        // If dist next index is outdated
-    else if (hb->next_index < overseer->log->next_index) {
-        // If local is P
-        if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P)
-            return CHECK_RV_NEED_TR_NEXT; // Send value entry corresponding to sender's next index
-        // Else do nothing ? TODO check if it is not necessary to notify sender
+    // In case of Log Repair messages, indexes will have different values than their host's, so don't check for them
+    // here to not send additional useless messages. Successive Log Repair indexes go backward in order, whilst
+    // Log Repair go forward
+    if (hb->type != MSG_TYPE_LOG_REPAIR) {
+        if (hb->next_index > overseer->log->next_index) { // If local next index is outdated
+            // Ask P for the next missing entry
+            return CHECK_RV_NEED_REPLAY;
+        } else if (hb->next_index < overseer->log->next_index) { // If dist next index is outdated
+            // If local is P
+            if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P) {
+                // Send value entry corresponding to sender's next index
+                return CHECK_RV_NEED_ETR_NEXT;
+            }
+            // Else if local is not P ignore message // TODO optimize with sending entry if you have it
+        }
     }
 
     return CHECK_RV_CLEAN;
 }
 
-int cm_check_action(overseer_s *overseer, enum cm_check_rv rv) { // TODO
-    switch (rv) {
-        case CHECK_RV_CLEAN:
-        case CHECK_RV_FAILURE:
-            // Do nothing
-            break;
-        case CHECK_RV_NEED_REPAIR:
-            break;
-        case CHECK_RV_NEED_REPLAY:
-            break;
-        case CHECK_RV_NEED_INDICATE_P:
-            break;
-        case CHECK_RV_NEED_TR_LATEST:
-            break;
-        case CHECK_RV_NEED_TR_NEXT:
-            break;
-        default:
-            break;
-    }
-    return EXIT_SUCCESS;
-}
-
-int cm_retransmission_init(overseer_s *overseer,
-                           struct sockaddr_in6 sockaddr,
-                           socklen_t socklen,
-                           enum message_type type,
-                           uint8_t attempts) {
-    if (attempts == 0)
-        return EXIT_SUCCESS;
-
+int cm_check_action(overseer_s *overseer,
+                    enum cm_check_rv rv,
+                    struct sockaddr_in6 addr,
+                    socklen_t socklen,
+                    control_message_s *cm) {
     if (DEBUG_LEVEL >= 4) {
-        printf("- Initializing CM retransmission event ... ");
+        printf("Beginning of check action ---------------------------------------------------------\n");
         fflush(stdout);
     }
 
-    if (rt_cache_add_new(overseer, attempts, sockaddr, socklen, type, NULL) != EXIT_SUCCESS) {
-        fprintf(stderr, "Failed creating retransmission cache\n");
-        fflush(stderr);
-        return EXIT_FAILURE;
+    switch (rv) {
+        case CHECK_RV_CLEAN:
+        case CHECK_RV_FAILURE:
+            // Do nothing, failure is handled above
+            break;
+
+        case CHECK_RV_NEED_REPAIR:
+            if (cm_sendto_with_rt_init(overseer,
+                                       addr,
+                                       socklen,
+                                       MSG_TYPE_LOG_REPAIR,
+                                       CM_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                fprintf(stderr,
+                        "Failed to send and RT init CM of type Log Repair as result of check action\n");
+                fflush(stderr);
+                return EXIT_FAILURE;
+            }
+            break;
+
+        case CHECK_RV_NEED_REPLAY:
+            if (cm_sendto_with_rt_init(overseer,
+                                       addr,
+                                       socklen,
+                                       MSG_TYPE_LOG_REPLAY,
+                                       CM_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                fprintf(stderr,
+                        "Failed to send and RT init CM of type Log Replay as result of check action\n");
+                fflush(stderr);
+                return EXIT_FAILURE;
+            }
+            break;
+
+        case CHECK_RV_NEED_INDICATE_P:
+            if (cm_sendto_with_rt_init(overseer,
+                                       addr,
+                                       socklen,
+                                       MSG_TYPE_INDICATE_P,
+                                       CM_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                fprintf(stderr,
+                        "Failed to send and RT init CM of type Indicate P as result of check action\n");
+                fflush(stderr);
+                return EXIT_FAILURE;
+            }
+            break;
+
+        case CHECK_RV_NEED_ETR_LATEST:
+            // Status check voluntarily redundant with CM check
+            if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P) {
+                if (DEBUG_LEVEL >= 4) {
+                    printf("- Sender needs latest entry, transmitting ... ");
+                    fflush(stdout);
+                }
+
+                // Create new ETR based on latest entry in the log
+                entry_transmission_s *netr = etr_new_from_local_entry(overseer,
+                                                                      MSG_TYPE_ETR_LOGFIX,
+                                                                      overseer->log->next_index - 1);
+                if (netr == NULL) {
+                    fprintf(stderr,
+                            "Failed to create ETR for replying with entry corresponding to next index\n");
+                    return EXIT_FAILURE;
+                }
+
+                // Send ETR
+                if (etr_sendto_with_rt_init(overseer,
+                                            netr,
+                                            addr,
+                                            socklen,
+                                            MSG_TYPE_ETR_LOGFIX,
+                                            ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                    fprintf(stderr,
+                            "Failed to send and RT init ETR of type ETR Logfix as result of check action");
+                    fflush(stderr);
+                    return EXIT_FAILURE;
+                }
+
+                if (DEBUG_LEVEL >= 4) {
+                    printf("Done.\n");
+                    fflush(stdout);
+                }
+            } else { // Should not be necessary because of CM check but well who knows
+                if (DEBUG_LEVEL >= 4) {
+                    printf("- Sender needs latest entry but local is not P\n");
+                    fflush(stdout);
+                }
+                if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                    fprintf(stderr,
+                            "Failed to send CM of type Indicate P as result of check action\n");
+                    fflush(stderr);
+                    return EXIT_FAILURE;
+                }
+            }
+            break;
+
+        case CHECK_RV_NEED_ETR_NEXT:
+            // Status check voluntarily redundant with CM check
+            if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P) {
+                if (DEBUG_LEVEL >= 4) {
+                    printf("- Sender needs entry in next index (%ld), transmitting ... ", cm->next_index);
+                    fflush(stdout);
+                }
+
+                entry_transmission_s *netr = etr_new_from_local_entry(overseer,
+                                                                      MSG_TYPE_ETR_LOGFIX,
+                                                                      cm->next_index);
+                if (netr == NULL) {
+                    fprintf(stderr,
+                            "Failed to create ETR for replying with entry corresponding to next index\n");
+                    return EXIT_FAILURE;
+                }
+
+
+                // Send ETR
+                if (etr_sendto_with_rt_init(overseer,
+                                            netr,
+                                            addr,
+                                            socklen,
+                                            MSG_TYPE_ETR_LOGFIX,
+                                            ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                    fprintf(stderr,
+                            "Failed to send and RT init ETR of type ETR Logfix as result of check action");
+                    fflush(stderr);
+                    return EXIT_FAILURE;
+                }
+
+                if (DEBUG_LEVEL >= 4) {
+                    printf("Done.\n");
+                    fflush(stdout);
+                }
+            } else { // Should not be necessary because of CM check but well who knows
+                if (DEBUG_LEVEL >= 4) {
+                    printf("- Sender needs entry corresponding to next index but local is not P\n");
+                    fflush(stdout);
+                }
+                if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                    fprintf(stderr,
+                            "Failed to send CM of type Indicate P as result of check action\n");
+                    fflush(stderr);
+                    return EXIT_FAILURE;
+                }
+            }
+            break;
+
+        default:
+            fprintf(stderr, "Unimplemented check rv %d\n", rv);
+            fflush(stderr);
+            return EXIT_FAILURE;
+            break;
     }
 
     if (DEBUG_LEVEL >= 4) {
-        printf("Done.\n");
+        printf("End of check action ---------------------------------------------------------------\n");
         fflush(stdout);
     }
     return EXIT_SUCCESS;
@@ -398,4 +520,34 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         fflush(stdout);
     }
     return;
+}
+
+int cm_sendto_with_rt_init(overseer_s *overseer,
+                           struct sockaddr_in6 sockaddr,
+                           socklen_t socklen,
+                           enum message_type type,
+                           uint8_t attempts) {
+
+    if (cm_sendto(overseer, sockaddr, socklen, type) != EXIT_SUCCESS) {
+        fprintf(stderr, "Failed to add the CM retransmission event\n");
+        fprintf(stderr, " - Send CM NOK\n");
+        return EXIT_FAILURE;
+    }
+
+    if (DEBUG_LEVEL >= 4) {
+        printf(" - Send CM OK\n");
+        fflush(stdout);
+    }
+
+    if (retransmission_init(overseer, NULL, sockaddr, socklen, type, attempts) != EXIT_SUCCESS) {
+        fprintf(stderr, " - CM RT init NOK\n");
+        return EXIT_FAILURE;
+    }
+
+    if (DEBUG_LEVEL >= 4) {
+        printf(" - CM RT init OK\n");
+        fflush(stdout);
+    }
+
+    return EXIT_SUCCESS;
 }
