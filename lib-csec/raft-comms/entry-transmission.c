@@ -23,7 +23,39 @@ void etr_print(const entry_transmission_s *etr, FILE *stream) {
     return;
 }
 
-int etr_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, entry_transmission_s *etr) {
+int etr_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, entry_transmission_s *etr) {
+    return etr_sendto_with_rt_init(overseer, etr, sockaddr, socklen, etr->cm.type, 0);
+}
+
+int etr_sendto_with_rt_init(overseer_s *overseer,
+                            entry_transmission_s *etr,
+                            struct sockaddr_in6 sockaddr,
+                            socklen_t socklen,
+                            enum message_type type,
+                            uint8_t rt_attempts) {
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Sending ETR of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
+        fflush(stdout);
+    }
+
+    if (rt_attempts == 0)
+        etr->cm.ack_number = 0;
+    else {
+        uint32_t rv = rt_cache_add_new(overseer, rt_attempts, sockaddr, socklen, type, etr);
+        if (rv == 0) {
+            fprintf(stderr, "Failed creating retransmission cache\n");
+            fflush(stderr);
+            return EXIT_FAILURE;
+        }
+        etr->cm.ack_number = rv;
+
+        if (DEBUG_LEVEL >= 4) {
+            printf(" - ETR RT init OK\n");
+            fflush(stdout);
+        }
+    }
+
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
 
@@ -48,6 +80,10 @@ int etr_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen
         }
     } while (errno == EAGAIN);
 
+    if (DEBUG_LEVEL >= 3) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
     return EXIT_SUCCESS;
 }
 
@@ -224,35 +260,4 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         fflush(stdout);
     }
     return;
-}
-
-int etr_sendto_with_rt_init(overseer_s *overseer,
-                            entry_transmission_s *etr,
-                            struct sockaddr_in6 sockaddr,
-                            socklen_t socklen,
-                            enum message_type type,
-                            uint8_t attempts) {
-
-    if (etr_sendto(overseer, sockaddr, socklen, etr) != EXIT_SUCCESS) {
-        fprintf(stderr, "Failed to add the ETR retransmission event\n");
-        fprintf(stderr, " - Send ETR NOK\n");
-        return EXIT_FAILURE;
-    }
-
-    if (DEBUG_LEVEL >= 4) {
-        printf(" - Send ETR OK\n");
-        fflush(stdout);
-    }
-
-    if (retransmission_init(overseer, etr, sockaddr, socklen, type, attempts) != EXIT_SUCCESS) {
-        fprintf(stderr, " - ETR RT init NOK\n");
-        return EXIT_FAILURE;
-    }
-
-    if (DEBUG_LEVEL >= 4) {
-        printf(" - ETR RT init OK\n");
-        fflush(stdout);
-    }
-
-    return EXIT_SUCCESS;
 }

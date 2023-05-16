@@ -24,7 +24,7 @@ void cm_print(const control_message_s *hb, FILE *stream);
 
 // Sends a control message to the provided address with the provided message type.
 // Returns EXIT_SUCCESS or EXIT_FAILURE depending on result
-int cm_sendto(const overseer_s *overseer,
+int cm_sendto(overseer_s *overseer,
               struct sockaddr_in6 sockaddr,
               socklen_t socklen,
               enum message_type type);
@@ -56,6 +56,6 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            struct sockaddr_in6 sockaddr,
                            socklen_t socklen,
                            enum message_type type,
-                           uint8_t attempts);
+                           uint8_t rt_attempts);
 
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

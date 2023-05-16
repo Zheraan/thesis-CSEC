@@ -15,7 +15,7 @@
 void etr_print(const entry_transmission_s *tr, FILE *stream);
 
 // Sends a transmission to the specified address
-int etr_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, entry_transmission_s *tr);
+int etr_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, entry_transmission_s *etr);
 
 // Callback for receiving transmissions
 void etr_receive_cb(evutil_socket_t fd, short event, void *arg);
@@ -41,6 +41,6 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                             struct sockaddr_in6 sockaddr,
                             socklen_t socklen,
                             enum message_type type,
-                            uint8_t attempts);
+                            uint8_t rt_attempts);
 
 #endif //THESIS_CSEC_ENTRY_TRANSMISSION_H

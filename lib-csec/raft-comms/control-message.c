@@ -55,7 +55,21 @@ void cm_print(const control_message_s *hb, FILE *stream) {
     return;
 }
 
-int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
+int cm_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
+    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0);
+}
+
+int cm_sendto_with_rt_init(overseer_s *overseer,
+                           struct sockaddr_in6 sockaddr,
+                           socklen_t socklen,
+                           enum message_type type,
+                           uint8_t rt_attempts) {
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Sending CM of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
+        fflush(stdout);
+    }
+
     control_message_s *cm = cm_new(overseer, type);
     if (cm == NULL) {
         fprintf(stderr, "Failed to create message of type %d", type);
@@ -63,15 +77,31 @@ int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_
         return EXIT_FAILURE;
     }
 
+    if (rt_attempts == 0)
+        cm->ack_number = 0;
+    else {
+        uint32_t rv = rt_cache_add_new(overseer, rt_attempts, sockaddr, socklen, type, NULL);
+        if (rv == 0) {
+            fprintf(stderr, "Failed creating retransmission cache\n");
+            fflush(stderr);
+            return EXIT_FAILURE;
+        }
+        cm->ack_number = rv;
+
+        if (DEBUG_LEVEL >= 4) {
+            printf(" - CM RT init OK\n");
+            fflush(stdout);
+        }
+    }
+
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
 
     if (DEBUG_LEVEL >= 3) {
-        printf("Sending to %s the following CM:\n", buf);
+        printf(" - Sending to %s the following CM:\n", buf);
         cm_print(cm, stdout);
     }
 
-    int success = 1;
     do {
         errno = 0;
         if (sendto(overseer->socket_cm,
@@ -82,19 +112,18 @@ int cm_sendto(const overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_
                    socklen) == -1) {
             perror("CM sendto");
             fflush(stderr);
-            success = 0;
+            free(cm);
+            return EXIT_FAILURE;
         }
     } while (errno == EAGAIN);
 
     free(cm);
-    if (success) {
-        if (DEBUG_LEVEL >= 3) {
-            printf("Done.\n");
-            fflush(stdout);
-        }
-        return EXIT_SUCCESS;
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Done.\n");
+        fflush(stdout);
     }
-    return EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }
 
 int cm_reception_init(overseer_s *overseer) {
@@ -520,34 +549,4 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         fflush(stdout);
     }
     return;
-}
-
-int cm_sendto_with_rt_init(overseer_s *overseer,
-                           struct sockaddr_in6 sockaddr,
-                           socklen_t socklen,
-                           enum message_type type,
-                           uint8_t attempts) {
-
-    if (cm_sendto(overseer, sockaddr, socklen, type) != EXIT_SUCCESS) {
-        fprintf(stderr, "Failed to add the CM retransmission event\n");
-        fprintf(stderr, " - Send CM NOK\n");
-        return EXIT_FAILURE;
-    }
-
-    if (DEBUG_LEVEL >= 4) {
-        printf(" - Send CM OK\n");
-        fflush(stdout);
-    }
-
-    if (retransmission_init(overseer, NULL, sockaddr, socklen, type, attempts) != EXIT_SUCCESS) {
-        fprintf(stderr, " - CM RT init NOK\n");
-        return EXIT_FAILURE;
-    }
-
-    if (DEBUG_LEVEL >= 4) {
-        printf(" - CM RT init OK\n");
-        fflush(stdout);
-    }
-
-    return EXIT_SUCCESS;
 }
