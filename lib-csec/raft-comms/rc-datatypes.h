@@ -201,8 +201,9 @@ typedef struct control_message_s {
     enum host_status status;
     // Enum for determining the type of control message
     enum message_type type;
-    // Message number to determine what ack refers to or what number an ack for this message should have
-    uint32_t ack_number; // TODO implement this
+    // Message number to determine what ack refers to or what number an ack for this message should have.
+    // Must be the same as the retransmission cache number.
+    uint32_t ack_number;
 
     // Sender's next index
     uint64_t next_index;
@@ -232,7 +233,7 @@ typedef struct entry_transmission_s {
 typedef struct retransmission_cache_s {
     // ID of the retransmission. Every new retransmission cache has an ID of the previous element +1;
     // Whenever it hits the maximum value, the next one will be 0 by voluntary overflow.
-    uint16_t id;
+    uint32_t id;
     // Pointer to the next list element
     struct retransmission_cache_s *next;
     // Transmission that needs to be resent.

@@ -4,7 +4,6 @@
 
 #include "retransmission-cache.h"
 
-
 void rt_cache_free(retransmission_cache_s *rtc) {
     free(rtc->etr);
     if (rtc->ev != NULL) {
@@ -27,39 +26,12 @@ void rt_cache_free_all(overseer_s *overseer) {
     return;
 }
 
-int retransmission_init(overseer_s *overseer,
-                        entry_transmission_s *etr,
-                        struct sockaddr_in6 sockaddr,
-                        socklen_t socklen,
-                        enum message_type type,
-                        uint8_t attempts) {
-    if (attempts == 0)
-        return EXIT_SUCCESS;
-
-    if (DEBUG_LEVEL >= 4) {
-        printf("- Initializing retransmission event ... ");
-        fflush(stdout);
-    }
-
-    if (rt_cache_add_new(overseer, attempts, sockaddr, socklen, type, etr) != EXIT_SUCCESS) {
-        fprintf(stderr, "Failed creating retransmission cache\n");
-        fflush(stderr);
-        return EXIT_FAILURE;
-    }
-
-    if (DEBUG_LEVEL >= 4) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
-    return EXIT_SUCCESS;
-}
-
-int rt_cache_add_new(overseer_s *overseer,
-                     uint8_t attempts,
-                     struct sockaddr_in6 addr,
-                     socklen_t socklen,
-                     enum message_type type,
-                     entry_transmission_s *etr) {
+uint32_t rt_cache_add_new(overseer_s *overseer,
+                          uint8_t attempts,
+                          struct sockaddr_in6 addr,
+                          socklen_t socklen,
+                          enum message_type type,
+                          entry_transmission_s *etr) {
     if (DEBUG_LEVEL >= 4) {
         printf("\n    - Creating a new retransmission cache element ... ");
         fflush(stdout);
@@ -69,7 +41,7 @@ int rt_cache_add_new(overseer_s *overseer,
     if (overseer->rt_cache == NULL) {
         perror("Malloc retransmission cache");
         fflush(stderr);
-        return EXIT_FAILURE;
+        return 0;
     }
 
     // Initialize cache
@@ -98,7 +70,7 @@ int rt_cache_add_new(overseer_s *overseer,
     if (nevent == NULL) {
         fprintf(stderr, "Failed to create a retransmission event\n");
         rt_cache_free(nrtc);
-        return EXIT_FAILURE;
+        return 0;
     }
 
     // CM retransmission has low priority
@@ -113,26 +85,28 @@ int rt_cache_add_new(overseer_s *overseer,
     if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &retransmission_timeout) != 0) {
         fprintf(stderr, "Failed to add a retransmission event\n");
         rt_cache_free(nrtc);
-        return EXIT_FAILURE;
+        return 0;
     }
 
-    // If there are no other cached elements, just insert it in first place with ID 0
+    // If there are no other cached elements, just insert it in first place with ID 1
     if (overseer->rt_cache == NULL) {
         overseer->rt_cache = nrtc;
-        nrtc->id = 0;
+        nrtc->id = 1;
         if (DEBUG_LEVEL >= 4) {
             printf("Done.\n");
         }
-        return EXIT_SUCCESS;
+        return nrtc->id;
     }
 
-    // Otherwise insert the cache in the list with id equal to previous + 1, with voluntary overflow
-    // resetting to 0 periodically
+    // Otherwise insert the cache in the list with id equal to previous + 1, or resets to 1 when hitting the max value
+    // 0 is the value for CMs without retransmission
     retransmission_cache_s *iterator = overseer->rt_cache;
     do {
         if (iterator->next == NULL) {
             iterator->next = nrtc;
             nrtc->id = iterator->id + 1;
+            if (nrtc->id == 0xFFFFFFFF)
+                nrtc->id = 1;
             break;
         }
         iterator = iterator->next;
@@ -141,10 +115,10 @@ int rt_cache_add_new(overseer_s *overseer,
     if (DEBUG_LEVEL >= 4) {
         printf("Done.\n");
     }
-    return EXIT_SUCCESS;
+    return nrtc->id;
 }
 
-retransmission_cache_s *rt_cache_find_by_id(overseer_s *o, uint16_t id) {
+retransmission_cache_s *rt_cache_find_by_id(overseer_s *o, uint32_t id) {
     if (o->rt_cache == NULL)
         return NULL;
     retransmission_cache_s *target = o->rt_cache;
@@ -152,7 +126,7 @@ retransmission_cache_s *rt_cache_find_by_id(overseer_s *o, uint16_t id) {
     return target;
 }
 
-int rt_cache_remove_by_id(overseer_s *o, uint16_t id) {
+int rt_cache_remove_by_id(overseer_s *o, uint32_t id) {
     if (o->rt_cache == NULL)
         return EXIT_FAILURE;
 
