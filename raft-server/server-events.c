@@ -75,7 +75,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     }
 
     // Set timer for deletion
-    if (server_queue_element_deletion_init((overseer_s *) arg, nqelem) == EXIT_FAILURE) {
+    if (server_queue_element_deletion_init((overseer_s *) arg, nqelem) != EXIT_SUCCESS) {
         // In case of failure and if the queue wasn't empty, we must clear possible dangling pointers before
         // cleaning up the list:
         if (!queue_was_empty) {
@@ -98,7 +98,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     // If queue was empty when checked before adding the new element, if there is an available P and the cache is empty
     if (queue_was_empty && is_p_available(((overseer_s *) arg)->hl) && ((overseer_s *) arg)->mfs->op_cache == NULL) {
         // Then transmit the proposition
-        if (server_proposition_transmit((overseer_s *) arg, nqelem) == EXIT_FAILURE) {
+        if (server_proposition_transmit((overseer_s *) arg, nqelem) != EXIT_SUCCESS) {
             // Cleanup and abort in case of failure, including subsequent elements
             // Note: no risk of dangling pointer since queue was empty
             fprintf(stderr,
@@ -110,7 +110,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         }
     }
 
-    if (server_random_ops_init((overseer_s *) arg) == EXIT_FAILURE) {
+    if (server_random_ops_init((overseer_s *) arg) != EXIT_SUCCESS) {
         fprintf(stderr, "Fatal Error: random ops generator event couldn't be set\n");
         fflush(stderr);
         exit(EXIT_FAILURE); // TODO Crash handler
@@ -192,12 +192,13 @@ int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element) {
     overseer->mfs->op_cache = nop;
 
     // Create new proposition
-    transmission_s *ntr = tr_new(overseer,
-                                 MSG_TYPE_TR_PROPOSITION,
-                                 nop,
-                                 overseer->log->next_index,
-                                 overseer->log->P_term,
-                                 ENTRY_STATE_PENDING);
+    entry_transmission_s *ntr = etr_new(overseer,
+                                        MSG_TYPE_ETR_PROPOSITION,
+                                        nop,
+                                        overseer->log->next_index,
+                                        overseer->log->P_term,
+                                        ENTRY_STATE_PENDING);
+    free(nop);
 
     if (ntr == NULL) {
         fprintf(stderr, "Failed creating new transmission for transmitting proposition\n");
@@ -208,10 +209,10 @@ int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element) {
             fprintf(stderr, "Trying to send new proposition but no host has P status\n");
             return EXIT_FAILURE;
         }
-        if (tr_sendto(overseer,
-                      overseer->hl->hosts[p_id].addr,
-                      overseer->hl->hosts[p_id].socklen,
-                      ntr) == EXIT_FAILURE) {
+        if (etr_sendto(overseer,
+                       overseer->hl->hosts[p_id].addr,
+                       overseer->hl->hosts[p_id].socklen,
+                       ntr) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed transmitting the proposition\n");
             free(ntr);
             return EXIT_FAILURE;
@@ -221,7 +222,7 @@ int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element) {
 
     if (PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS > 0) {
         // set timer for retransmission in case server doesn't receive any ack
-        if (server_proposition_retransmission_init(overseer) == EXIT_FAILURE) {
+        if (server_proposition_retransmission_init(overseer) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed initializing retransmission event.\n");
             return EXIT_FAILURE;
         }
@@ -282,12 +283,12 @@ void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void 
     }
     int success = 1;
     // Create new proposition with cached data
-    transmission_s *ntr = tr_new((overseer_s *) arg,
-                                 MSG_TYPE_TR_PROPOSITION,
-                                 ((overseer_s *) arg)->mfs->op_cache,
-                                 ((overseer_s *) arg)->log->next_index,
-                                 ((overseer_s *) arg)->log->P_term,
-                                 ENTRY_STATE_PENDING);
+    entry_transmission_s *ntr = etr_new((overseer_s *) arg,
+                                        MSG_TYPE_ETR_PROPOSITION,
+                                        ((overseer_s *) arg)->mfs->op_cache,
+                                        ((overseer_s *) arg)->log->next_index,
+                                        ((overseer_s *) arg)->log->P_term,
+                                        ENTRY_STATE_PENDING);
     if (ntr == NULL) {
         fprintf(stderr, "Failed creating new transmission for retransmitting proposition\n");
         success = 0;
@@ -297,10 +298,10 @@ void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void 
         if (p_id == 1 && errno == ENO_P) {
             fprintf(stderr, "Trying to retransmit proposition but no host has P status\n");
             success = 0;
-        } else if (tr_sendto((overseer_s *) arg,
-                             ((overseer_s *) arg)->hl->hosts[p_id].addr,
-                             ((overseer_s *) arg)->hl->hosts[p_id].socklen,
-                             ntr)) {
+        } else if (etr_sendto((overseer_s *) arg,
+                              ((overseer_s *) arg)->hl->hosts[p_id].addr,
+                              ((overseer_s *) arg)->hl->hosts[p_id].socklen,
+                              ntr)) {
             fprintf(stderr, "Failed transmitting the proposition\n");
             success = 0;
         }

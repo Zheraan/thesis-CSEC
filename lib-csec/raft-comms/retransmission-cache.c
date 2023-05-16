@@ -6,7 +6,7 @@
 
 
 void rt_cache_free(retransmission_cache_s *rtc) {
-    free(rtc->tr);
+    free(rtc->etr);
     if (rtc->ev != NULL) {
         event_del(rtc->ev);
         event_free(rtc->ev);
@@ -27,12 +27,39 @@ void rt_cache_free_all(overseer_s *overseer) {
     return;
 }
 
+int retransmission_init(overseer_s *overseer,
+                        entry_transmission_s *etr,
+                        struct sockaddr_in6 sockaddr,
+                        socklen_t socklen,
+                        enum message_type type,
+                        uint8_t attempts) {
+    if (attempts == 0)
+        return EXIT_SUCCESS;
+
+    if (DEBUG_LEVEL >= 4) {
+        printf("- Initializing retransmission event ... ");
+        fflush(stdout);
+    }
+
+    if (rt_cache_add_new(overseer, attempts, sockaddr, socklen, type, etr) != EXIT_SUCCESS) {
+        fprintf(stderr, "Failed creating retransmission cache\n");
+        fflush(stderr);
+        return EXIT_FAILURE;
+    }
+
+    if (DEBUG_LEVEL >= 4) {
+        printf("Done.\n");
+        fflush(stdout);
+    }
+    return EXIT_SUCCESS;
+}
+
 int rt_cache_add_new(overseer_s *overseer,
                      uint8_t attempts,
                      struct sockaddr_in6 addr,
                      socklen_t socklen,
                      enum message_type type,
-                     transmission_s *tr) {
+                     entry_transmission_s *etr) {
     if (DEBUG_LEVEL >= 4) {
         printf("\n    - Creating a new retransmission cache element ... ");
         fflush(stdout);
@@ -53,14 +80,20 @@ int rt_cache_add_new(overseer_s *overseer,
     nrtc->cur_attempts = 0;
     nrtc->type = type;
     nrtc->next = NULL;
-    nrtc->tr = tr;
+    nrtc->etr = etr;
     nrtc->ev = NULL;
+
+    event_callback_fn callback;
+    if (etr == NULL)
+        callback = cm_retransmission_cb;
+    else
+        callback = etr_retransmission_cb;
 
     // Create a non-persistent event triggered only by timeout
     struct event *nevent = event_new(overseer->eb,
                                      -1,
                                      EV_TIMEOUT,
-                                     cm_retransmission_cb,
+                                     callback,
                                      (void *) nrtc);
     if (nevent == NULL) {
         fprintf(stderr, "Failed to create a retransmission event\n");
