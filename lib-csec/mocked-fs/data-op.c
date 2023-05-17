@@ -11,8 +11,8 @@ data_op_s *op_new(){
         return NULL;
     }
 
-    // Randomly pick a new character
     uint8_t buf;
+    // Randomly pick a new character
     evutil_secure_rng_get_bytes(&buf, sizeof(uint8_t));
     buf %= 93; // Ensure value is no bigger than the printable character range
     nop->newval = buf + 33; // Ensure value is a printable character

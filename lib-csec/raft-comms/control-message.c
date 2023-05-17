@@ -40,6 +40,7 @@ void cm_print(const control_message_s *hb, FILE *stream) {
             "host_id:       %d\n"
             "status:        %d\n"
             "type:          %d\n"
+            "ack-number:    %d\n"
             "next_index:    %ld\n"
             "commit_index:  %ld\n"
             "match_index:   %ld\n"
@@ -47,6 +48,7 @@ void cm_print(const control_message_s *hb, FILE *stream) {
             hb->host_id,
             hb->status,
             hb->type,
+            hb->ack_number,
             hb->next_index,
             hb->commit_index,
             hb->match_index,
@@ -66,7 +68,10 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            uint8_t rt_attempts) {
 
     if (DEBUG_LEVEL >= 3) {
-        printf("Sending CM of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
+        if (rt_attempts > 0)
+            printf("Sending CM of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
+        else
+            printf("Sending CM of type %d ... \n", type);
         fflush(stdout);
     }
 

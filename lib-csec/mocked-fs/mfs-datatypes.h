@@ -25,7 +25,7 @@ typedef struct data_op_s {
     // Horizontal position of the op in the mocked filesystem
     uint8_t column;
     // Character that replaces the previous one at the location indicated by the row and column values
-    int newval;
+    char newval;
 } data_op_s;
 
 // Queue for data ops on server side in case P is not available for treating proposition, which may happen if another

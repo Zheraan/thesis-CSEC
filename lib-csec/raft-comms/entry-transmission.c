@@ -20,7 +20,9 @@ entry_transmission_s *etr_new(const overseer_s *overseer,
     ntr->cm = *ncm; // Copy the contents of the struct as transmissions can't contain pointers
     free(ncm);
 
-    ntr->op = *op;
+    ntr->op.newval = op->newval;
+    ntr->op.row = op->row;
+    ntr->op.column = op->column;
     ntr->term = term;
     ntr->index = index;
     ntr->state = state;
@@ -54,13 +56,13 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
 void etr_print(const entry_transmission_s *etr, FILE *stream) {
     cm_print(&(etr->cm), stream);
     fprintf(stream,
-            "state: %d\n"
-            "index: %d\n"
-            "term:  %d\n"
+            "state:         %d\n"
+            "index:         %d\n"
+            "term:          %d\n"
             "data_op:\n"
-            "- row      %d\n"
-            "- column   %d\n"
-            "- newval   %c\n",
+            " - row:        %d\n"
+            " - column:     %d\n"
+            " - newval:     %c\n",
             etr->state,
             etr->index,
             etr->term,
@@ -82,7 +84,10 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                             uint8_t rt_attempts) {
 
     if (DEBUG_LEVEL >= 3) {
-        printf("Sending ETR of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
+        if (rt_attempts > 0)
+            printf("Sending ETR of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
+        else
+            printf("Sending ETR of type %d ... \n", type);
         fflush(stdout);
     }
 
