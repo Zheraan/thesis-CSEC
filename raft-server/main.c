@@ -20,7 +20,9 @@ int main() {
 
     // Initialize event loop
     if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the message reception handler event
-        server_random_ops_init(&overseer) != EXIT_SUCCESS) { // Initialize the random ops generator
+        server_random_ops_init(&overseer) != EXIT_SUCCESS || // Initialize the random ops generator
+        etr_reception_init(&overseer) != EXIT_SUCCESS) // Initialize the entry transmission event
+    {
         fprintf(stderr, "Failed to initialize the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);

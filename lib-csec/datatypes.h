@@ -45,6 +45,8 @@ struct overseer_s {
     struct event *special_event;
     // Pointer to keep track of control message reception events
     struct event *cm_reception_event;
+    // Pointer to keep track of entry transmission reception events
+    struct event *etr_reception_event;
     // Socket for sending and receiving control messages
     evutil_socket_t socket_cm;
     // Socket for sending and receiving transmissions

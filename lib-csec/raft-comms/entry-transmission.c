@@ -4,6 +4,53 @@
 
 #include "entry-transmission.h"
 
+entry_transmission_s *etr_new(const overseer_s *overseer,
+                              enum message_type type,
+                              const data_op_s *op,
+                              uint32_t index,
+                              uint32_t term,
+                              enum entry_state state) {
+    entry_transmission_s *ntr = malloc(sizeof(entry_transmission_s));
+    if (ntr == NULL) {
+        perror("malloc new transmission struct");
+        return NULL;
+    }
+
+    control_message_s *ncm = cm_new(overseer, type); // TODO Error handling
+    ntr->cm = *ncm; // Copy the contents of the struct as transmissions can't contain pointers
+    free(ncm);
+
+    ntr->op = *op;
+    ntr->term = term;
+    ntr->index = index;
+    ntr->state = state;
+    return ntr;
+}
+
+entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
+                                               enum message_type type,
+                                               uint64_t entry_id) {
+    // Seek entry with given id
+    log_entry_s *target_entry = log_get_entry_by_id(overseer->log, entry_id);
+    if (target_entry == NULL) {
+        fprintf(stderr,
+                "New ETR from local entry: requested latest entry but no entry has ID %ld\n",
+                entry_id);
+        return NULL;
+    }
+
+    // Create new ETR
+    entry_transmission_s *netr = etr_new(overseer,
+                                         type,
+                                         &(target_entry->op),
+                                         overseer->log->next_index - 1,
+                                         target_entry->term,
+                                         target_entry->state);
+
+    return netr;
+}
+
+
 void etr_print(const entry_transmission_s *etr, FILE *stream) {
     cm_print(&(etr->cm), stream);
     fprintf(stream,
@@ -81,11 +128,39 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
     return EXIT_SUCCESS;
 }
 
-void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("Start of ETR reception callback ---------------------------------------------------\n");
-        fflush(stdout);
+int etr_reception_init(overseer_s *overseer) {
+    debug_log(4, stdout, "- Initializing next entry transmission reception event ... ");
+    struct event *reception_event = event_new(overseer->eb,
+                                              overseer->socket_etr,
+                                              EV_READ,
+                                              etr_receive_cb,
+                                              (void *) overseer);
+    if (reception_event == NULL) {
+        fprintf(stderr, "Fatal error: failed to create the next ETR reception event\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
     }
+
+    // Message reception has low priority
+    event_priority_set(reception_event, 1);
+
+    if (overseer->etr_reception_event != NULL) // Freeing the past event if any
+        event_free(overseer->etr_reception_event);
+    overseer->etr_reception_event = reception_event;
+
+    // Add the event in the loop
+    if (event_add(reception_event, NULL) != 0) {
+        fprintf(stderr, "Fatal error: failed to add the next ETR reception event\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    debug_log(4, stdout, "Done.\n");
+    return EXIT_SUCCESS;
+}
+
+void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
+    debug_log(4, stdout, "Start of ETR reception callback ---------------------------------------------------\n");
 
     entry_transmission_s tr;
     struct sockaddr_in6 sender;
@@ -108,24 +183,21 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     // Responses depending on the type of transmission
     switch (tr.cm.type) {
         case MSG_TYPE_ETR_NEW :
-            if (DEBUG_LEVEL >= 1)
-                printf("-> is ETR NEW\n");
+            debug_log(1, stdout, "-> is ETR NEW\n");
+
             // TODO Effects of ETR NEW reception
             break;
 
         case MSG_TYPE_ETR_COMMIT:
-            if (DEBUG_LEVEL >= 1)
-                printf("-> is ETR COMMIT\n");
+            debug_log(1, stdout, "-> is ETR COMMIT\n");
             // TODO Effects of ETR COMMIT reception
             break;
 
         case MSG_TYPE_ETR_PROPOSITION:
-            if (DEBUG_LEVEL >= 1)
-                printf("-> is ETR PROPOSITION\n");
+            debug_log(1, stdout, "-> is ETR PROPOSITION\n");
             // If local node isn't P, send correction on who is P
             if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status != HOST_STATUS_P) {
-                if (DEBUG_LEVEL >= 1)
-                    printf("Local node isn't P, answering with INDICATE P ... ");
+                debug_log(1, stdout, "Local node isn't P, answering with INDICATE P ... ");
                 if (cm_sendto(((overseer_s *) arg),
                               sender,
                               sender_len,
@@ -133,8 +205,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                     fprintf(stderr, "Failed to Ack heartbeat\n");
                     return;
                 }
-                if (DEBUG_LEVEL >= 1)
-                    printf("Done.\n");
+                debug_log(1, stdout, "Done.\n");
                 return;
             }
             // Else local is P:
@@ -147,8 +218,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             break;
 
         case MSG_TYPE_ETR_LOGFIX:
-            if (DEBUG_LEVEL >= 1)
-                printf("-> is ETR LOG FIX\n");
+            debug_log(1, stdout, "-> is ETR LOG FIX\n");
             // TODO Effects of ETR LOG FIX reception
             break;
 
@@ -156,8 +226,11 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             fprintf(stderr, "Invalid transmission type %d\n", tr.cm.type);
     }
 
-    debug_log(4, stdout, "Done.\n");
-    return EXIT_SUCCESS;
+    // Init next event so it can keep receiving messages
+    etr_reception_init((overseer_s *) arg);
+
+    debug_log(4, stdout, "End of TR reception callback ------------------------------------------------------\n");
+    return;
 }
 
 void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {

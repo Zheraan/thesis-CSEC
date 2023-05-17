@@ -24,7 +24,9 @@ int main() {
     // TODO Remove heartbeat to have it on only initialized when transitioning to HS (and thus it remains for P)
     //  then remove when demoted to CS
     if (master_heartbeat_init(&overseer) != EXIT_SUCCESS || // Initialize heartbeat events
-        cm_reception_init(&overseer) != EXIT_SUCCESS) { // Initialize control message reception events
+        cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize control message reception events
+        etr_reception_init(&overseer) != EXIT_SUCCESS) // Initialize the entry transmission event
+    {
         fprintf(stderr, "Failed to initialized the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);

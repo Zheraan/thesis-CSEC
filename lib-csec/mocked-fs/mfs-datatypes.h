@@ -21,9 +21,9 @@
 
 typedef struct data_op_s {
     // Vertical position of the op in the mocked filesystem
-    uint64_t row;
+    uint8_t row;
     // Horizontal position of the op in the mocked filesystem
-    uint64_t column;
+    uint8_t column;
     // Character that replaces the previous one at the location indicated by the row and column values
     int newval;
 } data_op_s;
