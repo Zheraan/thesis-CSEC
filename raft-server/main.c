@@ -8,10 +8,7 @@
 #include "server-events.h"
 
 int main() {
-    if (DEBUG_LEVEL >= 1) {
-        printf("Starting program state initialization ...\n");
-        fflush(stdout);
-    }
+    debug_log(1, stdout, "Starting program state initialization ...\n");
     // Initialize program state
     overseer_s overseer;
     if (overseer_init(&overseer) != EXIT_SUCCESS) {
@@ -19,11 +16,7 @@ int main() {
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
-    if (DEBUG_LEVEL >= 1) {
-        printf("Done.\n"
-               "Starting event loop initialization ...\n");
-        fflush(stdout);
-    }
+    debug_log(1, stdout, "Done.\nStarting event loop initialization ...\n");
 
     // Initialize event loop
     if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the message reception handler event
@@ -32,11 +25,7 @@ int main() {
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }
-    if (DEBUG_LEVEL >= 1) {
-        printf("Done.\n"
-               "Launching raft-server.\n");
-        fflush(stdout);
-    }
+    debug_log(1, stdout, "Done.\nLaunching raft-server.\n");
 
     // Run the loop
     int rv = event_base_dispatch(overseer.eb);

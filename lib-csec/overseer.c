@@ -162,11 +162,9 @@ struct event_base *eb_new() {
 
 void overseer_wipe(overseer_s *overseer) {
     fflush(stderr);
-    if (DEBUG_LEVEL >= 3) {
-        printf("Beginning cleanup ...\n"
-               "- Log ... ");
-        fflush(stdout);
-    }
+
+    debug_log(3, stdout, "Beginning cleanup ...\n- Log ... ");
+
     // If the local node is a Master node, it is necessary to free the replication arrays in the entries as well
     if (overseer->hl != NULL && overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M) {
         if (overseer->log != NULL)
@@ -174,47 +172,25 @@ void overseer_wipe(overseer_s *overseer) {
     } else {
         free(overseer->log);
     }
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n"
-               "- Hosts-list ... ");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n- Hosts-list ... ");
 
     if (overseer->hl != NULL)
         free(overseer->hl);
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n"
-               "- Mocked filesystem ... ");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n- Mocked filesystem ... ");
 
     if (overseer->mfs != NULL) {
         ops_queue_free_all(overseer, overseer->mfs->queue);
         mfs_free_cache(overseer);
-        printf("bruh");
-        fflush(stdout);
         free(overseer->mfs);
     }
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n"
-               "- Event-list ... ");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n- Event-list ... ");
 
     rt_cache_free_all(overseer);
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n"
-               "- Event-base ... ");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n- Event-base ... ");
 
     if (overseer->eb != NULL)
         event_base_free(overseer->eb);
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n"
-               "- Closing sockets ... ");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n- Closing sockets ... ");
 
     if (overseer->special_event != NULL)
         event_free(overseer->special_event);
@@ -225,10 +201,15 @@ void overseer_wipe(overseer_s *overseer) {
         perror("Error closing communication socket file descriptor");
     if (overseer->socket_etr != 0 && close(overseer->socket_etr) != 0)
         perror("Error closing communication socket file descriptor");
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n"
-               "Cleanup finished.\n");
-        fflush(stdout);
+
+    debug_log(3, stdout, "Done.\nCleanup finished.\n");
+    return;
+}
+
+void debug_log(uint8_t level, FILE *stream, const char *string) {
+    if (DEBUG_LEVEL >= level) {
+        fprintf(stream, "%s", string);
+        fflush(stream);
     }
     return;
 }

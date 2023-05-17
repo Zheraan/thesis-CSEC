@@ -32,10 +32,7 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
                           socklen_t socklen,
                           enum message_type type,
                           entry_transmission_s *etr) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("\n    - Creating a new retransmission cache element ... ");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "\n    - Creating a new retransmission cache element ... ");
 
     retransmission_cache_s *nrtc = malloc(sizeof(retransmission_cache_s));
     if (overseer->rt_cache == NULL) {
@@ -92,9 +89,7 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
     if (overseer->rt_cache == NULL) {
         overseer->rt_cache = nrtc;
         nrtc->id = 1;
-        if (DEBUG_LEVEL >= 4) {
-            printf("Done.\n");
-        }
+        debug_log(4, stdout, "Done.\n");
         return nrtc->id;
     }
 
@@ -112,9 +107,7 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
         iterator = iterator->next;
     } while (iterator != NULL);
 
-    if (DEBUG_LEVEL >= 4) {
-        printf("Done.\n");
-    }
+    debug_log(4, stdout, "Done.\n");
     return nrtc->id;
 }
 

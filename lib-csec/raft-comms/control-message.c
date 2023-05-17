@@ -88,10 +88,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         }
         cm->ack_number = rv;
 
-        if (DEBUG_LEVEL >= 4) {
-            printf(" - CM RT init OK\n");
-            fflush(stdout);
-        }
+        debug_log(4, stdout, " - CM RT init OK\n");
     }
 
     char buf[256];
@@ -119,18 +116,12 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
 
     free(cm);
 
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 int cm_reception_init(overseer_s *overseer) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("- Initializing next control message reception event ... ");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "- Initializing next control message reception event ... ");
     struct event *reception_event = event_new(overseer->eb,
                                               overseer->socket_cm,
                                               EV_READ,
@@ -156,18 +147,12 @@ int cm_reception_init(overseer_s *overseer) {
         exit(EXIT_FAILURE);
     }
 
-    if (DEBUG_LEVEL >= 4) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("Start of CM reception callback ----------------------------------------------------\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "Start of CM reception callback ----------------------------------------------------\n");
 
     control_message_s cm;
     struct sockaddr_in6 sender;
@@ -200,8 +185,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     // Responses depending on the type of control message
     switch (cm.type) {
         case MSG_TYPE_HB_DEFAULT:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is HB DEFAULT\n");
+            debug_log(2, stdout, "-> is HB DEFAULT\n");
             // Default heartbeat means replying with cm ack
             if (cm_sendto(((overseer_s *) arg),
                           sender,
@@ -214,56 +198,47 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             break;
 
         case MSG_TYPE_ACK_HB:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is HB ACK\n");
+            debug_log(2, stdout, "-> is HB ACK\n");
             // TODO Apply any effects of ack (reset timeout for next ack...)
             break;
 
         case MSG_TYPE_P_TAKEOVER:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is P TAKEOVER\n");
+            debug_log(2, stdout, "-> is P TAKEOVER\n");
             // TODO Check term and apply any effects of P takeover if valid
             break;
 
         case MSG_TYPE_HS_TAKEOVER:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is HS TAKEOVER\n");
+            debug_log(2, stdout, "-> is HS TAKEOVER\n");
             // TODO Effects of HS TAKEOVER reception
             break;
 
         case MSG_TYPE_LOG_REPAIR:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is LOG REPAIR\n");
+            debug_log(2, stdout, "-> is LOG REPAIR\n");
             // TODO Effects of LOG REPAIR reception
             break;
 
         case MSG_TYPE_LOG_REPLAY:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is LOG REPLAY\n");
+            debug_log(2, stdout, "-> is LOG REPLAY\n");
             // TODO Effects of LOG REPLAY reception
             break;
 
         case MSG_TYPE_ACK_ENTRY:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is ACK ENTRY\n");
+            debug_log(2, stdout, "-> is ACK ENTRY\n");
             // TODO Effects of ACK ENTRY reception
             break;
 
         case MSG_TYPE_ACK_COMMIT:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is ACK COMMIT\n");
+            debug_log(2, stdout, "-> is ACK COMMIT\n");
             // TODO Effects of ACK COMMIT reception
             break;
 
         case MSG_TYPE_INDICATE_P:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is INDICATE P\n");
+            debug_log(2, stdout, "-> is INDICATE P\n");
             // TODO Effects of INDICATE P reception
             break;
 
         case MSG_TYPE_INDICATE_HS:
-            if (DEBUG_LEVEL >= 2)
-                printf("-> is INDICATE HS\n");
+            debug_log(2, stdout, "-> is INDICATE HS\n");
             // TODO implement Indicate HS and HS term
             break;
 
@@ -274,10 +249,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
     cm_reception_init((overseer_s *) arg); // Fatal error in case of failure anyway, so no need for a check
 
-    if (DEBUG_LEVEL >= 4) {
-        printf("End of CM reception callback ------------------------------------------------------\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "End of CM reception callback ------------------------------------------------------\n");
     return;
 }
 
@@ -348,10 +320,7 @@ int cm_check_action(overseer_s *overseer,
                     struct sockaddr_in6 addr,
                     socklen_t socklen,
                     control_message_s *cm) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("Beginning of check action ---------------------------------------------------------\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "Beginning of check action ---------------------------------------------------------\n");
 
     switch (rv) {
         case CHECK_RV_CLEAN:
@@ -401,10 +370,7 @@ int cm_check_action(overseer_s *overseer,
         case CHECK_RV_NEED_ETR_LATEST:
             // Status check voluntarily redundant with CM check
             if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P) {
-                if (DEBUG_LEVEL >= 4) {
-                    printf("- Sender needs latest entry, transmitting ... ");
-                    fflush(stdout);
-                }
+                debug_log(4, stdout, "- Sender needs latest entry, transmitting ... ");
 
                 // Create new ETR based on latest entry in the log
                 entry_transmission_s *netr = etr_new_from_local_entry(overseer,
@@ -428,16 +394,9 @@ int cm_check_action(overseer_s *overseer,
                     fflush(stderr);
                     return EXIT_FAILURE;
                 }
-
-                if (DEBUG_LEVEL >= 4) {
-                    printf("Done.\n");
-                    fflush(stdout);
-                }
+                debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
-                if (DEBUG_LEVEL >= 4) {
-                    printf("- Sender needs latest entry but local is not P\n");
-                    fflush(stdout);
-                }
+                debug_log(4, stdout, "- Sender needs latest entry but local is not P\n");
                 if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
@@ -477,16 +436,9 @@ int cm_check_action(overseer_s *overseer,
                     fflush(stderr);
                     return EXIT_FAILURE;
                 }
-
-                if (DEBUG_LEVEL >= 4) {
-                    printf("Done.\n");
-                    fflush(stdout);
-                }
+                debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
-                if (DEBUG_LEVEL >= 4) {
-                    printf("- Sender needs entry corresponding to next index but local is not P\n");
-                    fflush(stdout);
-                }
+                debug_log(4, stdout, "- Sender needs entry corresponding to next index but local is not P\n");
                 if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
@@ -502,11 +454,7 @@ int cm_check_action(overseer_s *overseer,
             return EXIT_FAILURE;
             break;
     }
-
-    if (DEBUG_LEVEL >= 4) {
-        printf("End of check action ---------------------------------------------------------------\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "End of check action ---------------------------------------------------------------\n");
     return EXIT_SUCCESS;
 }
 
@@ -544,9 +492,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         }
     }
 
-    if (DEBUG_LEVEL >= 3 && success == 1) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    if (success == 1)
+        debug_log(3, stdout, "Done.\n");
     return;
 }

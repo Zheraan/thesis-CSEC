@@ -135,7 +135,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             fprintf(stderr, "No host resolved for '%s'", token);
             list->hosts[parsed].status = HOST_STATUS_UNRESOLVED;
             if (DEBUG_LEVEL >= 2) {
-                fprintf(stdout, " (unresolved)\n\n");
+                fprintf(stdout, " (unresolved)\n");
             }
         } else {
             list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
@@ -146,7 +146,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                 char buf[256];
                 evutil_inet_ntop(AF_INET6, &(list->hosts[parsed].addr.sin6_addr), buf, 256);
                 fprintf(stdout,
-                        " (resolved to %s)\n\n",
+                        " (resolved to %s)\n",
                         buf);
             }
             resolved++;

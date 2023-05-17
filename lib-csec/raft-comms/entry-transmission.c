@@ -11,14 +11,14 @@ void etr_print(const entry_transmission_s *etr, FILE *stream) {
             "index: %d\n"
             "term:  %d\n"
             "data_op:\n"
-            "- column   %ld\n"
-            "- row      %ld\n"
-            "- newval   %d\n",
+            "- row      %d\n"
+            "- column   %d\n"
+            "- newval   %c\n",
             etr->state,
             etr->index,
             etr->term,
-            etr->op.column,
             etr->op.row,
+            etr->op.column,
             etr->op.newval);
     return;
 }
@@ -50,10 +50,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
         }
         etr->cm.ack_number = rv;
 
-        if (DEBUG_LEVEL >= 4) {
-            printf(" - ETR RT init OK\n");
-            fflush(stdout);
-        }
+        debug_log(4, stdout, " - ETR RT init OK\n");
     }
 
     char buf[256];
@@ -80,10 +77,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
         }
     } while (errno == EAGAIN);
 
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
@@ -162,57 +156,8 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             fprintf(stderr, "Invalid transmission type %d\n", tr.cm.type);
     }
 
-    if (DEBUG_LEVEL >= 4) {
-        printf("End of TR reception callback ------------------------------------------------------\n");
-        fflush(stdout);
-    }
-    return;
-}
-
-entry_transmission_s *etr_new(const overseer_s *overseer,
-                              enum message_type type,
-                              const data_op_s *op,
-                              uint32_t index,
-                              uint32_t term,
-                              enum entry_state state) {
-    entry_transmission_s *ntr = malloc(sizeof(entry_transmission_s));
-    if (ntr == NULL) {
-        perror("malloc new transmission struct");
-        return NULL;
-    }
-
-    control_message_s *ncm = cm_new(overseer, type); // TODO Error handling
-    ntr->cm = *ncm; // Copy the contents of the struct as transmissions can't contain pointers
-    free(ncm);
-
-    ntr->op = *op;
-    ntr->term = term;
-    ntr->index = index;
-    ntr->state = state;
-    return ntr;
-}
-
-entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
-                                               enum message_type type,
-                                               uint64_t entry_id) {
-    // Seek entry with given id
-    log_entry_s *target_entry = log_get_entry_by_id(overseer->log, entry_id);
-    if (target_entry == NULL) {
-        fprintf(stderr,
-                "New ETR from local entry: requested latest entry but no entry has ID %ld\n",
-                entry_id);
-        return NULL;
-    }
-
-    // Create new ETR
-    entry_transmission_s *netr = etr_new(overseer,
-                                         type,
-                                         &(target_entry->op),
-                                         overseer->log->next_index - 1,
-                                         target_entry->term,
-                                         target_entry->state);
-
-    return netr;
+    debug_log(4, stdout, "Done.\n");
+    return EXIT_SUCCESS;
 }
 
 void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
@@ -255,9 +200,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         }
     }
 
-    if (DEBUG_LEVEL >= 3 && success == 1) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    if (success == 1)
+        debug_log(3, stdout, "Done.\n");
     return;
 }

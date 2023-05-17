@@ -32,11 +32,11 @@ data_op_s *op_new(){
 
 void op_print(const data_op_s *op, FILE *stream) {
     fprintf(stream,
-            "column:    %ld\n"
-            "row:       %ld\n"
+            "row:       %d\n"
+            "column:    %d\n"
             "newval:    %c\n",
-            op->column,
             op->row,
+            op->column,
             op->newval);
     return;
 }

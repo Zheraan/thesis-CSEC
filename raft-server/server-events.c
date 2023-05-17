@@ -5,10 +5,7 @@
 #include "server-events.h"
 
 int server_random_ops_init(overseer_s *overseer) {
-    if (DEBUG_LEVEL >= 3) {
-        printf("- Initializing random ops generation events ... ");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "- Initializing random ops generation events ... ");
     // Create a non-persistent event only triggered by timeout
     struct event *nevent = event_new(overseer->eb,
                                      -1,
@@ -36,16 +33,12 @@ int server_random_ops_init(overseer_s *overseer) {
         return EXIT_FAILURE;
     }
 
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
-    if (DEBUG_LEVEL >= 4)
-        printf("Start of random op callback ---------\n");
+    debug_log(4, stdout, "Start of random op callback ---------\n");
 
     // Check if queue is empty
     int queue_was_empty = 1;
@@ -116,10 +109,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         exit(EXIT_FAILURE); // TODO Crash handler
     }
 
-    if (DEBUG_LEVEL >= 4) {
-        printf("End of random op callback ---------\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "End of random op callback ---------\n");
     return;
 }
 
@@ -137,10 +127,7 @@ void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void
 }
 
 int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *element) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("- Initializing queue element deletion event ... ");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "- Initializing queue element deletion event ... ");
     // Create a non-persistent event triggered only by timeout
     struct event *nevent = event_new(overseer->eb,
                                      -1,
@@ -167,18 +154,12 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
         return EXIT_FAILURE;
     }
 
-    if (DEBUG_LEVEL >= 4) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("Starting proposition transmission ... ");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "Starting proposition transmission ... ");
     // Copy the data op in the queue element into the op_cache in case it is removed before retransmission
     data_op_s *nop = malloc(sizeof(data_op_s));
     if (nop == NULL) {
@@ -229,18 +210,12 @@ int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element) {
     }
 
     // TODO when ack comes, mfs_free_cache && send next prop
-    if (DEBUG_LEVEL >= 4) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 int server_proposition_retransmission_init(overseer_s *overseer) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("- Initializing proposition retransmission event ... ");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "- Initializing proposition retransmission event ... ");
     // Create a non-persistent event triggered only by timeout
     struct event *nevent = event_new(overseer->eb,
                                      -1,
@@ -268,10 +243,7 @@ int server_proposition_retransmission_init(overseer_s *overseer) {
         return EXIT_FAILURE;
     }
 
-    if (DEBUG_LEVEL >= 4) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
@@ -318,10 +290,8 @@ void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void 
         server_proposition_retransmission_init((overseer_s *) arg);
     }
 
-    if (DEBUG_LEVEL >= 3 && success == 1) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    if (success == 1)
+        debug_log(3, stdout, "Done.\n");
     return;
 }
 

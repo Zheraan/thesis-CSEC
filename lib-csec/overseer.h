@@ -40,4 +40,7 @@ struct event_base *eb_new();
 // Closes the communication socket and frees all components held in the program state
 void overseer_wipe(overseer_s *overseer);
 
+// Logs the given string if DEBUG_LEVEL is of given level or higher to the given stream
+void debug_log(uint8_t level, FILE *stream, const char *string);
+
 #endif //THESIS_CSEC_OVERSEER_H

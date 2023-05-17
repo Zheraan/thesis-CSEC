@@ -8,20 +8,14 @@
 #include "master-events.h"
 
 int main() {
-    if (DEBUG_LEVEL >= 1) {
-        printf("Starting program state initialization ...\n");
-        fflush(stdout);
-    }
+    debug_log(1, stdout, "Starting program state initialization ...\n");
     // Initialize program state
     overseer_s overseer;
     if (overseer_init(&overseer) != EXIT_SUCCESS) {
         fprintf(stderr, "Failed to initialize the program state\n");
         exit(EXIT_FAILURE);
     }
-    if (DEBUG_LEVEL >= 1) {
-        printf("Done.\n"
-               "Starting event loop initialization ...\n");
-    }
+    debug_log(1, stdout, "Done.\nStarting event loop initialization ...\n");
 
     // TODO remove test statement
     overseer.hl->hosts[overseer.hl->localhost_id].status = HOST_STATUS_P;
@@ -35,10 +29,7 @@ int main() {
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }
-    if (DEBUG_LEVEL >= 1) {
-        printf("Done.\n"
-               "Launching raft-master.\n");
-    }
+    debug_log(1, stdout, "Done.\nLaunching raft-master.\n");
 
     // Run the loop
     int rv = event_base_dispatch(overseer.eb);

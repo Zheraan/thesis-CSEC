@@ -47,15 +47,15 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum ent
                "- entry number: %ld\n"
                "- term:         %d\n"
                "- state:        %d\n"
-               "- newval:       %d\n"
-               "- row:          %ld\n"
-               "- column:       %ld\n",
+               "- row:          %d\n"
+               "- column:       %d\n"
+               "- newval:       %c\n",
                overseer->log->next_index,
                nentry->term,
                nentry->state,
-               nentry->op.newval,
                nentry->op.row,
-               nentry->op.column);
+               nentry->op.column,
+               nentry->op.newval);
     }
 
     overseer->log->next_index++;

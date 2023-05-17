@@ -29,11 +29,18 @@ int cm_sendto(overseer_s *overseer,
               socklen_t socklen,
               enum message_type type);
 
-// Initializes the server-side control message reception event
+// Sends a CM, then initializes events and structure in the cache for retransmitting a CM
+int cm_sendto_with_rt_init(overseer_s *overseer,
+                           struct sockaddr_in6 sockaddr,
+                           socklen_t socklen,
+                           enum message_type type,
+                           uint8_t rt_attempts);
+
+// Initializes the control message reception event.
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
 int cm_reception_init(overseer_s *overseer);
 
-// Callback for receiving control messages
+// Callback for receiving control messages, arg must be an overseer_s*
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg);
 
 // Checks the metadata in the control message and returns a value indicating if any action needs to be taken.
@@ -48,14 +55,8 @@ int cm_check_action(overseer_s *overseer,
                     socklen_t socklen,
                     control_message_s *cm);
 
-// Callback for retransmitting events, cleans up after the maximum number of attempts has been made
+// Callback for retransmitting events, cleans up after the maximum number of attempts has been made.
+// Arg must be an overseer_s*
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
-
-// Sends a CM, then initializes events and structure in the cache for retransmitting a CM
-int cm_sendto_with_rt_init(overseer_s *overseer,
-                           struct sockaddr_in6 sockaddr,
-                           socklen_t socklen,
-                           enum message_type type,
-                           uint8_t rt_attempts);
 
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

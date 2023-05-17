@@ -5,14 +5,9 @@
 #include "master-events.h"
 
 void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *arg) {
-    if (DEBUG_LEVEL >= 4) {
-        printf("Start of HB broadcast callback ----------------------------------------------------\n");
-        fflush(stdout);
-    }
-    if (DEBUG_LEVEL >= 3) {
-        printf("Broadcasting heartbeat ... ");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "Start of HB broadcast callback ----------------------------------------------------\n");
+    debug_log(3, stdout, "Broadcasting heartbeat ... ");
+
     host_s *target;
     host_s *local = &(((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]);
     uint32_t nb_hosts = ((overseer_s *) arg)->hl->nb_hosts;
@@ -74,18 +69,13 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         printf("Done (%d heartbeats sent).\n", nb_heartbeats);
         fflush(stdout);
     }
-    if (DEBUG_LEVEL >= 4) {
-        printf("End of HB broadcast callback ------------------------------------------------------\n");
-        fflush(stdout);
-    }
+    debug_log(4, stdout, "End of HB broadcast callback ------------------------------------------------------\n");
     return;
 }
 
 int master_heartbeat_init(overseer_s *overseer) {
-    if (DEBUG_LEVEL >= 3) {
-        printf("\n- Initializing next heartbeat event ... ");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "\n- Initializing next heartbeat event ... ");
+
     // Create the event related to the socket
     struct event *hb_event = event_new(overseer->eb,
                                        overseer->socket_cm,
@@ -120,10 +110,7 @@ int master_heartbeat_init(overseer_s *overseer) {
         return (EXIT_FAILURE);
     }
 
-    if (DEBUG_LEVEL >= 3) {
-        printf("Done.\n");
-        fflush(stdout);
-    }
+    debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
