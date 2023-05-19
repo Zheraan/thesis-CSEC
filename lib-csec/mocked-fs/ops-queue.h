@@ -12,8 +12,11 @@ typedef struct ops_queue_s ops_queue_s;
 #include "data-op.h"
 #include "mocked-fs.h"
 
-// Frees the memory of a queue element and its timeout event but not its data op
+// Frees the memory of a queue element, its data op, and its timeout event
 void ops_queue_element_free(ops_queue_s *element);
+
+// Frees the memory of the first element in the queue, its data op, and its timeout event
+void ops_queue_element_free_first(mocked_fs_s *mfs);
 
 // Frees the pointed element in the queue and all subsequent ones, their timeout events and their data ops.
 // Returns the number of element that were deleted, or -1 in case of error.

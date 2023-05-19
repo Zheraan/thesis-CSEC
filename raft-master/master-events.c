@@ -54,8 +54,6 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
             fflush(stderr);
             return;
         } else nb_heartbeats++;
-
-        // TODO Add ack timeout
     }
 
     // Set the next event

@@ -10,23 +10,23 @@ entry_transmission_s *etr_new(const overseer_s *overseer,
                               uint32_t index,
                               uint32_t term,
                               enum entry_state state) {
-    entry_transmission_s *ntr = malloc(sizeof(entry_transmission_s));
-    if (ntr == NULL) {
+    entry_transmission_s *netr = malloc(sizeof(entry_transmission_s));
+    if (netr == NULL) {
         perror("malloc new transmission struct");
         return NULL;
     }
 
     control_message_s *ncm = cm_new(overseer, type); // TODO Error handling
-    ntr->cm = *ncm; // Copy the contents of the struct as transmissions can't contain pointers
+    netr->cm = *ncm; // Copy the contents of the struct as transmissions can't contain pointers
     free(ncm);
 
-    ntr->op.newval = op->newval;
-    ntr->op.row = op->row;
-    ntr->op.column = op->column;
-    ntr->term = term;
-    ntr->index = index;
-    ntr->state = state;
-    return ntr;
+    netr->op.newval = op->newval;
+    netr->op.row = op->row;
+    netr->op.column = op->column;
+    netr->term = term;
+    netr->index = index;
+    netr->state = state;
+    return netr;
 }
 
 entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
@@ -84,7 +84,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
 
     if (DEBUG_LEVEL >= 3) {
         if (rt_attempts > 0)
-            printf("Sending ETR of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
+            printf("Sending ETR of type %d with %d retransmission attempt(s) ... \n", type, rt_attempts);
         else
             printf("Sending ETR of type %d ... \n", type);
         fflush(stdout);
@@ -128,7 +128,8 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                    (const struct sockaddr *) &sockaddr,
                    socklen) == -1) {
             perror("ETR sendto");
-            return EXIT_FAILURE;
+            if (errno != EAGAIN)
+                return EXIT_FAILURE;
         }
     } while (errno == EAGAIN);
 
@@ -176,8 +177,11 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
     do {
         errno = 0;
-        if (recvfrom(fd, &tr, sizeof(entry_transmission_s), 0, (struct sockaddr *) &sender, &sender_len) == -1)
-            perror("recvfrom TR");
+        if (recvfrom(fd, &tr, sizeof(entry_transmission_s), 0, (struct sockaddr *) &sender, &sender_len) == -1) {
+            perror("recvfrom ETR");
+            if (errno != EAGAIN)
+                return; // Failure
+        }
     } while (errno == EAGAIN);
 
     if (DEBUG_LEVEL >= 1) {

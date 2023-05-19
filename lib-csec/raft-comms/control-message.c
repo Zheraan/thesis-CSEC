@@ -116,7 +116,8 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
             perror("CM sendto");
             fflush(stderr);
             free(cm);
-            return EXIT_FAILURE;
+            if (errno != EAGAIN)
+                return EXIT_FAILURE;
         }
     } while (errno == EAGAIN);
 
@@ -174,6 +175,13 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
                      &sender_len) == -1) {
             perror("CM recvfrom");
             fflush(stderr);
+            if (errno != EAGAIN) {
+                debug_log(1, stdout, "Failure receiving CM.\n");
+                cm_reception_init((overseer_s *) arg);
+                debug_log(4, stdout,
+                          "End of CM reception callback ------------------------------------------------------\n\n");
+                return; // Failure
+            }
         }
     } while (errno == EAGAIN);
 

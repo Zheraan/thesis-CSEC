@@ -4,7 +4,7 @@
 
 #include "ops-queue.h"
 
-ops_queue_s *ops_queue_pop(mocked_fs_s *mfs){
+ops_queue_s *ops_queue_pop(mocked_fs_s *mfs) {
     if (mfs->queue == NULL)
         return NULL;
     ops_queue_s *res = mfs->queue;
@@ -32,21 +32,33 @@ ops_queue_s *ops_queue_add(data_op_s *op, mocked_fs_s *mfs) {
     return nqueue;
 }
 
-void ops_queue_element_free(ops_queue_s *element){
+void ops_queue_element_free(ops_queue_s *element) {
+    if (element == NULL)
+        return;
+    free(element->op);
     event_del(element->timeout_event);
     event_free(element->timeout_event);
     free(element);
     return;
 }
 
+void ops_queue_element_free_first(mocked_fs_s *mfs) {
+    if (mfs->queue == NULL)
+        return;
+    ops_queue_s *ptr = mfs->queue;
+    mfs->queue = mfs->queue->next;
+    ops_queue_element_free(ptr);
+    return;
+}
+
 int ops_queue_free_all(overseer_s *overseer, ops_queue_s *queue) {
-    // TODO inspect: potential memory leak because deletion events don't seem to be deleted properly
     if (queue == NULL)
         return 0;
     int nb_elem = 0;
     for (ops_queue_s *ite = overseer->mfs->queue; ite != queue; ite = ite->next) {
         if (ite == NULL) {
-            fprintf(stderr, "Queue element in parameter was not part of the queue\n");
+            fprintf(stderr,
+                    "Error resetting queue: queue element in parameter was not part of the queue\n");
             return -1;
         }
         if (ite == queue)
@@ -56,7 +68,6 @@ int ops_queue_free_all(overseer_s *overseer, ops_queue_s *queue) {
     ops_queue_s *next;
     do {
         next = queue->next;
-        free(ptr->op);
         ops_queue_element_free(ptr);
         ptr = next;
         nb_elem++;
