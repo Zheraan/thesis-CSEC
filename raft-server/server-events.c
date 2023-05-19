@@ -88,8 +88,13 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         return;
     }
 
-    // If queue was empty when checked before adding the new element, if there is an available P and the cache is empty
-    if (queue_was_empty && is_p_available(((overseer_s *) arg)->hl) && ((overseer_s *) arg)->mfs->op_cache == NULL) {
+    int p_available = is_p_available(((overseer_s *) arg)->hl);
+
+    if (!queue_was_empty) {
+        debug_log(3, stdout, "Queue is not empty: holding new proposition.\n");
+    } else if (!p_available) {
+        debug_log(3, stdout, "Queue is empty, however P is not available: holding new proposition.\n");
+    } else { // If queue was empty when checked before adding the new element and if there is an available P
         // Then transmit the proposition
         server_send_first_prop((overseer_s *) arg);
     }
@@ -102,6 +107,32 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
 
     debug_log(4, stdout, "End of random op callback -------------------------------------------------------\n\n");
     return;
+}
+
+int server_send_first_prop(overseer_s *overseer) {
+    entry_transmission_s *netr = etr_new(overseer,
+                                         MSG_TYPE_ETR_PROPOSITION,
+                                         overseer->mfs->queue->op,
+                                         overseer->log->next_index,
+                                         overseer->log->P_term,
+                                         ENTRY_STATE_QUEUED);
+
+    if (etr_sendto_with_rt_init(overseer,
+                                netr,
+                                overseer->hl->hosts[whois_p(overseer->hl)].addr,
+                                overseer->hl->hosts[whois_p(overseer->hl)].socklen,
+                                MSG_TYPE_ETR_PROPOSITION,
+                                PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS) != EXIT_SUCCESS) {
+        // Cleanup and abort in case of failure, including subsequent elements
+        // Note: no risk of dangling pointer since queue was empty
+        fprintf(stderr,
+                "Failed to transmit proposition.\n"
+                "Resetting the queue: %d elements freed.\n",
+                ops_queue_free_all(overseer, overseer->mfs->queue));
+        fflush(stderr);
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
 
 void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void *arg) {
