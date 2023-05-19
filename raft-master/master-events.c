@@ -43,10 +43,10 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
 
         evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
         if (DEBUG_LEVEL >= 3) {
-            printf("Heartbeat: ");
+            printf("- Heartbeat: ");
         }
 
-        if (cm_sendto(((overseer_s *) arg),
+        if (cm_sendto(((overseer_s *) arg), // TODO change to version with RT and only send to masters
                       receiver,
                       receiver_len,
                       MSG_TYPE_HB_DEFAULT) != EXIT_SUCCESS) {
@@ -69,7 +69,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         printf("Done (%d heartbeats sent).\n", nb_heartbeats);
         fflush(stdout);
     }
-    debug_log(4, stdout, "End of HB broadcast callback ------------------------------------------------------\n");
+    debug_log(4, stdout, "End of HB broadcast callback ------------------------------------------------------\n\n");
     return;
 }
 

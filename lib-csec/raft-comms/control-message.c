@@ -27,6 +27,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
     }
     ncm->status = overseer->hl->hosts[ncm->host_id].status;
     ncm->type = type;
+    ncm->ack_number = 0;
     ncm->next_index = overseer->log->next_index;
     ncm->match_index = overseer->log->match_index;
     ncm->commit_index = overseer->log->commit_index;
@@ -58,14 +59,15 @@ void cm_print(const control_message_s *hb, FILE *stream) {
 }
 
 int cm_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
-    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0);
+    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0);
 }
 
 int cm_sendto_with_rt_init(overseer_s *overseer,
                            struct sockaddr_in6 sockaddr,
                            socklen_t socklen,
                            enum message_type type,
-                           uint8_t rt_attempts) {
+                           uint8_t rt_attempts,
+                           uint32_t ack_number) {
 
     if (DEBUG_LEVEL >= 3) {
         if (rt_attempts > 0)
@@ -82,9 +84,9 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         return EXIT_FAILURE;
     }
 
-    if (rt_attempts == 0)
+    if (rt_attempts == 0 && ack_number == 0)
         cm->ack_number = 0;
-    else {
+    else if (ack_number == 0) {
         uint32_t rv = rt_cache_add_new(overseer, rt_attempts, sockaddr, socklen, type, NULL);
         if (rv == 0) {
             fprintf(stderr, "Failed creating retransmission cache\n");
@@ -92,9 +94,8 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
             return EXIT_FAILURE;
         }
         cm->ack_number = rv;
-
         debug_log(4, stdout, " - CM RT init OK\n");
-    }
+    } else cm->ack_number = ack_number;
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
@@ -190,7 +191,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     // Responses depending on the type of control message
     switch (cm.type) {
         case MSG_TYPE_HB_DEFAULT:
-            debug_log(2, stdout, "-> is HB DEFAULT\n");
+            debug_log(2, stdout, "-> is HB DEFAULT\nAcking back: ");
             // Default heartbeat means replying with cm ack
             if (cm_sendto(((overseer_s *) arg),
                           sender,
@@ -254,7 +255,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
     cm_reception_init((overseer_s *) arg); // Fatal error in case of failure anyway, so no need for a check
 
-    debug_log(4, stdout, "End of CM reception callback ------------------------------------------------------\n");
+    debug_log(4, stdout, "End of CM reception callback ------------------------------------------------------\n\n");
     return;
 }
 
@@ -325,7 +326,7 @@ int cm_check_action(overseer_s *overseer,
                     struct sockaddr_in6 addr,
                     socklen_t socklen,
                     control_message_s *cm) {
-    debug_log(4, stdout, "Beginning of check action ---------------------------------------------------------\n");
+    debug_log(4, stdout, "Beginning of check action -----------------\n");
 
     switch (rv) {
         case CHECK_RV_CLEAN:
@@ -338,7 +339,8 @@ int cm_check_action(overseer_s *overseer,
                                        addr,
                                        socklen,
                                        MSG_TYPE_LOG_REPAIR,
-                                       CM_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                                       CM_DEFAULT_RT_ATTEMPTS,
+                                       0) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send and RT init CM of type Log Repair as result of check action\n");
                 fflush(stderr);
@@ -351,7 +353,8 @@ int cm_check_action(overseer_s *overseer,
                                        addr,
                                        socklen,
                                        MSG_TYPE_LOG_REPLAY,
-                                       CM_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                                       CM_DEFAULT_RT_ATTEMPTS,
+                                       0) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send and RT init CM of type Log Replay as result of check action\n");
                 fflush(stderr);
@@ -364,7 +367,8 @@ int cm_check_action(overseer_s *overseer,
                                        addr,
                                        socklen,
                                        MSG_TYPE_INDICATE_P,
-                                       CM_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                                       CM_DEFAULT_RT_ATTEMPTS,
+                                       0) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send and RT init CM of type Indicate P as result of check action\n");
                 fflush(stderr);
@@ -459,7 +463,7 @@ int cm_check_action(overseer_s *overseer,
             return EXIT_FAILURE;
             break;
     }
-    debug_log(4, stdout, "End of check action ---------------------------------------------------------------\n");
+    debug_log(4, stdout, "End of check action -----------------------\n");
     return EXIT_SUCCESS;
 }
 
@@ -471,11 +475,13 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     }
     int success = 1;
 
-    // Send proposition to P
-    if (cm_sendto(((retransmission_cache_s *) arg)->overseer,
-                  ((retransmission_cache_s *) arg)->addr,
-                  ((retransmission_cache_s *) arg)->socklen,
-                  ((retransmission_cache_s *) arg)->type)) {
+    // Send message to P
+    if (cm_sendto_with_rt_init(((retransmission_cache_s *) arg)->overseer,
+                               ((retransmission_cache_s *) arg)->addr,
+                               ((retransmission_cache_s *) arg)->socklen,
+                               ((retransmission_cache_s *) arg)->type,
+                               0,
+                               ((retransmission_cache_s *) arg)->id)) {
         fprintf(stderr, "Failed retransmitting the control message\n");
         success = 0;
     }

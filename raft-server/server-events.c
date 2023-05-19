@@ -38,7 +38,7 @@ int server_random_ops_init(overseer_s *overseer) {
 }
 
 void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
-    debug_log(4, stdout, "Start of random op callback ---------\n");
+    debug_log(4, stdout, "Start of random op callback -------------------------------------------------------\n");
 
     // Check if queue is empty
     int queue_was_empty = 1;

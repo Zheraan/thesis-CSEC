@@ -36,6 +36,9 @@ int etr_sendto(overseer_s *overseer,
 
 // Sends an entry transmission to the specified address, caches it for retransmission, and sets the callback
 // event for it. The message sent will have the same ack_number as the retransmission cache id for that ETR.
+// The associated etr will be automatically freed along with its cache entry once it's been resent rt_attempts
+// times, and must not be freed manually until then unless the whole cache entry and its related events are
+// removed through rt_cache_remove_by_id.
 // Returns either EXIT_SUCCESS or EXIT_FAILURE
 int etr_sendto_with_rt_init(overseer_s *overseer,
                             entry_transmission_s *etr,
@@ -50,6 +53,10 @@ int etr_reception_init(overseer_s *overseer);
 
 // Callback for receiving transmissions. Processes the incoming transmission and resets the entry
 // transmission event. Arg must be an overseer_s*
+// FIXME If a proposition is sent with this and reaches P, but the Ack doesn't reach back, we have to make
+//  sure that duplicate propositions are ignored. It should be checked with next index that is then outdated,
+//  however in this case we should not re-send the proposition as it will be done anyway through normal
+//  retransmission, as the Ack order for the prop is a new pending entry order from P.
 void etr_receive_cb(evutil_socket_t fd, short event, void *arg);
 
 // Callback for the retransmission of ETRs. Arg must be a retransmission_s*. Cleans up the retransmission

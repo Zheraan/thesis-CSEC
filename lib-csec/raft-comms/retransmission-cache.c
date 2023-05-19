@@ -32,7 +32,7 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
                           socklen_t socklen,
                           enum message_type type,
                           entry_transmission_s *etr) {
-    debug_log(4, stdout, "\n    - Creating a new retransmission cache element ... ");
+    debug_log(4, stdout, "  - Creating a new retransmission cache element ... ");
 
     retransmission_cache_s *nrtc = malloc(sizeof(retransmission_cache_s));
     if (overseer->rt_cache == NULL) {

@@ -29,12 +29,16 @@ int cm_sendto(overseer_s *overseer,
               socklen_t socklen,
               enum message_type type);
 
-// Sends a CM, then initializes events and structure in the cache for retransmitting a CM
+// Sends a CM, then initializes events and structure in the cache for retransmitting a CM if the number
+// of attempts is greater than 0. If the ack number is non-zero, uses that ack number when sending
+// the message and does not create a new retransmission cache. Therefore, only calls concerning a
+// message with an associated retransmission cache should use a non-zero value for the ack number.
 int cm_sendto_with_rt_init(overseer_s *overseer,
                            struct sockaddr_in6 sockaddr,
                            socklen_t socklen,
                            enum message_type type,
-                           uint8_t rt_attempts);
+                           uint8_t rt_attempts,
+                           uint32_t ack_number);
 
 // Initializes the control message reception event.
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise

@@ -45,13 +45,12 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
     entry_transmission_s *netr = etr_new(overseer,
                                          type,
                                          &(target_entry->op),
-                                         overseer->log->next_index - 1,
+                                         entry_id,
                                          target_entry->term,
                                          target_entry->state);
 
     return netr;
 }
-
 
 void etr_print(const entry_transmission_s *etr, FILE *stream) {
     cm_print(&(etr->cm), stream);
@@ -91,9 +90,13 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
         fflush(stdout);
     }
 
-    if (rt_attempts == 0)
+    // If there are no retransmissions attempts (and thus no need for an ack), the ack number is always 0. Otherwise,
+    // we make sure that it's initialized with the cache entry's ID, or to not reset it if it has already been set as
+    // freshly allocated CMs have an ack_number of 0, unless it is set when creating the related retransmission event,
+    // like here.
+    if (rt_attempts == 0 && etr->cm.ack_number == 0)
         etr->cm.ack_number = 0;
-    else {
+    else if (etr->cm.ack_number == 0) {
         uint32_t rv = rt_cache_add_new(overseer, rt_attempts, sockaddr, socklen, type, etr);
         if (rv == 0) {
             fprintf(stderr, "Failed creating retransmission cache\n");
@@ -180,7 +183,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 1) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
-        printf("Received from %s a TR:\n", buf);
+        printf("Received from %s a ETR:\n", buf);
         if (DEBUG_LEVEL >= 3)
             etr_print(&tr, stdout);
     }
@@ -234,13 +237,13 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     // Init next event so it can keep receiving messages
     etr_reception_init((overseer_s *) arg);
 
-    debug_log(4, stdout, "End of TR reception callback ------------------------------------------------------\n");
+    debug_log(4, stdout, "End of ETR reception callback ------------------------------------------------------\n\n");
     return;
 }
 
 void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 3) {
-        printf("TR retransmission timed out, reattempting transmission (attempt %d) ... ",
+        printf("ETR retransmission timed out, reattempting transmission (attempt %d) ... ",
                ((retransmission_cache_s *) arg)->cur_attempts + 1);
         fflush(stdout);
     }
@@ -257,7 +260,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
                    ((retransmission_cache_s *) arg)->addr,
                    ((retransmission_cache_s *) arg)->socklen,
                    ((retransmission_cache_s *) arg)->etr)) {
-        fprintf(stderr, "Failed retransmitting TR\n");
+        fprintf(stderr, "Failed retransmitting ETR\n");
         success = 0;
     }
 
@@ -272,7 +275,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
         if (errno == EUNKNOWN_TIMEOUT_TYPE ||
             event_add(((retransmission_cache_s *) arg)->ev, &ops_timeout) != 0) {
-            fprintf(stderr, "Failed to add the TR retransmission event\n");
+            fprintf(stderr, "Failed to add the ETR retransmission event\n");
             fflush(stderr);
             success = 0;
         }
