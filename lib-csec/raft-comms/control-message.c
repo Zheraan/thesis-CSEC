@@ -270,11 +270,24 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
 enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb) {
     // If local P-term is outdated
     if (hb->term > overseer->log->P_term) {
+        if (DEBUG_LEVEL >= 1) {
+            printf("Local term (%d) is outdated compared to received value (%d), updating local value.\n",
+                   overseer->log->P_term,
+                   hb->term);
+            fflush(stdout);
+        }
         // Adjust local P-term
         overseer->log->P_term = hb->term;
 
-        // Indicate P messages have
+        // Indicate P messages have a different host ID value, therefore they are not considered here
         if (hb->type != MSG_TYPE_INDICATE_P) {
+            if (DEBUG_LEVEL >= 1 && hb->status != overseer->hl->hosts[hb->host_id].status) {
+                printf("Dist host status in the local hosts-list (%d) is outdated compared to received value "
+                       "(%d), updating local value.\n",
+                       overseer->hl->hosts[hb->host_id].status,
+                       hb->status);
+                fflush(stdout);
+            }
             // If sender is either P or HS, adjust the identity of HS or P in the hosts list (resetting current P or HS)
             if (hb->status == HOST_STATUS_P || hb->status == HOST_STATUS_HS) {
                 if (hl_change_master(overseer->hl, hb->status, hb->host_id) != EXIT_SUCCESS) {
@@ -293,9 +306,17 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
 
         // If dist P-term is outdated
     else if (hb->term < overseer->log->P_term) {
-        if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P)
+        if (DEBUG_LEVEL >= 1)
+            printf("Dist term (%d) is outdated compared to local value (%d). ",
+                   overseer->log->P_term,
+                   hb->term);
+        if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P) {
+            debug_log(1, stdout, "Indicate P message required.\n");
             return CHECK_RV_NEED_INDICATE_P;
-        else return CHECK_RV_NEED_ETR_LATEST;
+        } else {
+            debug_log(1, stdout, "Transmission of the latest log entry required.\n");
+            return CHECK_RV_NEED_ETR_LATEST;
+        }
     }
 
     // Rest of function: P-terms are equal
@@ -304,10 +325,25 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
     // If local commit index is outdated and local is not P (and term was up-to-date)
     if (hb->commit_index > overseer->log->commit_index &&
         overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P) {
-        // TODO Commit up to commit index
+        if (DEBUG_LEVEL >= 1) {
+            printf("Local commit index (%ld) is outdated compared to received value (%ld), updating local value.\n",
+                   overseer->log->commit_index,
+                   hb->commit_index);
+            fflush(stdout);
+        }
+        // TODO Commit up to commit index and update the index
     }
-        // Else if dist is outdated do nothing and set the status of the sender in the hosts list
-    else overseer->hl->hosts[hb->host_id].status = hb->status; // TODO figure a way to make a security check on this
+        // Else if dist commit is outdated do nothing and set the status of the sender in the hosts list
+    else {
+        if (DEBUG_LEVEL >= 1 && hb->status != overseer->hl->hosts[hb->host_id].status) {
+            printf("Dist host status in the local hosts-list (%d) is outdated compared to received value "
+                   "(%d), updating local value (P-terms were equal).\n",
+                   overseer->hl->hosts[hb->host_id].status,
+                   hb->status);
+            fflush(stdout);
+        }
+        overseer->hl->hosts[hb->host_id].status = hb->status; // TODO figure a way to make a security check on this
+    }
 
     // In case of Log Repair messages, indexes will have different values than their host's, so don't check for them
     // here to not send additional useless messages. Successive Log Repair indexes go backward in order, whilst
