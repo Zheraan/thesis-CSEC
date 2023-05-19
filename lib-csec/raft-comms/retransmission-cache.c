@@ -35,7 +35,7 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
     debug_log(4, stdout, "  - Creating a new retransmission cache element ... ");
 
     retransmission_cache_s *nrtc = malloc(sizeof(retransmission_cache_s));
-    if (overseer->rt_cache == NULL) {
+    if (nrtc == NULL) {
         perror("Malloc retransmission cache");
         fflush(stderr);
         return 0;
