@@ -4,15 +4,16 @@
 
 #include "mocked-fs.h"
 
-void mfs_array_print(mocked_fs_s *array,  FILE *stream){
-    fprintf(stream, "Local MFS array contents:\n");
+void mfs_array_print(mocked_fs_s *mfs, FILE *stream) {
+    fprintf(stream, "Local MFS mfs contents:\n");
     for (int i = 0; i < MOCKED_FS_ARRAY_ROWS; ++i) {
         for (int j = 0; j < MOCKED_FS_ARRAY_COLUMNS; ++j) {
-            fprintf(stream, "%c ", array->array[i][j]);
+            fprintf(stream, "%c  ", mfs->array[i][j]);
         }
         fprintf(stream, "\n");
     }
-    fprintf(stream, "\n");
+    fprintf(stream, "%ld Total ops applied\n", mfs->nb_ops);
+    fflush(stream);
     return;
 }
 
@@ -23,18 +24,8 @@ int mfs_apply_op(mocked_fs_s *mfs, data_op_s *op) {
     }
     mfs->array[op->row][op->column] = op->newval;
     mfs->nb_ops += 1;
-    return EXIT_SUCCESS;
-}
-
-void mfs_free_cache(overseer_s *overseer) {
-    if (overseer->mfs == NULL)
-        return;
-    free(overseer->mfs->op_cache);
-    overseer->mfs->op_cache = NULL; // Avoid dangling pointer when reusing
-    if (overseer->mfs->event_cache != NULL) {
-        event_del(overseer->mfs->event_cache);
-        event_free(overseer->mfs->event_cache);
+    if (DEBUG_LEVEL >= 4) {
+        mfs_array_print(mfs, stdout);
     }
-    overseer->mfs->retransmission_attempts = 0;
-    return;
+    return EXIT_SUCCESS;
 }

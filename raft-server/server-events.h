@@ -39,18 +39,14 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg);
 void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void *arg);
 
 // Creates a timeout event for deleting elements in the queue if timer has expired
-// Returns EXIT_FAILURE in case of failure, requiring cleanup of target ops_queue element and subsequent ones
-// Otherwise returns EXIT_SUCCESS
+// Returns EXIT_FAILURE in case of failure, requiring cleanup of target ops_queue element and subsequent ones,
+// otherwise returns EXIT_SUCCESS
 int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *element);
 
-// Caches related data op in case it is removed before retransmission (if needed), then sends it as a
-// new log entry proposition to P and sets a timeout for retransmission
-int server_proposition_transmit(overseer_s *overseer, ops_queue_s *element);
-
-// Initializes the timer for retransmitting the cached proposition
-int server_proposition_retransmission_init(overseer_s *overseer);
-
-// Callback for retransmitting the cached proposition
-void server_proposition_retransmission_cb(evutil_socket_t fd, short event, void *arg);
+// Sends the first element in the proposition queue (added the earliest) and sets its retransmission through
+// the retransmission cache.
+// Returns EXIT_FAILURE and wipes the proposition queue in case of failure, returns EXIT_SUCCESS otherwise
+// FIXME If a proposition isn't accepted after all retransmission attempts, the queue needs to be wiped
+int server_send_first_prop(overseer_s *overseer);
 
 #endif //THESIS_CSEC_SERVER_EVENTS_H

@@ -43,15 +43,9 @@ typedef struct ops_queue_s {
 typedef struct mocked_fs_s {
     // Array containing the synced data, initialized to all 0
     int array[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS];
-    // Number of ops applied since initialization
+    // Number of ops applied since initialization or last patch
     uint64_t nb_ops;
     ops_queue_s *queue;
-    // Cache for the retransmission of a data_op if needed
-    data_op_s *op_cache;
-    // Cache of the retransmission event of a data_op
-    struct event *event_cache;
-    // Number of retransmission attempts of the currently cached op
-    uint16_t retransmission_attempts;
 } mocked_fs_s;
 
 #endif //THESIS_CSEC_MFS_DATATYPES_H

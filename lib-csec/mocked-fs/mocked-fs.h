@@ -13,7 +13,7 @@
 #include "../overseer.h"
 
 // Prints the contents of the mocked filesystem to the specified stream
-void mfs_array_print(mocked_fs_s *array, FILE *stream);
+void mfs_array_print(mocked_fs_s *mfs, FILE *stream);
 
 // Applies the data op to the mfs
 // Returns EXIT_FAILURE if the op is out of MFS bounds, EXIT_SUCCESS otherwise
