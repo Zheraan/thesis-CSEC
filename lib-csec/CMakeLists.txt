@@ -13,8 +13,6 @@ add_library(
         raft-log/rl-datatypes.h
         mocked-fs/data-op.h
         mocked-fs/data-op.c
-        raft-comms/shared-events.h
-        raft-comms/shared-events.c
         hosts-list/hosts-list.c
         hosts-list/hosts-list.h
         mocked-fs/mocked-fs.c
