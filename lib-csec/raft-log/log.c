@@ -6,6 +6,10 @@ log_s *log_init(log_s *log) {
     log->match_index = 0;
     log->P_term = 0;
     log->HS_term = 0;
+    memset(log->entries, 0, LOG_LENGTH * sizeof(log_entry_s));
+    for (int i = 0; i < LOG_LENGTH; ++i) {
+        log->entries[i].state = ENTRY_STATE_EMPTY;
+    }
 
     return log;
 }
@@ -15,10 +19,9 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum ent
         fprintf(stderr, "Log full\n");
         return EXIT_FAILURE;
     }
-    log_entry_s *nentry = &(overseer->log->entries[overseer->log->next_index]);
+    log_entry_s *nentry = &(overseer->log->entries[tr->index]);
     nentry->term = overseer->log->P_term;
     nentry->state = state;
-    nentry->is_cached = 0;
     nentry->server_maj = 0;
     nentry->master_maj = 0;
 
@@ -36,6 +39,9 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum ent
             free(nentry->server_rep);
             return EXIT_FAILURE; // Abort in case of failure
         }
+
+        memset(nentry->master_rep, 0, sizeof(uint8_t) * overseer->hl->nb_hosts);
+        memset(nentry->server_rep, 0, sizeof(uint8_t) * overseer->hl->nb_hosts);
     }
 
     nentry->op.newval = tr->op.newval;
@@ -58,7 +64,8 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum ent
                nentry->op.newval);
     }
 
-    overseer->log->next_index++;
+    if (state != ENTRY_STATE_CACHED)
+        overseer->log->next_index++;
     return EXIT_SUCCESS;
 }
 
@@ -78,6 +85,6 @@ void log_entry_replication_arrays_free(log_entry_s *entry) {
 }
 
 log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id) {
-    if (log->next_index >= id) return NULL;
+    if (id >= LOG_LENGTH || log->entries[id].state == ENTRY_STATE_EMPTY) return NULL;
     return &(log->entries[id]);
 }

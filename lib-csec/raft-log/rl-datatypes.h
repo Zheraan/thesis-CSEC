@@ -18,9 +18,11 @@
 
 // Defines the entry's state
 enum entry_state {
-    ENTRY_STATE_QUEUED = 0,
+    ENTRY_STATE_EMPTY = -1,
+    ENTRY_STATE_PROPOSAL = 0,
     ENTRY_STATE_PENDING = 1,
     ENTRY_STATE_COMMITTED = 2,
+    ENTRY_STATE_CACHED = 3,
 };
 
 typedef struct log_entry_s {
@@ -28,8 +30,6 @@ typedef struct log_entry_s {
     uint32_t term;
     // State of the entry
     enum entry_state state;
-    // Has the entry been cached for reconstruction
-    int is_cached; // TODO cache log entry
 
     // Array of booleans to server hosts where it is replicated
     uint8_t *server_rep;
@@ -47,7 +47,7 @@ typedef struct log_entry_s {
 typedef struct log_s {
     // Index of next log entry that will be added
     uint64_t next_index;
-    // Index of latest log entry that is to be committed
+    // Index of latest log entry that is committed locally
     uint64_t commit_index;
     // Index of latest log entry that is committed by a majority of nodes
     uint64_t match_index;
