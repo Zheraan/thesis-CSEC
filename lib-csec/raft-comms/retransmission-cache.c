@@ -27,11 +27,12 @@ void rt_cache_free_all(overseer_s *overseer) {
 }
 
 uint32_t rt_cache_add_new(overseer_s *overseer,
-                          uint8_t attempts,
-                          struct sockaddr_in6 addr,
+                          uint8_t rt_attempts,
+                          struct sockaddr_in6 sockaddr,
                           socklen_t socklen,
                           enum message_type type,
-                          entry_transmission_s *etr) {
+                          entry_transmission_s *etr,
+                          uint32_t ack_back) {
     debug_log(4, stdout, "  - Creating a new retransmission cache element ... ");
 
     retransmission_cache_s *nrtc = malloc(sizeof(retransmission_cache_s));
@@ -44,13 +45,14 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
     // Initialize cache
     nrtc->overseer = overseer;
     nrtc->socklen = socklen;
-    nrtc->addr = addr;
-    nrtc->max_attempts = attempts;
+    nrtc->addr = sockaddr;
+    nrtc->max_attempts = rt_attempts;
     nrtc->cur_attempts = 0;
     nrtc->type = type;
     nrtc->next = NULL;
     nrtc->etr = etr;
     nrtc->ev = NULL;
+    nrtc->ack_back = ack_back;
 
     event_callback_fn callback;
     if (etr == NULL)

@@ -12,19 +12,26 @@
 #include "control-message.h"
 
 // Allocates a new transmission struct and initializes it with the parameters. The contents of the data op
-// are copied in the transmission, so they can (and have to) be freed at some point afterward
+// are copied in the transmission, so they can (and have to) be freed at some point afterward.
+// Returns NULL if the allocation fails, or a pointer to the newly allocated struct.
 entry_transmission_s *etr_new(const overseer_s *overseer,
                               enum message_type type,
                               const data_op_s *op,
                               uint32_t index,
                               uint32_t term,
-                              enum entry_state state);
+                              enum entry_state state,
+                              uint32_t ack_back);
 
+// Allocates a new transmission struct and initializes it with the parameters. The contents of the data op
+// are copied in the transmission from the local log entry corresponding to the given id, if any.
+// Returns NULL if the allocation fails or if no entry was found with this id, or a pointer to the
+// newly allocated struct.
 entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
                                                enum message_type type,
-                                               uint64_t entry_id);
+                                               uint64_t entry_id,
+                                               uint32_t ack_back);
 
-// Outputs the state of the structure to the specified stream
+// Outputs the contents of the structure to the specified stream
 void etr_print(const entry_transmission_s *tr, FILE *stream);
 
 // Sends a transmission to the specified address
@@ -35,7 +42,7 @@ int etr_sendto(overseer_s *overseer,
                entry_transmission_s *etr);
 
 // Sends an entry transmission to the specified address, caches it for retransmission, and sets the callback
-// event for it. The message sent will have the same ack_number as the retransmission cache id for that ETR.
+// event for it. The message sent will have the same ack_reference as the retransmission cache id for that ETR.
 // The associated etr will be automatically freed along with its cache entry once it's been resent rt_attempts
 // times, and must not be freed manually until then unless the whole cache entry and its related events are
 // removed through rt_cache_remove_by_id.

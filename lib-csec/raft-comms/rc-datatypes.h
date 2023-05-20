@@ -135,12 +135,12 @@ enum message_type {
     MSG_TYPE_ACK_ENTRY = 6,
     // Ack message for an ETR Commit
     MSG_TYPE_ACK_COMMIT = 7,
-    // Message for indicating who is P in case host that is not P received a message sent to P or if the sender
-    // of a message had an outdated P-term
 
+    // Message for indicating who is P in case host that is not P received a message sent to P or if the
+    // sender of a message had an outdated P-term
     MSG_TYPE_INDICATE_P = 8,
-    // Message for indicating who is HS in case host that is not HS received a message sent to HS or if the sender
-    // of a message had an outdated HS-term
+    // Message for indicating who is HS in case host that is not HS received a message sent to HS or if
+    // the sender of a message had an outdated HS-term
     MSG_TYPE_INDICATE_HS = 9,
 
     // ETR Message types (only valid within transmissions) ----------------------------------------
@@ -153,6 +153,9 @@ enum message_type {
     // Master sending an entry that is NOT a new entry to add as pending, but one sent in order to fix
     // the receiver's log as result of a Log Repair or Log Replay
     MSG_TYPE_ETR_LOGFIX = 104,
+    // Master replying to the node sending a proposition, serves as an ack of the node's proposition and as
+    // a new pending entry order. Is important to avoid duplicates in a simple way without multiplying messages
+    MSG_TYPE_ETR_NEW_AND_ACK = 105,
 };
 
 // Control message metadata check return values specifying the action to take if any
@@ -201,9 +204,14 @@ typedef struct control_message_s {
     enum host_status status;
     // Enum for determining the type of control message
     enum message_type type;
-    // Message number to determine what ack refers to or what number an ack for this message should have.
-    // Must be the same as the retransmission cache number.
-    uint32_t ack_number;
+    // Message number to determine what number an ack back for this message should have, in which case it
+    // must be the same as the local retransmission cache number. Otherwise, it has to be 0 if the message
+    // does not require an acknowledgement.
+    uint32_t ack_reference;
+    // Message number to acknowledge a precedent message sent by the receptor of this message, in which case
+    // it must be the same number as the receptor's message's retransmission cache number. Otherwise, it has
+    // to be 0 if the message is not carrying the acknowledgement of a previous message
+    uint32_t ack_back;
 
     // Sender's next index
     uint64_t next_index;
@@ -250,6 +258,8 @@ typedef struct retransmission_cache_s {
     socklen_t socklen;
     // Type of message
     enum message_type type;
+    // Type of message
+    uint32_t ack_back;
     // Pointer to the program state
     overseer_s *overseer;
     // Related event

@@ -9,14 +9,19 @@ entry_transmission_s *etr_new(const overseer_s *overseer,
                               const data_op_s *op,
                               uint32_t index,
                               uint32_t term,
-                              enum entry_state state) {
+                              enum entry_state state,
+                              uint32_t ack_back) {
     entry_transmission_s *netr = malloc(sizeof(entry_transmission_s));
     if (netr == NULL) {
         perror("malloc new transmission struct");
         return NULL;
     }
 
-    control_message_s *ncm = cm_new(overseer, type); // TODO Error handling
+    control_message_s *ncm = cm_new(overseer, type, ack_back);
+    if (ncm == NULL) {
+        free(netr);
+        return (NULL);
+    }
     netr->cm = *ncm; // Copy the contents of the struct as transmissions can't contain pointers
     free(ncm);
 
@@ -31,12 +36,13 @@ entry_transmission_s *etr_new(const overseer_s *overseer,
 
 entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
                                                enum message_type type,
-                                               uint64_t entry_id) {
+                                               uint64_t entry_id,
+                                               uint32_t ack_back) {
     // Seek entry with given id
     log_entry_s *target_entry = log_get_entry_by_id(overseer->log, entry_id);
     if (target_entry == NULL) {
         fprintf(stderr,
-                "New ETR from local entry: requested latest entry but no entry has ID %ld\n",
+                "Error creating new ETR from local entry: no entry has ID %ld\n",
                 entry_id);
         return NULL;
     }
@@ -47,8 +53,8 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
                                          &(target_entry->op),
                                          entry_id,
                                          target_entry->term,
-                                         target_entry->state);
-
+                                         target_entry->state,
+                                         ack_back);
     return netr;
 }
 
@@ -92,18 +98,24 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
 
     // If there are no retransmissions attempts (and thus no need for an ack), the ack number is always 0. Otherwise,
     // we make sure that it's initialized with the cache entry's ID, or to not reset it if it has already been set as
-    // freshly allocated CMs have an ack_number of 0, unless it is set when creating the related retransmission event,
+    // freshly allocated CMs have an ack_reference of 0, unless it is set when creating the related retransmission event,
     // like here.
-    if (rt_attempts == 0 && etr->cm.ack_number == 0)
-        etr->cm.ack_number = 0;
-    else if (etr->cm.ack_number == 0) {
-        uint32_t rv = rt_cache_add_new(overseer, rt_attempts, sockaddr, socklen, type, etr);
+    if (rt_attempts == 0 && etr->cm.ack_reference == 0)
+        etr->cm.ack_reference = 0;
+    else if (etr->cm.ack_reference == 0) {
+        uint32_t rv = rt_cache_add_new(overseer,
+                                       rt_attempts,
+                                       sockaddr,
+                                       socklen,
+                                       type,
+                                       etr,
+                                       etr->cm.ack_back);
         if (rv == 0) {
             fprintf(stderr, "Failed creating retransmission cache\n");
             fflush(stderr);
             return EXIT_FAILURE;
         }
-        etr->cm.ack_number = rv;
+        etr->cm.ack_reference = rv;
 
         debug_log(4, stdout, " - ETR RT init OK\n");
     }
@@ -171,13 +183,13 @@ int etr_reception_init(overseer_s *overseer) {
 void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout, "Start of ETR reception callback ---------------------------------------------------\n");
 
-    entry_transmission_s tr;
+    entry_transmission_s etr;
     struct sockaddr_in6 sender;
     socklen_t sender_len = sizeof(sender);
 
     do {
         errno = 0;
-        if (recvfrom(fd, &tr, sizeof(entry_transmission_s), 0, (struct sockaddr *) &sender, &sender_len) == -1) {
+        if (recvfrom(fd, &etr, sizeof(entry_transmission_s), 0, (struct sockaddr *) &sender, &sender_len) == -1) {
             perror("recvfrom ETR");
             if (errno != EAGAIN)
                 return; // Failure
@@ -187,33 +199,67 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 1) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
-        printf("Received from %s a ETR:\n", buf);
+        printf("Received from %s an ETR:\n", buf);
         if (DEBUG_LEVEL >= 3)
-            etr_print(&tr, stdout);
+            etr_print(&etr, stdout);
     }
 
+    // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
+    if (etr.cm.ack_back != 0) {
+        debug_log(4,
+                  stdout,
+                  "-> Ack back value is non-zero, removing corresponding RT cache entry ... ");
+        if (rt_cache_remove_by_id((overseer_s *) arg, etr.cm.ack_back) == EXIT_SUCCESS)
+            debug_log(4, stdout, "Done.\n");
+        else debug_log(4, stderr, "Failure.\n");
+    }
+
+    enum cm_check_rv crv = cm_check_metadata((overseer_s *) arg, &(etr.cm));
+    if (crv == CHECK_RV_FAILURE) {
+        // Cause of failure should be printed to stderr by the function
+        debug_log(4, stdout,
+                  "End of ETR reception callback ------------------------------------------------------\n\n");
+        return;
+    }
+    cm_check_action((overseer_s *) arg, crv, sender, sender_len, &(etr.cm)); // TODO Failure handling
+
     // Responses depending on the type of transmission
-    switch (tr.cm.type) {
-        case MSG_TYPE_ETR_NEW :
+    switch (etr.cm.type) {
+        case MSG_TYPE_ETR_NEW : // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status == HOST_STATUS_P) {
+                // TODO Edgecase: reception of new entry as P
+                debug_log(1, stdout, "-> is ETR NEW, but local is P, aborting ...\n");
+                debug_log(4, stdout,
+                          "End of ETR reception callback ------------------------------------------------------\n\n");
+                return;
+            }
+
             debug_log(1, stdout, "-> is ETR NEW\n");
+            if (crv == CHECK_RV_CLEAN)
+                log_add_entry((overseer_s *) arg, &etr, etr.state);
+            else if (crv == CHECK_RV_NEED_REPLAY || crv == CHECK_RV_NEED_REPAIR)
+                log_add_entry((overseer_s *) arg, &etr, ENTRY_STATE_CACHED);
 
             // TODO Effects of ETR NEW reception
             break;
 
-        case MSG_TYPE_ETR_COMMIT:
+        case MSG_TYPE_ETR_COMMIT: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             debug_log(1, stdout, "-> is ETR COMMIT\n");
             // TODO Effects of ETR COMMIT reception
             break;
 
-        case MSG_TYPE_ETR_PROPOSITION:
+        case MSG_TYPE_ETR_PROPOSITION: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             debug_log(1, stdout, "-> is ETR PROPOSITION\n");
             // If local node isn't P, send correction on who is P
             if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status != HOST_STATUS_P) {
                 debug_log(1, stdout, "Local node isn't P, answering with INDICATE P ... ");
-                if (cm_sendto(((overseer_s *) arg),
-                              sender,
-                              sender_len,
-                              MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                if (cm_sendto_with_rt_init(((overseer_s *) arg),
+                                           sender,
+                                           sender_len,
+                                           MSG_TYPE_INDICATE_P,
+                                           0,
+                                           0,
+                                           etr.cm.ack_reference) != EXIT_SUCCESS) {
                     fprintf(stderr, "Failed to Ack heartbeat\n");
                     return;
                 }
@@ -222,20 +268,25 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             }
             // Else local is P:
             // add entry to the log
-            if (log_add_entry((overseer_s *) arg, &tr, ENTRY_STATE_PENDING) != EXIT_SUCCESS) {
+            if (log_add_entry((overseer_s *) arg, &etr, ENTRY_STATE_PENDING) != EXIT_SUCCESS) {
                 fprintf(stderr, "Failed to add a new log entry from proposition\n");
                 return;
             }
             // TODO Sync the proposition with other nodes
             break;
 
-        case MSG_TYPE_ETR_LOGFIX:
+        case MSG_TYPE_ETR_LOGFIX: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             debug_log(1, stdout, "-> is ETR LOG FIX\n");
             // TODO Effects of ETR LOG FIX reception
             break;
 
+        case MSG_TYPE_ETR_NEW_AND_ACK: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            debug_log(1, stdout, "-> is ETR NEW AND ACK\n");
+            // TODO Effects of ETR NEW AND ACK reception
+            break;
+
         default:
-            fprintf(stderr, "Invalid transmission type %d\n", tr.cm.type);
+            fprintf(stderr, "Invalid transmission type %d\n", etr.cm.type);
     }
 
     // Init next event so it can keep receiving messages
@@ -255,7 +306,8 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     // Update the control message in the transmission, as program status can change between transmissions attempts.
     control_message_s *ncm = cm_new(((retransmission_cache_s *) arg)->overseer,
-                                    ((retransmission_cache_s *) arg)->etr->cm.type);
+                                    ((retransmission_cache_s *) arg)->etr->cm.type,
+                                    ((retransmission_cache_s *) arg)->ack_back);
     ((retransmission_cache_s *) arg)->etr->cm = *ncm;
     free(ncm);
 

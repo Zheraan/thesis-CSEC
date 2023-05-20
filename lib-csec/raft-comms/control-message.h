@@ -17,12 +17,13 @@
 // memory allocation fails.
 // If message is of type INDICATE P, host id in the message is replaced by the id of the P node in the local
 // host's hosts list. If no node has P status in this case, NULL is returned.
-control_message_s *cm_new(const overseer_s *overseer, enum message_type type);
+control_message_s *cm_new(const overseer_s *overseer, enum message_type type, uint32_t ack_back);
 
 // Outputs the state of the structure to the specified stream
 void cm_print(const control_message_s *hb, FILE *stream);
 
-// Sends a control message to the provided address with the provided message type.
+// Sends a control message to the provided address with the provided message type, without retransmission
+// or acknowledgement.
 // Returns EXIT_SUCCESS or EXIT_FAILURE depending on result
 int cm_sendto(overseer_s *overseer,
               struct sockaddr_in6 sockaddr,
@@ -30,15 +31,21 @@ int cm_sendto(overseer_s *overseer,
               enum message_type type);
 
 // Sends a CM, then initializes events and structure in the cache for retransmitting a CM if the number
-// of attempts is greater than 0. If the ack number is non-zero, uses that ack number when sending
+// of attempts is greater than 0. If the ack reference is non-zero, uses that reference number when sending
 // the message and does not create a new retransmission cache. Therefore, only calls concerning a
-// message with an associated retransmission cache should use a non-zero value for the ack number.
+// message with a pre-existing retransmission cache should use a non-zero value for the ack reference.
+// If this control message is sent to acknowledge a previous message from the receiver, the ack_back number
+// should be set to that message's ack_reference value, or 0 otherwise. The rt_attempts parameter is
+// ignored if the ack_reference parameter is non-zero, as the retransmission cache is handling the
+// retransmission attempts.
+// Returns EXIT_SUCCESS or EXIT_FAILURE depending on result
 int cm_sendto_with_rt_init(overseer_s *overseer,
                            struct sockaddr_in6 sockaddr,
                            socklen_t socklen,
                            enum message_type type,
                            uint8_t rt_attempts,
-                           uint32_t ack_number);
+                           uint32_t ack_reference,
+                           uint32_t ack_back);
 
 // Initializes the control message reception event.
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
@@ -54,7 +61,7 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
 
 // Depending on the return value of cm_check_metadata(), takes the appropriate action
 int cm_check_action(overseer_s *overseer,
-                    enum cm_check_rv rv,
+                    enum cm_check_rv check_rv,
                     struct sockaddr_in6 addr,
                     socklen_t socklen,
                     control_message_s *cm);

@@ -4,7 +4,7 @@
 
 #include "control-message.h"
 
-control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
+control_message_s *cm_new(const overseer_s *overseer, enum message_type type, uint32_t ack_back) {
     control_message_s *ncm = malloc(sizeof(control_message_s));
 
     if (ncm == NULL) {
@@ -27,7 +27,8 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type) {
     }
     ncm->status = overseer->hl->hosts[ncm->host_id].status;
     ncm->type = type;
-    ncm->ack_number = 0;
+    ncm->ack_reference = 0;
+    ncm->ack_back = ack_back;
     ncm->next_index = overseer->log->next_index;
     ncm->match_index = overseer->log->match_index;
     ncm->commit_index = overseer->log->commit_index;
@@ -41,7 +42,8 @@ void cm_print(const control_message_s *hb, FILE *stream) {
             "host_id:       %d\n"
             "status:        %d\n"
             "type:          %d\n"
-            "ack-number:    %d\n"
+            "ack_reference: %d\n"
+            "ack_back:      %d\n"
             "next_index:    %ld\n"
             "commit_index:  %ld\n"
             "match_index:   %ld\n"
@@ -49,7 +51,8 @@ void cm_print(const control_message_s *hb, FILE *stream) {
             hb->host_id,
             hb->status,
             hb->type,
-            hb->ack_number,
+            hb->ack_reference,
+            hb->ack_back,
             hb->next_index,
             hb->commit_index,
             hb->match_index,
@@ -59,7 +62,7 @@ void cm_print(const control_message_s *hb, FILE *stream) {
 }
 
 int cm_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
-    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0);
+    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0, 0);
 }
 
 int cm_sendto_with_rt_init(overseer_s *overseer,
@@ -67,7 +70,8 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            socklen_t socklen,
                            enum message_type type,
                            uint8_t rt_attempts,
-                           uint32_t ack_number) {
+                           uint32_t ack_reference,
+                           uint32_t ack_back) {
 
     if (DEBUG_LEVEL >= 3) {
         if (rt_attempts > 0)
@@ -77,25 +81,25 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         fflush(stdout);
     }
 
-    control_message_s *cm = cm_new(overseer, type);
+    control_message_s *cm = cm_new(overseer, type, ack_back);
     if (cm == NULL) {
         fprintf(stderr, "Failed to create message of type %d", type);
         fflush(stderr);
         return EXIT_FAILURE;
     }
 
-    if (rt_attempts == 0 && ack_number == 0)
-        cm->ack_number = 0;
-    else if (ack_number == 0) {
-        uint32_t rv = rt_cache_add_new(overseer, rt_attempts, sockaddr, socklen, type, NULL);
+    if (rt_attempts == 0 && ack_reference == 0)
+        cm->ack_reference = 0;
+    else if (ack_reference == 0) {
+        uint32_t rv = rt_cache_add_new(overseer, rt_attempts, sockaddr, socklen, type, NULL, ack_back);
         if (rv == 0) {
             fprintf(stderr, "Failed creating retransmission cache\n");
             fflush(stderr);
             return EXIT_FAILURE;
         }
-        cm->ack_number = rv;
+        cm->ack_reference = rv;
         debug_log(4, stdout, " - CM RT init OK\n");
-    } else cm->ack_number = ack_number;
+    } else cm->ack_reference = ack_reference;
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
@@ -193,6 +197,16 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             cm_print(&cm, stdout);
     }
 
+    // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
+    if (cm.ack_back != 0) {
+        debug_log(4,
+                  stdout,
+                  "-> Ack back value is non-zero, removing corresponding RT cache entry ... ");
+        if (rt_cache_remove_by_id((overseer_s *) arg, cm.ack_back) == EXIT_SUCCESS)
+            debug_log(4, stdout, "Done.\n");
+        else debug_log(4, stderr, "Failure.\n");
+    }
+
     enum cm_check_rv crv = cm_check_metadata((overseer_s *) arg, &cm);
     cm_check_action((overseer_s *) arg, crv, sender, sender_len, &cm); // TODO Failure handling
 
@@ -201,10 +215,13 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
         case MSG_TYPE_HB_DEFAULT:
             debug_log(2, stdout, "-> is HB DEFAULT\nAcking back: ");
             // Default heartbeat means replying with cm ack
-            if (cm_sendto(((overseer_s *) arg),
-                          sender,
-                          sender_len,
-                          MSG_TYPE_ACK_HB) != EXIT_SUCCESS) {
+            if (cm_sendto_with_rt_init(((overseer_s *) arg),
+                                       sender,
+                                       sender_len,
+                                       MSG_TYPE_ACK_HB,
+                                       0, // No need for RT
+                                       0,
+                                       cm.ack_reference) != EXIT_SUCCESS) {
                 fprintf(stderr, "Failed to Ack heartbeat\n");
                 fflush(stderr);
                 return;
@@ -366,29 +383,39 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
 }
 
 int cm_check_action(overseer_s *overseer,
-                    enum cm_check_rv rv,
+                    enum cm_check_rv check_rv,
                     struct sockaddr_in6 addr,
                     socklen_t socklen,
                     control_message_s *cm) {
     debug_log(4, stdout, "Beginning of check action -----------------\n");
+    int success = 1;
 
-    switch (rv) {
+    switch (check_rv) {
         case CHECK_RV_CLEAN:
+            debug_log(4, stdout, "CM metadata is valid.\n");
+            break;
+
         case CHECK_RV_FAILURE:
             // Do nothing, failure is handled above
+            debug_log(0, stderr, "CM metadata check failed.\n");
+            success = 0;
             break;
 
         case CHECK_RV_NEED_REPAIR:
-            if (cm_sendto_with_rt_init(overseer,
-                                       addr,
-                                       socklen,
-                                       MSG_TYPE_LOG_REPAIR,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0) != EXIT_SUCCESS) {
+            debug_log(2, stdout, "CM P-term outdated, requiring Log Repair.\n");
+            if (!is_p_available(overseer->hl))
+                debug_log(0, stderr, "Local node requires Log Repair, but no P is available.\n");
+            else if (cm_sendto_with_rt_init(overseer,
+                                            overseer->hl->hosts[whois_p(overseer->hl)].addr,
+                                            overseer->hl->hosts[whois_p(overseer->hl)].socklen,
+                                            MSG_TYPE_LOG_REPAIR,
+                                            CM_DEFAULT_RT_ATTEMPTS,
+                                            0,
+                                            0) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send and RT init CM of type Log Repair as result of check action\n");
                 fflush(stderr);
-                return EXIT_FAILURE;
+                success = 0;
             }
             break;
 
@@ -398,25 +425,24 @@ int cm_check_action(overseer_s *overseer,
                                        socklen,
                                        MSG_TYPE_LOG_REPLAY,
                                        CM_DEFAULT_RT_ATTEMPTS,
+                                       0,
                                        0) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send and RT init CM of type Log Replay as result of check action\n");
                 fflush(stderr);
-                return EXIT_FAILURE;
+                success = 0;
             }
             break;
 
         case CHECK_RV_NEED_INDICATE_P:
-            if (cm_sendto_with_rt_init(overseer,
-                                       addr,
-                                       socklen,
-                                       MSG_TYPE_INDICATE_P,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0) != EXIT_SUCCESS) {
+            if (cm_sendto(overseer,
+                          addr,
+                          socklen,
+                          MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                 fprintf(stderr,
-                        "Failed to send and RT init CM of type Indicate P as result of check action\n");
+                        "Failed to send CM of type Indicate P as result of check action\n");
                 fflush(stderr);
-                return EXIT_FAILURE;
+                success = 0;
             }
             break;
 
@@ -428,11 +454,13 @@ int cm_check_action(overseer_s *overseer,
                 // Create new ETR based on latest entry in the log
                 entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                                       MSG_TYPE_ETR_LOGFIX,
-                                                                      overseer->log->next_index - 1);
+                                                                      overseer->log->next_index - 1,
+                                                                      0);
                 if (netr == NULL) {
                     fprintf(stderr,
                             "Failed to create ETR for replying with entry corresponding to next index\n");
-                    return EXIT_FAILURE;
+                    success = 0;
+                    break;
                 }
 
                 // Send ETR
@@ -445,7 +473,7 @@ int cm_check_action(overseer_s *overseer,
                     fprintf(stderr,
                             "Failed to send and RT init ETR of type ETR Logfix as result of check action");
                     fflush(stderr);
-                    return EXIT_FAILURE;
+                    success = 0;
                 }
                 debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
@@ -454,7 +482,7 @@ int cm_check_action(overseer_s *overseer,
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
                     fflush(stderr);
-                    return EXIT_FAILURE;
+                    success = 0;
                 }
             }
             break;
@@ -469,13 +497,14 @@ int cm_check_action(overseer_s *overseer,
 
                 entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                                       MSG_TYPE_ETR_LOGFIX,
-                                                                      cm->next_index);
+                                                                      cm->next_index,
+                                                                      0);
                 if (netr == NULL) {
                     fprintf(stderr,
                             "Failed to create ETR for replying with entry corresponding to next index\n");
-                    return EXIT_FAILURE;
+                    success = 0;
+                    break;
                 }
-
 
                 // Send ETR
                 if (etr_sendto_with_rt_init(overseer,
@@ -487,7 +516,7 @@ int cm_check_action(overseer_s *overseer,
                     fprintf(stderr,
                             "Failed to send and RT init ETR of type ETR Logfix as result of check action");
                     fflush(stderr);
-                    return EXIT_FAILURE;
+                    success = 0;
                 }
                 debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
@@ -496,19 +525,21 @@ int cm_check_action(overseer_s *overseer,
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
                     fflush(stderr);
-                    return EXIT_FAILURE;
+                    success = 0;
                 }
             }
             break;
 
         default:
-            fprintf(stderr, "Unimplemented check rv %d\n", rv);
+            fprintf(stderr, "Unimplemented check check_rv %d\n", check_rv);
             fflush(stderr);
-            return EXIT_FAILURE;
+            success = 0;
             break;
     }
     debug_log(4, stdout, "End of check action -----------------------\n");
-    return EXIT_SUCCESS;
+    if (success)
+        return EXIT_SUCCESS;
+    return EXIT_FAILURE;
 }
 
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
@@ -525,7 +556,8 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
                                ((retransmission_cache_s *) arg)->socklen,
                                ((retransmission_cache_s *) arg)->type,
                                0,
-                               ((retransmission_cache_s *) arg)->id)) {
+                               ((retransmission_cache_s *) arg)->id,
+                               ((retransmission_cache_s *) arg)->ack_back)) {
         fprintf(stderr, "Failed retransmitting the control message\n");
         success = 0;
     }

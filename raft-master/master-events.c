@@ -46,11 +46,14 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
             printf("- Heartbeat: ");
         }
 
-        if (cm_sendto(((overseer_s *) arg), // TODO change to version with RT and only send to masters
-                      receiver,
-                      receiver_len,
-                      MSG_TYPE_HB_DEFAULT) != EXIT_SUCCESS) {
-            fprintf(stderr, "Failed to send heartbeat\n");
+        if (cm_sendto_with_rt_init(((overseer_s *) arg), // TODO change to version with RT and only send to masters
+                                   receiver,
+                                   receiver_len,
+                                   MSG_TYPE_HB_DEFAULT,
+                                   CM_DEFAULT_RT_ATTEMPTS,
+                                   0,
+                                   0) != EXIT_SUCCESS) {
+            fprintf(stderr, "Failed to send and RT init heartbeat\n");
             fflush(stderr);
             return;
         } else nb_heartbeats++;
