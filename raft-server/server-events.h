@@ -46,7 +46,8 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
 // Sends the first element in the proposition queue (added the earliest) and sets its retransmission through
 // the retransmission cache.
 // Returns EXIT_FAILURE and wipes the proposition queue in case of failure, returns EXIT_SUCCESS otherwise
-// FIXME If a proposition isn't accepted after all retransmission attempts, the queue needs to be wiped
+// FIXME If a proposition isn't accepted after all retransmission attempts, the queue needs to be wiped to
+//  prevent incoherences because of subsequent entries that may depend on the first and succeed
 int server_send_first_prop(overseer_s *overseer);
 
 #endif //THESIS_CSEC_SERVER_EVENTS_H

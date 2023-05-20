@@ -115,7 +115,8 @@ int server_send_first_prop(overseer_s *overseer) {
                                          overseer->mfs->queue->op,
                                          overseer->log->next_index,
                                          overseer->log->P_term,
-                                         ENTRY_STATE_QUEUED);
+                                         ENTRY_STATE_PROPOSAL,
+                                         0);
 
     if (etr_sendto_with_rt_init(overseer,
                                 netr,
