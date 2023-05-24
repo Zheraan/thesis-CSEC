@@ -563,7 +563,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     }
 
     // Increase attempts number
-    ((retransmission_cache_s *) arg)->cur_attempts++;
+    ((retransmission_cache_s *) arg)->cur_attempts += 1;
 
     // If attempts max reached, remove cache entry
     if (((retransmission_cache_s *) arg)->cur_attempts >= ((retransmission_cache_s *) arg)->max_attempts) {

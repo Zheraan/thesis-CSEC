@@ -27,6 +27,14 @@
 #define ETR_DEFAULT_RT_ATTEMPTS 2
 #endif
 
+// Offset for all timeouts to slow down the program without having to fine tune it, for debug purposes
+#ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_SEC
+#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_SEC 1
+#endif
+#ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_USEC
+#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_USEC 0
+#endif
+
 // Timeout duration range for elections. Default value of 500ms
 #ifndef TIMEOUT_RANGE_ELECTION_USEC
 #define TIMEOUT_RANGE_ELECTION_USEC 500000

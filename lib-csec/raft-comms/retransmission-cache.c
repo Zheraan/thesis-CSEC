@@ -7,8 +7,11 @@
 void rt_cache_free(retransmission_cache_s *rtc) {
     free(rtc->etr);
     if (rtc->ev != NULL) {
-        event_del(rtc->ev);
         event_free(rtc->ev);
+    } else {
+        debug_log(2,
+                  stderr,
+                  "Attempting to free retransmission cache but retransmission event pointer is not set.\n");
     }
     free(rtc);
     return;
@@ -122,8 +125,11 @@ retransmission_cache_s *rt_cache_find_by_id(overseer_s *o, uint32_t id) {
 }
 
 int rt_cache_remove_by_id(overseer_s *o, uint32_t id) {
-    if (o->rt_cache == NULL)
+    if (o->rt_cache == NULL) {
+        fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
+        fflush(stderr);
         return EXIT_FAILURE;
+    }
 
     retransmission_cache_s *ptr = o->rt_cache;
     if (o->rt_cache->id == id) {
@@ -138,5 +144,7 @@ int rt_cache_remove_by_id(overseer_s *o, uint32_t id) {
         rt_cache_free(tmp);
         return EXIT_SUCCESS;
     }
+    fprintf(stderr, "Attempting to remove cache element %d but it does not exist.\n", id);
+    fflush(stderr);
     return EXIT_FAILURE;
 }
