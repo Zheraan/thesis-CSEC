@@ -61,7 +61,10 @@ void cm_print(const control_message_s *hb, FILE *stream) {
     return;
 }
 
-int cm_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, enum message_type type) {
+int cm_sendto_without_ack(overseer_s *overseer,
+                          struct sockaddr_in6 sockaddr,
+                          socklen_t socklen,
+                          enum message_type type) {
     return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0, 0);
 }
 
@@ -197,11 +200,17 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             cm_print(&cm, stdout);
     }
 
+    // If the incoming message calls for an acknowledgement, we must set it the value for the next answer
+    // TODO later check if there can be a case where a message calling for an ack can lead to a message
+    //  being sent to another node, therefore possibly acknowledging the wrong message
+    uint32_t ack_back = cm.ack_reference;
+
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
     if (cm.ack_back != 0) {
-        debug_log(4,
-                  stdout,
-                  "-> Ack back value is non-zero, removing corresponding RT cache entry ... ");
+        if (DEBUG_LEVEL >= 4) {
+            printf("-> Ack back value is non-zero (%d), removing corresponding RT cache entry ... ", cm.ack_back);
+            fflush(stdout);
+        }
         if (rt_cache_remove_by_id((overseer_s *) arg, cm.ack_back) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else debug_log(4, stderr, "Failure.\n");
@@ -221,7 +230,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
                                        MSG_TYPE_ACK_HB,
                                        0, // No need for RT
                                        0,
-                                       cm.ack_reference) != EXIT_SUCCESS) {
+                                       ack_back) != EXIT_SUCCESS) {
                 fprintf(stderr, "Failed to Ack heartbeat\n");
                 fflush(stderr);
                 return;
@@ -411,7 +420,7 @@ int cm_check_action(overseer_s *overseer,
                                             MSG_TYPE_LOG_REPAIR,
                                             CM_DEFAULT_RT_ATTEMPTS,
                                             0,
-                                            0) != EXIT_SUCCESS) {
+                                            cm->ack_reference) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send and RT init CM of type Log Repair as result of check action\n");
                 fflush(stderr);
@@ -426,7 +435,7 @@ int cm_check_action(overseer_s *overseer,
                                        MSG_TYPE_LOG_REPLAY,
                                        CM_DEFAULT_RT_ATTEMPTS,
                                        0,
-                                       0) != EXIT_SUCCESS) {
+                                       cm->ack_reference) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send and RT init CM of type Log Replay as result of check action\n");
                 fflush(stderr);
@@ -435,10 +444,10 @@ int cm_check_action(overseer_s *overseer,
             break;
 
         case CHECK_RV_NEED_INDICATE_P:
-            if (cm_sendto(overseer,
-                          addr,
-                          socklen,
-                          MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+            if (cm_sendto_without_ack(overseer,
+                                      addr,
+                                      socklen,
+                                      MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send CM of type Indicate P as result of check action\n");
                 fflush(stderr);
@@ -455,7 +464,7 @@ int cm_check_action(overseer_s *overseer,
                 entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                                       MSG_TYPE_ETR_LOGFIX,
                                                                       overseer->log->next_index - 1,
-                                                                      0);
+                                                                      cm->ack_reference);
                 if (netr == NULL) {
                     fprintf(stderr,
                             "Failed to create ETR for replying with entry corresponding to next index\n");
@@ -478,7 +487,7 @@ int cm_check_action(overseer_s *overseer,
                 debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
                 debug_log(4, stdout, "- Sender needs latest entry but local is not P\n");
-                if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                if (cm_sendto_without_ack(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
                     fflush(stderr);
@@ -498,7 +507,7 @@ int cm_check_action(overseer_s *overseer,
                 entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                                       MSG_TYPE_ETR_LOGFIX,
                                                                       cm->next_index,
-                                                                      0);
+                                                                      cm->ack_reference);
                 if (netr == NULL) {
                     fprintf(stderr,
                             "Failed to create ETR for replying with entry corresponding to next index\n");
@@ -521,7 +530,7 @@ int cm_check_action(overseer_s *overseer,
                 debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
                 debug_log(4, stdout, "- Sender needs entry corresponding to next index but local is not P\n");
-                if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                if (cm_sendto_without_ack(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
                     fflush(stderr);

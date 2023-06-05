@@ -204,6 +204,12 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             etr_print(&etr, stdout);
     }
 
+
+    // If the incoming message calls for an acknowledgement, we must set it the value for the next answer
+    // TODO later check if there can be a case where a message calling for an ack can lead to a message
+    //  being sent to another node, therefore possibly acknowledging the wrong message
+    uint32_t ack_back = etr.cm.ack_reference;
+
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
     if (etr.cm.ack_back != 0) {
         debug_log(4,
@@ -259,7 +265,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                                            MSG_TYPE_INDICATE_P,
                                            0,
                                            0,
-                                           etr.cm.ack_reference) != EXIT_SUCCESS) {
+                                           ack_back) != EXIT_SUCCESS) {
                     fprintf(stderr, "Failed to Ack heartbeat\n");
                     return;
                 }

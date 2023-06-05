@@ -18,6 +18,7 @@
 
 // Defines the entry's state
 enum entry_state {
+    ENTRY_STATE_INVALID = -2,
     ENTRY_STATE_EMPTY = -1,
     ENTRY_STATE_PROPOSAL = 0,
     ENTRY_STATE_PENDING = 1,
