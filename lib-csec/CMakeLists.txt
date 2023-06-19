@@ -31,4 +31,4 @@ add_library(
         mocked-fs/ops-queue.h
         raft-comms/entry-transmission.c
         raft-comms/entry-transmission.h
-)
+        stepdown.c stepdown.h)

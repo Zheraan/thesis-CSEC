@@ -125,6 +125,8 @@
 // Message types concerning CMs have values <=100, and those concerning ETRs have values >100
 enum message_type {
     // CM Message types ---------------------------------------------------------------------------
+
+    // HEARTBEATS
     // Default heartbeat
     MSG_TYPE_HB_DEFAULT = 0,
     // New P taking over
@@ -132,29 +134,34 @@ enum message_type {
     // New HS taking over
     MSG_TYPE_HS_TAKEOVER = 3,
 
-    // Repairing the log, asking master for entry before next index
-    MSG_TYPE_LOG_REPAIR = 4,
+    // CONTROL
+    // Repairing the log, asking master for entry in next index
+    MSG_TYPE_LOG_REPAIR = 10,
     // Replaying the log, asking master for entry in next index
-    MSG_TYPE_LOG_REPLAY = 5,
-
+    MSG_TYPE_LOG_REPLAY = 11,
     // Ack of heartbeat without issues, also sent back for takeover messages
-    MSG_TYPE_ACK_HB = 1,
-    // Ack message for an ETR Entry
-    MSG_TYPE_ACK_ENTRY = 6,
+    MSG_TYPE_ACK_HB = 20,
+    // Ack message for an ETR New
+    MSG_TYPE_ACK_ENTRY = 21,
     // Ack message for an ETR Commit
-    MSG_TYPE_ACK_COMMIT = 7,
-
+    MSG_TYPE_ACK_COMMIT = 22,
     // Message for indicating who is P in case host that is not P received a message sent to P or if the
     // sender of a message had an outdated P-term
-    MSG_TYPE_INDICATE_P = 8,
+    MSG_TYPE_INDICATE_P = 30,
     // Message for indicating who is HS in case host that is not HS received a message sent to HS or if
     // the sender of a message had an outdated HS-term
-    MSG_TYPE_INDICATE_HS = 9,
+    MSG_TYPE_INDICATE_HS = 31,
+    // Message broadcasted periodically in case the local node has detected its isolation and is in partition
+    // mode, likely because of a network failure.
+    // TODO Extension implement partition mode and network probe
+    //  - need a way to detect that the network is partitioned even if the partition contains several nodes
+    //  - partitions contain up to half the nodes (but not a strict majority)
+    MSG_TYPE_NETWORK_PROBE = 40,
 
     // ETR Message types (only valid within transmissions) ----------------------------------------
     // Master sending a new entry to add to the log as pending
     MSG_TYPE_ETR_NEW = 101,
-    // Master sending the commit order for a pending entry
+    // Master sending the commit order for a pending entry (and the entry itself)
     MSG_TYPE_ETR_COMMIT = 102,
     // Server sending a new entry proposition to P
     MSG_TYPE_ETR_PROPOSITION = 103,
@@ -210,6 +217,7 @@ typedef struct control_message_s {
     uint32_t host_id;
     // Status of the sender
     enum host_status status;
+    // TODO Implement target status to avoid complex issues
     // Enum for determining the type of control message
     enum message_type type;
     // Message number to determine what number an ack back for this message should have, in which case it
@@ -225,10 +233,10 @@ typedef struct control_message_s {
     uint64_t next_index;
     // Sender's commit index
     uint64_t commit_index;
-    // Sender's match index
-    uint64_t match_index;
-    // Sender's current P-term
-    uint32_t term;
+    // Sender's current P_term
+    uint32_t P_term;
+    // Sender's current HS_term
+    uint32_t HS_term;
 } control_message_s;
 
 typedef struct entry_transmission_s {
@@ -238,8 +246,10 @@ typedef struct entry_transmission_s {
     data_op_s op;
     // Transmitted entry's index
     uint32_t index;
-    // Transmitted entry's term
+    // Transmitted entry's P-term
     uint32_t term;
+    // Term of the entry before transmitted entry
+    uint32_t prev_term; // TODO Important: implement this
     // Transmitted entry's state
     enum entry_state state;
 } entry_transmission_s;
@@ -260,6 +270,8 @@ typedef struct retransmission_cache_s {
     uint8_t cur_attempts;
     // Max number of retransmissions
     uint8_t max_attempts;
+    // FIXME If a message destined to HS/P needs to be resent but target role's change, the message is resent
+    //  to the wrong target anyway. Can cause unexpected issues, need to check if the role is still the same.
     // Address of the target
     struct sockaddr_in6 addr;
     // Socklen of the target

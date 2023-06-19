@@ -63,7 +63,7 @@ void etr_print(const entry_transmission_s *etr, FILE *stream) {
     fprintf(stream,
             "state:         %d\n"
             "index:         %d\n"
-            "term:          %d\n"
+            "P-term:          %d\n"
             "data_op:\n"
             " - row:        %d\n"
             " - column:     %d\n"

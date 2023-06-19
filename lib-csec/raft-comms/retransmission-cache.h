@@ -27,6 +27,7 @@ retransmission_cache_s *rt_cache_find_by_id(overseer_s *o, uint32_t id);
 
 // Removes and frees the element in the cache list with the given ID
 // Returns EXIT_SUCCESS or EXIT_FAILURE
+// TODO Improvement: store and check sender in cache to avoid disruption
 int rt_cache_remove_by_id(overseer_s *o, uint32_t id);
 
 // Frees the full cache and deletes associated events

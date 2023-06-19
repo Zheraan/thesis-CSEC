@@ -8,6 +8,8 @@
 // Returns a pointer to the initialized log (same as argument)
 log_s *log_init(log_s *log);
 
+void log_print(log_s *log); //TODO
+
 // Adds the entry contained in the transmission to the log as new entry with the given state.
 // State parameter is voluntarily redundant with transmission's state field to allow for caching new entries
 // in a log that has missing entries, to not require them again when repairing the missing ones.
@@ -23,5 +25,13 @@ void log_entry_replication_arrays_free(log_entry_s *entry);
 
 // Returns a pointer to the entry with the given id, or NULL if there is none
 log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id);
+
+int log_repair_start(overseer_s *overseer); // TODO implement log_repair_start
+
+int log_replay_start(overseer_s *overseer); // TODO implement log_replay_start
+
+int log_repair_ongoing(overseer_s *overseer); // TODO implement log_repair_ongoing
+
+int log_replay_ongoing(overseer_s *overseer); // TODO implement log_replay_ongoing
 
 #endif //RAFT_ENTRY_LOG_LIBRARY_H

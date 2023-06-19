@@ -50,8 +50,6 @@ typedef struct log_s {
     uint64_t next_index;
     // Index of latest log entry that is committed locally
     uint64_t commit_index;
-    // Index of latest log entry that is committed by a majority of nodes
-    uint64_t match_index;
 
     // current P-term
     uint32_t P_term;

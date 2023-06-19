@@ -45,7 +45,7 @@ int main() {
     overseer_wipe(&overseer);
 
     // Initialize log
-    // Initialize term with special start value
+    // Initialize P-term with special start value
     // Parse hostfile
     // Init active hosts list and state
     // Create corresponding sockets
@@ -64,11 +64,11 @@ int main() {
      *
      * > P heartbeat timeout as HS
      *      > Transition to P candidate
-     *      > Queries other masters for reachability and for who is master with term number
+     *      > Queries other masters for reachability and for who is master with P-term number
      *      > Set query timeout
      *
      * > Reachability query timeout (as P candidate mode)
-     *      > Check if queries indicate right term and right master
+     *      > Check if queries indicate right P-term and right master
      *          > Step down if local terms are outdated compared to the majority of answers
      *          > Update hosts and indexes accordingly
      *      ? transition to partition mode if received less than half queries back
@@ -106,22 +106,22 @@ int main() {
      * ------------- HS Election --------------------------------------------------
      *
      * > HS election bid reception
-     *      > check term, ack back with hosts status and terms if lower than current
+     *      > check P-term, ack back with hosts status and terms if lower than current
      *      > otherwise respond favorably
-     *          X find solution to unlimited bid requests with increasing term numbers, possibility of DOS
-     *      > set term timeout
+     *          X find solution to unlimited bid requests with increasing P-term numbers, possibility of DOS
+     *      > set P-term timeout
      *
      * > HS election
      *      - as result of old HS takeover as P (trigger through callback of heartbeat)
      *      - because of deployment phase, trigger through setup
      *      - as result of HS heartbeat timeout
      *          > update hosts state
-     *      > enter candidate state, increase term and vote for self
-     *      > send bid to all, set term timeout
-     *          > otherwise starts new term at timeout
+     *      > enter candidate state, increase P-term and vote for self
+     *      > send bid to all, set P-term timeout
+     *          > otherwise starts new P-term at timeout
      *
      * > Election bid answer
-     *      > Check term, ignore if wrong
+     *      > Check P-term, ignore if wrong
      *      - positive
      *          > increase positive vote count
      *          - If majority reached
@@ -133,7 +133,7 @@ int main() {
      *      - negative
      *          > increase negative vote count
      *
-     * > HS term timeout
+     * > HS-term timeout
      *      - first time
      *          > try reaching again unreachable nodes
      *          > reset timeout
@@ -146,10 +146,10 @@ int main() {
      * ------------- P Handling of log entry proposition --------------------------
      *
      * > Receive log entry proposal
-     *      - indexes and term are invalid
+     *      - indexes and P-term are invalid
      *          > heartbeat back with correct indexes and terms and special flag
      *          > send the oldest log entry to be repaired if any
-     *      - indexes and term are valid
+     *      - indexes and P-term are valid
      *          - if under proposed state
      *              > ack back with negative answer
      *          - otherwise
@@ -197,7 +197,7 @@ int main() {
      *
      * > Replicate entry order
      *      - Term invalid
-     *          > Ack with right term
+     *          > Ack with right P-term
      *      - Indexes invalid
      *          > Ask for needed entries if any
      *              - from P if HS
@@ -211,7 +211,7 @@ int main() {
      *
      * > Commit entry order
      *      - Term invalid
-     *          > Ack with right term
+     *          > Ack with right P-term
      *      - Indexes invalid
      *          > Ask for needed entries if any
      *              - from P if HS
@@ -256,7 +256,7 @@ int main() {
      *      > compare terms and indexes
      *          - if indexes wrong
      *              > heartbeat ack with missing log entry message
-     *                  - possibility of erroneous log entries, check term from entries past match index
+     *                  - possibility of erroneous log entries, check P-term from entries past match index
      *              > update accordingly
      *      > compare hosts lists
      *          > adjust if necessary
@@ -274,7 +274,7 @@ int main() {
      *      > Reset heartbeat timeout
      *      > Ack back
      *
-     * > HS and CS: if receive message with wrong term addressed to P with update on who is P
+     * > HS and CS: if receive message with wrong P-term addressed to P with update on who is P
      *      > Heartbeat back with update on who is P
      *
      * > Heartbeat reception from HS as CS
@@ -304,7 +304,7 @@ int main() {
      * ------------- Partition mode -----------------------------------------------
      *
      * ? Transition back to CS
-     * ? Reset term to special partition value (>init value, <any online value)
+     * ? Reset P-term to special partition value (>init value, <any online value)
      *
      *
      *

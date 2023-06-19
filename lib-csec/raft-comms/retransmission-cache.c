@@ -124,6 +124,8 @@ retransmission_cache_s *rt_cache_find_by_id(overseer_s *o, uint32_t id) {
     return target;
 }
 
+// TODO Important: add parameter for what type of message is the acknowledgement for, to increase replication
+//  index for log replay/repair acks
 int rt_cache_remove_by_id(overseer_s *o, uint32_t id) {
     if (o->rt_cache == NULL) {
         fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);

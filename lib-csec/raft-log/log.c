@@ -3,7 +3,6 @@
 log_s *log_init(log_s *log) {
     log->next_index = 0;
     log->commit_index = 0;
-    log->match_index = 0;
     log->P_term = 0;
     log->HS_term = 0;
     memset(log->entries, 0, LOG_LENGTH * sizeof(log_entry_s));
@@ -51,7 +50,7 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum ent
     if (DEBUG_LEVEL >= 1) {
         printf("Added to the log the following entry:\n"
                "- entry number: %ld\n"
-               "- term:         %d\n"
+               "- P-term:         %d\n"
                "- state:        %d\n"
                "- row:          %d\n"
                "- column:       %d\n"

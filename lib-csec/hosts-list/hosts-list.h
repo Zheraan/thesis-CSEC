@@ -49,6 +49,12 @@ int is_p_available(hosts_list_s *list);
 uint32_t whois_p(hosts_list_s *list);
 
 // Resets any master node with the given status to CS, and sets the node with the given ID to the given status
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int hl_change_master(hosts_list_s *list, enum host_status status, uint32_t id);
+
+// Changes the status of the target node in the list to the one given in parameter, calls hl_change_master if
+// it concerns HS or P.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
+int hl_update_status(hosts_list_s *list, enum host_status status, uint32_t id);
 
 #endif //THESIS_CSEC_HOSTS_LIST_H

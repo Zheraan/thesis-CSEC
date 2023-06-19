@@ -261,3 +261,15 @@ int hl_change_master(hosts_list_s *list, enum host_status status, uint32_t id) {
     }
     return EXIT_SUCCESS;
 }
+
+int hl_update_status(hosts_list_s *list, enum host_status status, uint32_t id) {
+    if (id >= list->nb_hosts) {
+        fprintf(stderr, "HL change master error: host ID out of hosts list range\n");
+        return EXIT_FAILURE;
+    }
+    if (status == HOST_STATUS_P || status == HOST_STATUS_HS)
+        return hl_change_master(list, status, id);
+    else
+        list->hosts[id].status = status;
+    return EXIT_SUCCESS;
+}

@@ -52,7 +52,7 @@ int main() {
     overseer_wipe(&overseer);
 
     // Initialize log
-    // Initialize term with special start value
+    // Initialize P-term with special start value
     // Parse hostfile
     // Init active hosts list and state
     // Create corresponding sockets
@@ -65,13 +65,13 @@ int main() {
      * ------------- Heartbeats ---------------------------------------------------
      *
      * > P heartbeat reception
-     *      - as result of new P (check term)
+     *      - as result of new P (check P-term)
      *          > update hosts list state
      *              - prevent possibility of DOS
      *              - maybe through checking if P is previous HS ?
      *          > send first queued element if any
-     *      > Check term
-     *          > Ack with correct term and who is P if wrong
+     *      > Check P-term
+     *          > Ack with correct P-term and who is P if wrong
      *      > check match index
      *          > update if out of date
      *      > check next index
@@ -111,7 +111,7 @@ int main() {
      * > Replicate entry order
      *      - Term invalid
      *          - Incoming is lower (should not be possible)
-     *              > Ack with right term and special flag
+     *              > Ack with right P-term and special flag
      *          - Local is lower
      *              > Adjust local
      *      - Indexes invalid
@@ -135,7 +135,7 @@ int main() {
      * > Commit entry order
      *      - Term invalid
      *          - Incoming is lower (should not be possible)
-     *              > Ack with right term and special flag
+     *              > Ack with right P-term and special flag
      *          - Local is lower
      *              > Adjust local
      *      - Indexes invalid

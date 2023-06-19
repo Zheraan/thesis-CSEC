@@ -12,6 +12,7 @@
 #include "../hosts-list/hosts-list.h"
 #include "timeout.h"
 #include "../overseer.h"
+#include "../stepdown.h"
 
 // Allocates a new control message struct and initializes it with the overseer's values. Returns NULL in case
 // memory allocation fails.
@@ -25,10 +26,17 @@ void cm_print(const control_message_s *hb, FILE *stream);
 // Sends a control message to the provided address with the provided message type, without retransmission
 // or acknowledgement.
 // Returns EXIT_SUCCESS or EXIT_FAILURE depending on result
-int cm_sendto_without_ack(overseer_s *overseer,
-                          struct sockaddr_in6 sockaddr,
-                          socklen_t socklen,
-                          enum message_type type);
+int cm_sendto(overseer_s *overseer,
+              struct sockaddr_in6 sockaddr,
+              socklen_t socklen,
+              enum message_type type);
+
+// Sale as above, but with an acknowledgement of a previous message.
+int cm_sendto_with_ack_back(overseer_s *overseer,
+                            struct sockaddr_in6 sockaddr,
+                            socklen_t socklen,
+                            enum message_type type,
+                            uint32_t ack_back);
 
 // Sends a CM, then initializes events and structure in the cache for retransmitting a CM if the number
 // of attempts is greater than 0. If the ack reference is non-zero, uses that reference number when sending
@@ -55,7 +63,7 @@ int cm_reception_init(overseer_s *overseer);
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg);
 
 // Checks the metadata in the control message and returns a value indicating if any action needs to be taken.
-// In case the message's term equals the local term, commits any uncommitted data that needs to be.
+// In case the message's P-term equals the local's, commits any uncommitted data that needs to be.
 // Also updates the sender's status in the hosts-list.
 enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb);
 
@@ -69,5 +77,10 @@ int cm_check_action(overseer_s *overseer,
 // Callback for retransmitting events, cleans up after the maximum number of attempts has been made.
 // Arg must be an overseer_s*
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
+
+int hb_actions(overseer_s *overseer,
+               struct sockaddr_in6 sender_addr,
+               socklen_t socklen,
+               control_message_s *cm); // TODO Finish this
 
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

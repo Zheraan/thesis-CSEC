@@ -30,9 +30,8 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
     ncm->ack_reference = 0;
     ncm->ack_back = ack_back;
     ncm->next_index = overseer->log->next_index;
-    ncm->match_index = overseer->log->match_index;
     ncm->commit_index = overseer->log->commit_index;
-    ncm->term = overseer->log->P_term;
+    ncm->P_term = overseer->log->P_term;
 
     return ncm;
 }
@@ -46,8 +45,7 @@ void cm_print(const control_message_s *hb, FILE *stream) {
             "ack_back:      %d\n"
             "next_index:    %ld\n"
             "commit_index:  %ld\n"
-            "match_index:   %ld\n"
-            "term:          %d\n",
+            "P_term:          %d\n",
             hb->host_id,
             hb->status,
             hb->type,
@@ -55,17 +53,24 @@ void cm_print(const control_message_s *hb, FILE *stream) {
             hb->ack_back,
             hb->next_index,
             hb->commit_index,
-            hb->match_index,
-            hb->term);
+            hb->P_term);
     fflush(stream);
     return;
 }
 
-int cm_sendto_without_ack(overseer_s *overseer,
-                          struct sockaddr_in6 sockaddr,
-                          socklen_t socklen,
-                          enum message_type type) {
+int cm_sendto(overseer_s *overseer,
+              struct sockaddr_in6 sockaddr,
+              socklen_t socklen,
+              enum message_type type) {
     return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0, 0);
+}
+
+int cm_sendto_with_ack_back(overseer_s *overseer,
+                            struct sockaddr_in6 sockaddr,
+                            socklen_t socklen,
+                            enum message_type type,
+                            uint32_t ack_back) {
+    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0, ack_back);
 }
 
 int cm_sendto_with_rt_init(overseer_s *overseer,
@@ -200,11 +205,6 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             cm_print(&cm, stdout);
     }
 
-    // If the incoming message calls for an acknowledgement, we must set it the value for the next answer
-    // TODO later check if there can be a case where a message calling for an ack can lead to a message
-    //  being sent to another node, therefore possibly acknowledging the wrong message
-    uint32_t ack_back = cm.ack_reference;
-
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
     if (cm.ack_back != 0) {
         if (DEBUG_LEVEL >= 4) {
@@ -216,8 +216,13 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
         else debug_log(4, stderr, "Failure.\n");
     }
 
+    // If the incoming message calls for an acknowledgement, we must set it the value for the next answer
+    // TODO later check if there can be a case where a message calling for an ack can lead to a message
+    //  being sent to another node, therefore possibly acknowledging the wrong message
+    uint32_t ack_back = cm.ack_reference;
+
     enum cm_check_rv crv = cm_check_metadata((overseer_s *) arg, &cm);
-    cm_check_action((overseer_s *) arg, crv, sender, sender_len, &cm); // TODO Failure handling
+    cm_check_action((overseer_s *) arg, crv, sender, sender_len, &cm);
 
     // Responses depending on the type of control message
     switch (cm.type) {
@@ -244,7 +249,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
         case MSG_TYPE_P_TAKEOVER:
             debug_log(2, stdout, "-> is P TAKEOVER\n");
-            // TODO Check term and apply any effects of P takeover if valid
+            // TODO Check P_term and apply any effects of P takeover if valid
             break;
 
         case MSG_TYPE_HS_TAKEOVER:
@@ -295,15 +300,15 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
 enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb) {
     // If local P-term is outdated
-    if (hb->term > overseer->log->P_term) {
+    if (hb->P_term > overseer->log->P_term) {
         if (DEBUG_LEVEL >= 1) {
-            printf("Local term (%d) is outdated compared to received value (%d), updating local value.\n",
+            printf("Local P-term (%d) is outdated compared to received value (%d), updating local value.\n",
                    overseer->log->P_term,
-                   hb->term);
+                   hb->P_term);
             fflush(stdout);
         }
         // Adjust local P-term
-        overseer->log->P_term = hb->term;
+        overseer->log->P_term = hb->P_term;
 
         // Indicate P messages have a different host ID value, therefore they are not considered here
         if (hb->type != MSG_TYPE_INDICATE_P) {
@@ -324,18 +329,18 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
                 // Else set the status of the sender in the hosts list
             else overseer->hl->hosts[hb->host_id].status = hb->status;
 
-            // And ask for repair in case log entries are outdated (cannot rely on indexes only if term was wrong)
+            // And ask for repair in case log entries are outdated (cannot rely on indexes only if P-term was wrong)
             return CHECK_RV_NEED_REPAIR;
         }
         // If message is Indicate P, it is handled in the receiver function
     }
 
         // If dist P-term is outdated
-    else if (hb->term < overseer->log->P_term) {
+    else if (hb->P_term < overseer->log->P_term) {
         if (DEBUG_LEVEL >= 1)
-            printf("Dist term (%d) is outdated compared to local value (%d). ",
+            printf("Dist P-term (%d) is outdated compared to local value (%d). ",
                    overseer->log->P_term,
-                   hb->term);
+                   hb->P_term);
         if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P) {
             debug_log(1, stdout, "Indicate P message required.\n");
             return CHECK_RV_NEED_INDICATE_P;
@@ -348,7 +353,7 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
     // Rest of function: P-terms are equal
     // TODO Implement HS-term checks too
 
-    // If local commit index is outdated and local is not P (and term was up-to-date)
+    // If local commit index is outdated and local is not P (and P-term was up-to-date)
     if (hb->commit_index > overseer->log->commit_index &&
         overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P) {
         if (DEBUG_LEVEL >= 1) {
@@ -444,10 +449,10 @@ int cm_check_action(overseer_s *overseer,
             break;
 
         case CHECK_RV_NEED_INDICATE_P:
-            if (cm_sendto_without_ack(overseer,
-                                      addr,
-                                      socklen,
-                                      MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+            if (cm_sendto(overseer,
+                          addr,
+                          socklen,
+                          MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                 fprintf(stderr,
                         "Failed to send CM of type Indicate P as result of check action\n");
                 fflush(stderr);
@@ -487,7 +492,7 @@ int cm_check_action(overseer_s *overseer,
                 debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
                 debug_log(4, stdout, "- Sender needs latest entry but local is not P\n");
-                if (cm_sendto_without_ack(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
                     fflush(stderr);
@@ -530,7 +535,7 @@ int cm_check_action(overseer_s *overseer,
                 debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
                 debug_log(4, stdout, "- Sender needs entry corresponding to next index but local is not P\n");
-                if (cm_sendto_without_ack(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
                     fflush(stderr);
@@ -591,4 +596,123 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     if (success == 1)
         debug_log(3, stdout, "Done.\n");
     return;
+}
+
+
+int hb_actions(overseer_s *overseer,
+               struct sockaddr_in6 sender_addr,
+               socklen_t socklen,
+               control_message_s *cm) {
+    enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
+
+    // If local host is a master node
+    if (local_status != HOST_STATUS_S) {
+        if (cm->P_term > overseer->log->P_term) { // If dist P_term is greater
+            hl_update_status(overseer->hl, cm->status, cm->host_id);
+
+            if (local_status != HOST_STATUS_CS) // If local host is P or HS
+                stepdown_to_cs(overseer);
+
+            // Acknowledge CM with ack
+            if (cm_sendto_with_rt_init(overseer,
+                                       sender_addr,
+                                       socklen,
+                                       MSG_TYPE_ACK_HB,
+                                       CM_DEFAULT_RT_ATTEMPTS,
+                                       0,
+                                       cm->ack_reference) != EXIT_SUCCESS)
+                debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+
+            if (log_repair_start(overseer) != EXIT_SUCCESS)
+                debug_log(0, stderr, "Failed to start Log Repair\n");
+
+            return EXIT_SUCCESS;
+        }
+
+        if (cm->P_term < overseer->log->P_term) { // If dist P_term is smaller
+            if (local_status == HOST_STATUS_P) {
+                // Heartbeat back without ack
+                if (cm_sendto_with_ack_back(overseer,
+                                            sender_addr,
+                                            socklen,
+                                            MSG_TYPE_HB_DEFAULT,
+                                            cm->ack_reference) != EXIT_SUCCESS)
+                    debug_log(0, stderr, "Failed to send and RT init a HB DEFAULT\n");
+            } else { // Local status is HS or CS
+                // Indicate P back without ack
+                if (cm_sendto_with_ack_back(overseer,
+                                            sender_addr,
+                                            socklen,
+                                            MSG_TYPE_INDICATE_P,
+                                            cm->ack_reference) != EXIT_SUCCESS)
+                    debug_log(0, stderr, "Failed to send an INDICATE P\n");
+            }
+
+            return EXIT_SUCCESS;
+        }
+
+        // Else if local and dist P-terms are equal
+
+        /* TODO Implement HS-term
+        if(cm->HS_term > overseer->log->HS_term){ // If dist HS-term is greater than local
+
+        }
+
+        if(cm->HS_term < overseer->log->HS_term){ // If dist HS-term is smaller than local
+
+        }
+
+        // Else if local and dist HS-terms are equal
+
+        */
+
+        hl_update_status(overseer->hl, cm->status, cm->host_id);
+
+        if (cm->next_index > overseer->log->next_index) { // If dist next_index is greater than local
+
+            if (local_status == HOST_STATUS_P) {
+                debug_log(0,
+                          stderr,
+                          "Fatal error: P cannot have a smaller next index if its term is equal.\n");
+                exit(EXIT_FAILURE);
+            }
+
+            if (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_CS) {
+                debug_log(0,
+                          stderr,
+                          "Fatal error: HS cannot receive messages from CS if P-terms are equal.\n");
+                exit(EXIT_FAILURE);
+            }
+
+            // If the log is being repaired or replayed
+            if (log_replay_ongoing(overseer) == 1 || log_repair_ongoing(overseer) == 1) {
+                // Ack back with ack
+                if (cm_sendto_with_rt_init(overseer,
+                                           sender_addr,
+                                           socklen,
+                                           MSG_TYPE_ACK_HB,
+                                           CM_DEFAULT_RT_ATTEMPTS,
+                                           0,
+                                           cm->ack_reference) != EXIT_SUCCESS)
+                    debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+            } else {
+                // If the latest entry in the log committed or if the latest entry in the log has the same term as dist
+                if (overseer->log->commit_index == overseer->log->next_index ||
+                    (overseer->log->next_index != 0 &&
+                     overseer->log->entries[overseer->log->next_index - 1].term == cm->P_term))
+                    log_replay_start(overseer);
+                else log_repair_start(overseer);
+            }
+        }
+
+        if (cm->next_index < overseer->log->next_index) { // If dist next_index is smaller than local
+
+        }
+
+        // Else if local and dist next_indexes are equal
+
+    } else { // If local host is a server node
+
+    }
+    return EXIT_SUCCESS;
 }
