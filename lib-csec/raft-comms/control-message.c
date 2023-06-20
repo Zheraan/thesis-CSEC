@@ -598,7 +598,6 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     return;
 }
 
-
 int hb_actions(overseer_s *overseer,
                struct sockaddr_in6 sender_addr,
                socklen_t socklen,
@@ -608,10 +607,12 @@ int hb_actions(overseer_s *overseer,
     // If local host is a master node
     if (local_status != HOST_STATUS_S) {
         if (cm->P_term > overseer->log->P_term) { // If dist P_term is greater
-            hl_update_status(overseer->hl, cm->status, cm->host_id);
+            int rv = hl_update_status(overseer->hl, cm->status, cm->host_id);
 
-            if (local_status != HOST_STATUS_CS) // If local host is P or HS
-                stepdown_to_cs(overseer);
+            if (local_status != HOST_STATUS_CS) { // If local host is P or HS
+                if (stepdown_to_cs(overseer) != EXIT_SUCCESS)
+                    rv = EXIT_FAILURE;
+            }
 
             // Acknowledge CM with ack
             if (cm_sendto_with_rt_init(overseer,
@@ -620,13 +621,17 @@ int hb_actions(overseer_s *overseer,
                                        MSG_TYPE_ACK_HB,
                                        CM_DEFAULT_RT_ATTEMPTS,
                                        0,
-                                       cm->ack_reference) != EXIT_SUCCESS)
+                                       cm->ack_reference) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+                rv = EXIT_FAILURE;
+            }
 
-            if (log_repair_start(overseer) != EXIT_SUCCESS)
+            if (log_repair_start(overseer) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to start Log Repair\n");
+                rv = EXIT_FAILURE;
+            }
 
-            return EXIT_SUCCESS;
+            return rv;
         }
 
         if (cm->P_term < overseer->log->P_term) { // If dist P_term is smaller
@@ -636,16 +641,20 @@ int hb_actions(overseer_s *overseer,
                                             sender_addr,
                                             socklen,
                                             MSG_TYPE_HB_DEFAULT,
-                                            cm->ack_reference) != EXIT_SUCCESS)
+                                            cm->ack_reference) != EXIT_SUCCESS) {
                     debug_log(0, stderr, "Failed to send and RT init a HB DEFAULT\n");
+                    return EXIT_FAILURE;
+                }
             } else { // Local status is HS or CS
                 // Indicate P back without ack
                 if (cm_sendto_with_ack_back(overseer,
                                             sender_addr,
                                             socklen,
                                             MSG_TYPE_INDICATE_P,
-                                            cm->ack_reference) != EXIT_SUCCESS)
+                                            cm->ack_reference) != EXIT_SUCCESS) {
                     debug_log(0, stderr, "Failed to send an INDICATE P\n");
+                    return EXIT_FAILURE;
+                }
             }
 
             return EXIT_SUCCESS;
@@ -698,18 +707,84 @@ int hb_actions(overseer_s *overseer,
             } else {
                 // If the latest entry in the log committed or if the latest entry in the log has the same term as dist
                 if (overseer->log->commit_index == overseer->log->next_index ||
-                    (overseer->log->next_index != 0 &&
+                    (overseer->log->next_index != 1 &&
                      overseer->log->entries[overseer->log->next_index - 1].term == cm->P_term))
-                    log_replay_start(overseer);
-                else log_repair_start(overseer);
+                    return log_replay_start(overseer);
+                else return log_repair_start(overseer);
             }
         }
 
         if (cm->next_index < overseer->log->next_index) { // If dist next_index is smaller than local
+            if (local_status == HOST_STATUS_P) { // If local is P
+                // Send Logfix corresponding to dist's next index
+                return etr_reply_logfix(overseer, cm);
+            }
 
+            if (log_repair_ongoing(overseer) == 1) {
+                // TODO implement log repair override
+            }
+
+            log_invalidate_from(overseer->log, cm->next_index);
+            return log_repair_start(overseer);
         }
 
         // Else if local and dist next_indexes are equal
+
+        if (cm->commit_index < overseer->log->commit_index) { // If local commit index is greater
+            if (local_status == HOST_STATUS_CS) {
+                debug_log(0,
+                          stderr,
+                          "Fatal error: CS cannot have greater commit index if P-terms are equal.\n");
+                exit(EXIT_FAILURE);
+            }
+
+            if (local_status == HOST_STATUS_P) {
+                // Send commit order with latest committed entry
+                return etr_commit_order(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        overseer->log->commit_index,
+                                        cm->ack_reference);
+            }
+
+                // Else if local is HS and dist is CS
+            else if (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_CS) {
+                // Send commit order with latest committed entry
+                return etr_commit_order(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        overseer->log->commit_index,
+                                        cm->ack_reference);
+            }
+
+            // Else if local is HS and dist is P
+            debug_log(0,
+                      stderr,
+                      "Fatal error: HS cannot have greater commit index than P if P-terms are equal.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        if (cm->commit_index > overseer->log->commit_index) { // If dist commit index is greater
+            if (local_status == HOST_STATUS_P) {
+                debug_log(0,
+                          stderr,
+                          "Fatal error: P cannot have outdated commit index if P-terms are equal.\n");
+                exit(EXIT_FAILURE);
+            }
+
+            // Else if local is HS or CS
+            log_commit_upto(overseer, cm->commit_index);
+        }
+
+        // Else if commit indexes are equal
+        if (cm_sendto_with_rt_init(overseer,
+                                   sender_addr,
+                                   socklen,
+                                   MSG_TYPE_ACK_HB,
+                                   CM_DEFAULT_RT_ATTEMPTS,
+                                   0,
+                                   cm->ack_reference) != EXIT_SUCCESS)
+            debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
 
     } else { // If local host is a server node
 
