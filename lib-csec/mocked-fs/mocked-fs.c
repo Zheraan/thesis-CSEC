@@ -17,7 +17,7 @@ void mfs_array_print(mocked_fs_s *mfs, FILE *stream) {
     return;
 }
 
-int mfs_apply_op(mocked_fs_s *mfs, data_op_s *op) {
+int mfs_apply_op(mocked_fs_s *mfs, const data_op_s *op) {
     if (op->column >= MOCKED_FS_ARRAY_COLUMNS || op->row >= MOCKED_FS_ARRAY_ROWS) {
         fprintf(stderr, "Data op out of MFS bounds\n");
         return EXIT_FAILURE;

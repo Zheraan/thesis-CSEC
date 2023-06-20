@@ -17,7 +17,7 @@ void mfs_array_print(mocked_fs_s *mfs, FILE *stream);
 
 // Applies the data op to the mfs
 // Returns EXIT_FAILURE if the op is out of MFS bounds, EXIT_SUCCESS otherwise
-int mfs_apply_op(mocked_fs_s *mfs, data_op_s *op);
+int mfs_apply_op(mocked_fs_s *mfs, const data_op_s *op);
 
 void mfs_free_cache(overseer_s *overseer);
 
