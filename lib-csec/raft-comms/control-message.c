@@ -13,15 +13,23 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
         return (NULL);
     }
 
+    // Use P/HS values in case of INDICATE P/HS message
     if (type == MSG_TYPE_INDICATE_P) {
-        uint32_t p_id = whois_p(overseer->hl);
-        if (p_id == 1 && errno == ENO_P) {
-            fprintf(stderr, "Requesting INDICATE P message but no host has P status\n");
-            fflush(stderr);
+        uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
+        if (p_id == EXIT_FAILURE && errno == ENONE) {
+            debug_log(0, stderr, "Requesting INDICATE P message but no host has P status\n");
             free(ncm);
             return (NULL);
         }
         ncm->host_id = p_id;
+    } else if (type == MSG_TYPE_INDICATE_HS) {
+        uint32_t hs_id = hl_whois(overseer->hl, HOST_STATUS_HS);
+        if (hs_id == EXIT_FAILURE && errno == ENONE) {
+            debug_log(0, stderr, "Requesting INDICATE HS message but no host has HS status\n");
+            free(ncm);
+            return (NULL);
+        }
+        ncm->host_id = hs_id;
     } else {
         ncm->host_id = overseer->hl->localhost_id;
     }
@@ -420,8 +428,8 @@ int cm_check_action(overseer_s *overseer,
             if (!is_p_available(overseer->hl))
                 debug_log(0, stderr, "Local node requires Log Repair, but no P is available.\n");
             else if (cm_sendto_with_rt_init(overseer,
-                                            overseer->hl->hosts[whois_p(overseer->hl)].addr,
-                                            overseer->hl->hosts[whois_p(overseer->hl)].socklen,
+                                            overseer->hl->hosts[hl_whois(overseer->hl, HOST_STATUS_P)].addr,
+                                            overseer->hl->hosts[hl_whois(overseer->hl, HOST_STATUS_P)].socklen,
                                             MSG_TYPE_LOG_REPAIR,
                                             CM_DEFAULT_RT_ATTEMPTS,
                                             0,
@@ -598,15 +606,30 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     return;
 }
 
-int hb_actions(overseer_s *overseer,
+int cm_actions(overseer_s *overseer,
                struct sockaddr_in6 sender_addr,
                socklen_t socklen,
                control_message_s *cm) {
-    // If local host is a master node
-    if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_S)
-        return hb_actions_as_master(overseer, sender_addr, socklen, cm);
-    else  // If local host is a server node
-        return hb_actions_as_server(overseer, sender_addr, socklen, cm);
+    enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
+
+    // If CM is a default HB or takeover HB
+    if (cm->type == MSG_TYPE_HB_DEFAULT ||
+        cm->type == MSG_TYPE_HS_TAKEOVER ||
+        cm->type == MSG_TYPE_P_TAKEOVER ||
+        cm->type == MSG_TYPE_NETWORK_PROBE) {
+        // If local host is a master node
+        if (local_status != HOST_STATUS_S)
+            return hb_actions_as_master(overseer, sender_addr, socklen, cm);
+        else  // If local host is a server node
+            return hb_actions_as_server(overseer, sender_addr, socklen, cm);
+    }
+
+    // Else if CM is any other type
+
+    if (local_status == HOST_STATUS_P || local_status == HOST_STATUS_HS) // If local host is P or HS
+        return cm_other_actions_as_p_hs(overseer, sender_addr, socklen, cm);
+    else // Else is S or CS
+        return cm_other_actions_as_s_cs(overseer, sender_addr, socklen, cm);
 }
 
 int hb_actions_as_master(overseer_s *overseer,
@@ -816,13 +839,10 @@ int hb_actions_as_master(overseer_s *overseer,
     return EXIT_SUCCESS;
 }
 
-
 int hb_actions_as_server(overseer_s *overseer,
                          struct sockaddr_in6 sender_addr,
                          socklen_t socklen,
                          control_message_s *cm) {
-    // Save local status
-    enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
     if (cm->P_term < overseer->log->P_term) { // If local P_term is greater
         int rv = cm_sendto_with_ack_back(overseer,

@@ -25,8 +25,8 @@
 #define NO_DNS_LOOKUP_ 0
 #endif
 
-#ifndef ENO_P
-#define ENO_P (-89)
+#ifndef ENONE
+#define ENONE (-89)
 #endif
 
 // Returns the number of hosts parsed from the hostfile (one address per row) into the list.
@@ -45,8 +45,8 @@ int is_comment(char const *line);
 // Returns 1 if there is a node with HOST_STATUS_P in the list, 0 otherwise
 int is_p_available(hosts_list_s *list);
 
-// Returns the ID of the first node with P status encountered, otherwise returns 1 and sets errno to ENO_P
-uint32_t whois_p(hosts_list_s *list);
+// Returns the ID of the first node with given status encountered, otherwise returns 1 and sets errno to ENONE
+uint32_t hl_whois(hosts_list_s *list, enum host_status status);
 
 // Resets any master node with the given status to CS, and sets the node with the given ID to the given status
 // Returns EXIT_SUCCESS or EXIT_FAILURE

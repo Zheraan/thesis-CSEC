@@ -133,6 +133,12 @@ enum message_type {
     MSG_TYPE_P_TAKEOVER = 2,
     // New HS taking over
     MSG_TYPE_HS_TAKEOVER = 3,
+    // Message broadcasted periodically in case the local node has detected its isolation and is in partition
+    // mode, likely because of a network failure.
+    // TODO Extension implement partition mode and network probe
+    //  - need a way to detect that the network is partitioned even if the partition contains several nodes
+    //  - partitions contain up to half the nodes (but not a strict majority)
+    MSG_TYPE_NETWORK_PROBE = 4,
 
     // CONTROL
     // Repairing the log, asking master for entry in next index
@@ -151,12 +157,6 @@ enum message_type {
     // Message for indicating who is HS in case host that is not HS received a message sent to HS or if
     // the sender of a message had an outdated HS-term
     MSG_TYPE_INDICATE_HS = 31,
-    // Message broadcasted periodically in case the local node has detected its isolation and is in partition
-    // mode, likely because of a network failure.
-    // TODO Extension implement partition mode and network probe
-    //  - need a way to detect that the network is partitioned even if the partition contains several nodes
-    //  - partitions contain up to half the nodes (but not a strict majority)
-    MSG_TYPE_NETWORK_PROBE = 40,
 
     // ETR Message types (only valid within transmissions) ----------------------------------------
     // Master sending a new entry to add to the log as pending

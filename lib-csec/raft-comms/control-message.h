@@ -78,7 +78,7 @@ int cm_check_action(overseer_s *overseer,
 // Arg must be an overseer_s*
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 
-int hb_actions(overseer_s *overseer,
+int cm_actions(overseer_s *overseer,
                struct sockaddr_in6 sender_addr,
                socklen_t socklen,
                control_message_s *cm); // TODO Finish this
@@ -92,5 +92,15 @@ int hb_actions_as_server(overseer_s *overseer,
                          struct sockaddr_in6 sender_addr,
                          socklen_t socklen,
                          control_message_s *cm);
+
+int cm_other_actions_as_s_cs(overseer_s *overseer,
+                             struct sockaddr_in6 sender_addr,
+                             socklen_t socklen,
+                             control_message_s *cm);
+
+int cm_other_actions_as_p_hs(overseer_s *overseer,
+                             struct sockaddr_in6 sender_addr,
+                             socklen_t socklen,
+                             control_message_s *cm);
 
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

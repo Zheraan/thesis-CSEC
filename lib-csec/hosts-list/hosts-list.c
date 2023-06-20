@@ -231,13 +231,13 @@ int is_p_available(hosts_list_s *list) {
     return 0;
 }
 
-uint32_t whois_p(hosts_list_s *list) {
+uint32_t hl_whois(hosts_list_s *list, enum host_status status) {
     for (uint32_t i = 0; i < list->nb_hosts; ++i) {
-        if (list->hosts[i].status == HOST_STATUS_P)
+        if (list->hosts[i].status == status)
             return i;
     }
-    errno = ENO_P;
-    return 1;
+    errno = ENONE;
+    return EXIT_FAILURE;
 }
 
 int hl_change_master(hosts_list_s *list, enum host_status status, uint32_t id) {
