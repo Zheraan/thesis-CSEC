@@ -48,9 +48,9 @@ int etr_sendto(overseer_s *overseer,
 // removed through rt_cache_remove_by_id.
 // Returns either EXIT_SUCCESS or EXIT_FAILURE
 int etr_sendto_with_rt_init(overseer_s *overseer,
-                            entry_transmission_s *etr,
                             struct sockaddr_in6 sockaddr,
                             socklen_t socklen,
+                            entry_transmission_s *etr,
                             uint8_t rt_attempts);
 
 // Initializes the entry transmission reception event.

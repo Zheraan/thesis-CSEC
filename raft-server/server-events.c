@@ -121,10 +121,9 @@ int server_send_first_prop(overseer_s *overseer) {
                                          0);
 
     if (etr_sendto_with_rt_init(overseer,
-                                netr,
                                 overseer->hl->hosts[whois_p(overseer->hl)].addr,
                                 overseer->hl->hosts[whois_p(overseer->hl)].socklen,
-                                MSG_TYPE_ETR_PROPOSITION,
+                                netr,
                                 PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS) != EXIT_SUCCESS) {
         // Cleanup and abort in case of failure, including subsequent elements
         // Note: no risk of dangling pointer since queue was empty

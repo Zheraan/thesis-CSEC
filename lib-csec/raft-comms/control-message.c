@@ -479,10 +479,9 @@ int cm_check_action(overseer_s *overseer,
 
                 // Send ETR
                 if (etr_sendto_with_rt_init(overseer,
-                                            netr,
                                             addr,
                                             socklen,
-                                            MSG_TYPE_ETR_LOGFIX,
+                                            netr,
                                             ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send and RT init ETR of type ETR Logfix as result of check action");
@@ -522,10 +521,9 @@ int cm_check_action(overseer_s *overseer,
 
                 // Send ETR
                 if (etr_sendto_with_rt_init(overseer,
-                                            netr,
                                             addr,
                                             socklen,
-                                            MSG_TYPE_ETR_LOGFIX,
+                                            netr,
                                             ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send and RT init ETR of type ETR Logfix as result of check action");
@@ -534,7 +532,9 @@ int cm_check_action(overseer_s *overseer,
                 }
                 debug_log(4, stdout, "Done.\n");
             } else { // Should not be necessary because of CM check but well who knows
-                debug_log(4, stdout, "- Sender needs entry corresponding to next index but local is not P\n");
+                debug_log(4,
+                          stdout,
+                          "- Sender needs entry corresponding to next index but local is not P\n");
                 if (cm_sendto(overseer, addr, socklen, MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
                     fprintf(stderr,
                             "Failed to send CM of type Indicate P as result of check action\n");
