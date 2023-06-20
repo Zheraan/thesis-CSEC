@@ -693,7 +693,9 @@ int hb_actions_as_master(overseer_s *overseer,
 
     */
 
-    hl_update_status(overseer->hl, cm->status, cm->host_id);
+    debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
+    if (hl_update_status(overseer->hl, cm->status, cm->host_id) == EXIT_SUCCESS)
+        debug_log(4, stdout, "Done.\n");
 
     if (cm->next_index > overseer->log->next_index) { // If dist next_index is greater than local
         debug_log(4, stdout, "Dist next index is greater than local\n");
@@ -822,16 +824,77 @@ int hb_actions_as_server(overseer_s *overseer,
     // Save local status
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
-    if (cm->P_term > overseer->log->P_term) { // If dist P_term is greater
+    if (cm->P_term < overseer->log->P_term) { // If local P_term is greater
+        int rv = cm_sendto_with_ack_back(overseer,
+                                         sender_addr,
+                                         socklen,
+                                         MSG_TYPE_INDICATE_P,
+                                         cm->ack_reference);
+        if (rv != EXIT_SUCCESS)
+            debug_log(0, stderr, "Failed to Indicate P in response to HB with p_outdated P-Term.\n");
 
+        // Outdated Master nodes return to CS status
+        debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
+        if (hl_update_status(overseer->hl, HOST_STATUS_CS, cm->host_id) == EXIT_SUCCESS)
+            debug_log(4, stdout, "Done.\n");
+
+        return rv;
     }
 
-    if (cm->P_term < overseer->log->P_term) { // If local P_term is greater
+    debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
+    if (hl_update_status(overseer->hl, cm->status, cm->host_id) == EXIT_SUCCESS)
+        debug_log(4, stdout, "Done.\n");
 
+    // If dist P_term or Next index is greater
+    int p_outdated = cm->P_term > overseer->log->P_term;
+    if (p_outdated || cm->next_index > overseer->log->next_index) {
+        if (p_outdated)
+            debug_log(4, stdout, "Local P-term p_outdated.\n");
+        else
+            debug_log(4, stdout, "Local next index p_outdated.\n");
+
+        if (log_repair_ongoing(overseer) || log_replay_ongoing(overseer)) {
+            debug_log(4, stdout, "Log repair/replay already ongoing, replying with HB Ack.\n");
+            if (cm_sendto_with_rt_init(overseer,
+                                       sender_addr,
+                                       socklen,
+                                       MSG_TYPE_ACK_HB,
+                                       CM_DEFAULT_RT_ATTEMPTS,
+                                       0,
+                                       cm->ack_reference) != EXIT_SUCCESS)
+                debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+        }
+
+        // If the log is empty or if its latest entry has the same term as dist
+        if (overseer->log->next_index == 1 || overseer->log->entries[overseer->log->next_index - 1].term == cm->P_term)
+            return log_replay_start(overseer);
+        return log_repair_start(overseer);
     }
 
     // Else if local and dist P-terms are equal
 
+    if (cm->commit_index < overseer->log->commit_index) { // If local commit index is greater
+        debug_log(0,
+                  stderr,
+                  "Fatal error: an S host cannot have greater commit index if P-terms are equal.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (cm->commit_index > overseer->log->commit_index) { // If dist commit index is greater
+        debug_log(4, stdout, "Dist commit index is greater.\n");
+        log_commit_upto(overseer, cm->commit_index);
+    }
+
+    // Else if local and dist commit index are equal
+    debug_log(4, stdout, "Everything is in order, replying with HB ACK.\n");
+    if (cm_sendto_with_rt_init(overseer,
+                               sender_addr,
+                               socklen,
+                               MSG_TYPE_ACK_HB,
+                               CM_DEFAULT_RT_ATTEMPTS,
+                               0,
+                               cm->ack_reference) != EXIT_SUCCESS)
+        debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
 
     return EXIT_SUCCESS;
 }

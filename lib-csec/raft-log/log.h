@@ -26,9 +26,9 @@ void log_entry_replication_arrays_free(log_entry_s *entry);
 // Returns a pointer to the entry with the given id, or NULL if there is none
 log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id);
 
-int log_repair_start(overseer_s *overseer); // TODO implement log_repair_start
+int log_repair_start(overseer_s *overseer); // TODO implement log_repair_start, add ack back
 
-int log_replay_start(overseer_s *overseer); // TODO implement log_replay_start
+int log_replay_start(overseer_s *overseer); // TODO implement log_replay_start, add ack back
 
 int log_repair_ongoing(overseer_s *overseer); // TODO implement log_repair_ongoing
 
