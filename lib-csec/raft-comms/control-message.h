@@ -83,4 +83,14 @@ int hb_actions(overseer_s *overseer,
                socklen_t socklen,
                control_message_s *cm); // TODO Finish this
 
+int hb_actions_as_master(overseer_s *overseer,
+                         struct sockaddr_in6 sender_addr,
+                         socklen_t socklen,
+                         control_message_s *cm);
+
+int hb_actions_as_server(overseer_s *overseer,
+                         struct sockaddr_in6 sender_addr,
+                         socklen_t socklen,
+                         control_message_s *cm);
+
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

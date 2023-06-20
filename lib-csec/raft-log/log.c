@@ -124,9 +124,21 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
 }
 
 int log_commit_upto(overseer_s *overseer, uint64_t index) {
-    for (uint64_t i = overseer->log->commit_index; i <= index; i++) {
-        if (log_entry_commit(overseer, i) != EXIT_SUCCESS)
+    if (DEBUG_LEVEL >= 4)
+        fprintf(stdout,
+                "Committing entries from index %ld up to index %ld ... ",
+                overseer->log->commit_index,
+                index);
+    uint64_t i = 0;
+    for (; i + overseer->log->commit_index <= index; i++) {
+        if (log_entry_commit(overseer, i + overseer->log->commit_index) != EXIT_SUCCESS) {
+            if (DEBUG_LEVEL >= 4)
+                fprintf(stdout, "Failure (%ld entries successfully committed).\n", index);
             return EXIT_FAILURE;
+        }
     }
+
+    if (DEBUG_LEVEL >= 4)
+        fprintf(stdout, "Done (%ld entries successfully committed).\n", index);
     return EXIT_SUCCESS;
 }
