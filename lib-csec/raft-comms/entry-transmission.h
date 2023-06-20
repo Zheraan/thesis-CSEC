@@ -51,7 +51,6 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                             entry_transmission_s *etr,
                             struct sockaddr_in6 sockaddr,
                             socklen_t socklen,
-                            enum message_type type,
                             uint8_t rt_attempts);
 
 // Initializes the entry transmission reception event.
@@ -69,5 +68,16 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg);
 // Callback for the retransmission of ETRs. Arg must be a retransmission_s*. Cleans up the retransmission
 // cache once maximum attempts have been reached
 void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg);
+
+// Transmits the entry corresponding to the cm's next index to its sender
+// Returns EXIT_SUCCESS or EXIT_FAILURE
+int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm);
+
+// Sends the commit order for the given entry if it's committed, or fails otherwise
+int etr_commit_order(overseer_s *overseer,
+                     struct sockaddr_in6 addr,
+                     socklen_t socklen,
+                     uint64_t index,
+                     uint32_t ack_reference);
 
 #endif //THESIS_CSEC_ENTRY_TRANSMISSION_H

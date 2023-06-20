@@ -78,21 +78,16 @@ void etr_print(const entry_transmission_s *etr, FILE *stream) {
 }
 
 int etr_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, entry_transmission_s *etr) {
-    return etr_sendto_with_rt_init(overseer, etr, sockaddr, socklen, etr->cm.type, 0);
+    return etr_sendto_with_rt_init(overseer, etr, sockaddr, socklen, 0);
 }
 
-int etr_sendto_with_rt_init(overseer_s *overseer,
-                            entry_transmission_s *etr,
-                            struct sockaddr_in6 sockaddr,
-                            socklen_t socklen,
-                            enum message_type type,
-                            uint8_t rt_attempts) {
-
+int etr_sendto_with_rt_init(overseer_s *overseer, entry_transmission_s *etr, struct sockaddr_in6 sockaddr,
+                            socklen_t socklen, uint8_t rt_attempts) {
     if (DEBUG_LEVEL >= 3) {
         if (rt_attempts > 0)
-            printf("Sending ETR of type %d with %d retransmission attempt(s) ... \n", type, rt_attempts);
+            printf("Sending ETR of type %d with %d retransmission attempt(s) ... \n", etr->cm.type, rt_attempts);
         else
-            printf("Sending ETR of type %d ... \n", type);
+            printf("Sending ETR of type %d ... \n", etr->cm.type);
         fflush(stdout);
     }
 
@@ -107,7 +102,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                                        rt_attempts,
                                        sockaddr,
                                        socklen,
-                                       type,
+                                       etr->cm.type,
                                        etr,
                                        etr->cm.ack_back);
         if (rv == 0) {
@@ -346,4 +341,49 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     if (success == 1)
         debug_log(3, stdout, "Done.\n");
     return;
+}
+
+int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
+    data_op_s *nop = &(overseer->log->entries[cm->next_index].op);
+    entry_transmission_s *netr = etr_new(overseer,
+                                         MSG_TYPE_ETR_LOGFIX,
+                                         nop,
+                                         cm->next_index,
+                                         overseer->log->entries[cm->next_index].term,
+                                         overseer->log->entries[cm->next_index].state,
+                                         cm->ack_reference);
+    if (etr_sendto_with_rt_init(overseer,
+                                netr,
+                                overseer->hl->hosts[cm->host_id].addr,
+                                overseer->hl->hosts[cm->host_id].socklen,
+                                ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+        debug_log(0, stderr, "Failed to send and RT init a LOGFIX as reply\n");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+int etr_commit_order(overseer_s *overseer,
+                     struct sockaddr_in6 addr,
+                     socklen_t socklen,
+                     uint64_t index,
+                     uint32_t ack_reference) {
+    entry_transmission_s *netr = etr_new_from_local_entry(overseer,
+                                                          MSG_TYPE_ETR_COMMIT,
+                                                          overseer->log->commit_index,
+                                                          ack_reference);
+    if (netr == NULL) {
+        debug_log(0, stderr, "Failed to create a new ETR for sending commit order.\n");
+        return EXIT_FAILURE;
+    }
+    if (etr_sendto_with_rt_init(overseer,
+                                netr,
+                                addr,
+                                socklen,
+                                CM_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+        debug_log(0, stderr, "Failed to send and RT init a commit order\n");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
