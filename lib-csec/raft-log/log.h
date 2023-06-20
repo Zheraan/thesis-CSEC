@@ -34,4 +34,15 @@ int log_repair_ongoing(overseer_s *overseer); // TODO implement log_repair_ongoi
 
 int log_replay_ongoing(overseer_s *overseer); // TODO implement log_replay_ongoing
 
+// Marks all non-empty entries from given index included as invalid, and sets the log's next index as the
+// given index if it was greater than it.
+void log_invalidate_from(log_s *log, uint64_t index);
+
+// Commits the log entry with the given index, may fail if entry is marked as empty or invalid, or if the
+// commit index is not equal to given index minus 1
+int log_entry_commit(overseer_s *overseer, uint64_t index);
+
+// Commit log entries from the local commit index up to the given index (included).
+int log_commit_upto(overseer_s *overseer, uint64_t index);
+
 #endif //RAFT_ENTRY_LOG_LIBRARY_H

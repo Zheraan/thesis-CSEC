@@ -1,7 +1,7 @@
 #include "log.h"
 
 log_s *log_init(log_s *log) {
-    log->next_index = 0;
+    log->next_index = 1;
     log->commit_index = 0;
     log->P_term = 0;
     log->HS_term = 0;
@@ -86,4 +86,47 @@ void log_entry_replication_arrays_free(log_entry_s *entry) {
 log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id) {
     if (id >= LOG_LENGTH || log->entries[id].state == ENTRY_STATE_EMPTY) return NULL;
     return &(log->entries[id]);
+}
+
+void log_invalidate_from(log_s *log, uint64_t index) {
+    for (uint64_t i = index;
+         log->entries[i].state != ENTRY_STATE_EMPTY || log->entries[i].state != ENTRY_STATE_COMMITTED;
+         ++i) {
+        log->entries[i].state = ENTRY_STATE_INVALID;
+    }
+    if (log->next_index > index)
+        log->next_index = index;
+    return;
+}
+
+int log_entry_commit(overseer_s *overseer, uint64_t index) {
+    // Fails if entry is marked empty or invalid
+    if (overseer->log->entries[index].state == ENTRY_STATE_EMPTY ||
+        overseer->log->entries[index].state == ENTRY_STATE_INVALID) {
+        fprintf(stderr,
+                overseer->log->entries[index].state == ENTRY_STATE_EMPTY ?
+                "Failed to commit entry %ld: it is marked as empty.\n" :
+                "Failed to commit entry %ld: it is marked as invalid.\n",
+                index);
+        fflush(stderr);
+        return EXIT_FAILURE;
+    }
+
+    if (index > 1 && overseer->log->commit_index < index - 1) {
+        fprintf(stderr, "Failed to commit entry %ld: previous entry is not in a committed state.\n", index);
+        fflush(stderr);
+        return EXIT_FAILURE;
+    }
+
+    overseer->log->entries[index].state = ENTRY_STATE_COMMITTED;
+    overseer->log->commit_index++;
+    return mfs_apply_op(overseer->mfs, &overseer->log->entries[index].op);
+}
+
+int log_commit_upto(overseer_s *overseer, uint64_t index) {
+    for (uint64_t i = overseer->log->commit_index; i <= index; i++) {
+        if (log_entry_commit(overseer, i) != EXIT_SUCCESS)
+            return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }
