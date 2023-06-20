@@ -918,3 +918,79 @@ int hb_actions_as_server(overseer_s *overseer,
 
     return EXIT_SUCCESS;
 }
+
+int cm_other_actions_as_s_cs(overseer_s *overseer,
+                             struct sockaddr_in6 sender_addr,
+                             socklen_t socklen,
+                             control_message_s *cm) {
+    // Save local status
+    enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
+
+    switch (cm->type) {
+        case MSG_TYPE_ACK_HB:
+                    __attribute__ ((fallthrough));
+        case MSG_TYPE_INDICATE_P:
+            if (cm->P_term < overseer->log->P_term) { // If local P-term is greater
+                debug_log(4, stdout, "Local P-term is greater.\n");
+                if (cm_sendto(overseer,
+                              sender_addr,
+                              socklen,
+                              MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                    debug_log(0,
+                              stderr,
+                              "Failed to send CM of type Indicate P.\n");
+                    return EXIT_FAILURE;
+                }
+                return EXIT_SUCCESS;
+            }
+
+            if (cm->P_term > overseer->log->P_term) // If dist P-term is greater
+                debug_log(4, stdout, "Dist P-term is greater.\n");
+            else // Else if P-terms are the same
+                debug_log(4, stdout, "P-terms are equal.\n");
+            break;
+
+        case MSG_TYPE_INDICATE_HS:
+            if (local_status != HOST_STATUS_CS) {
+                debug_log(0, stderr, "Fatal error: should not receive INDICATE HS as a S host\n");
+                exit(EXIT_FAILURE);
+            }
+
+            if (cm->HS_term < overseer->log->HS_term) { // If local HS-term is greater
+                debug_log(4, stdout, "Local HS-term is greater.\n");
+                if (cm_sendto(overseer,
+                              sender_addr,
+                              socklen,
+                              MSG_TYPE_INDICATE_HS) != EXIT_SUCCESS) {
+                    debug_log(0,
+                              stderr,
+                              "Failed to send CM of type Indicate HS.\n");
+                    return EXIT_FAILURE;
+                }
+                return EXIT_SUCCESS;
+            }
+
+            if (cm->HS_term > overseer->log->HS_term) // If dist HS-term is greater
+                debug_log(4, stdout, "Dist HS-term is greater.\n");
+            else // Else if HS-terms are the same
+                debug_log(4, stdout, "HS-terms are equal.\n");
+            break;
+
+        default:
+            fprintf(stderr, "Fatal error: Invalid CM type %d\n", cm->type);
+            fflush(stderr);
+            exit(EXIT_FAILURE);
+    }
+
+    return hl_update_status(overseer->hl, cm->status, cm->host_id);
+}
+
+int cm_other_actions_as_p_hs(overseer_s *overseer,
+                             struct sockaddr_in6 sender_addr,
+                             socklen_t socklen,
+                             control_message_s *cm) {
+    // Save local status
+    enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
+
+    return EXIT_SUCCESS;
+}
