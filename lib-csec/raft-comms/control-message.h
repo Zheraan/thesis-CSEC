@@ -81,7 +81,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 int cm_actions(overseer_s *overseer,
                struct sockaddr_in6 sender_addr,
                socklen_t socklen,
-               control_message_s *cm); // TODO Finish this
+               control_message_s *cm);
 
 int hb_actions_as_master(overseer_s *overseer,
                          struct sockaddr_in6 sender_addr,
@@ -102,5 +102,12 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                              struct sockaddr_in6 sender_addr,
                              socklen_t socklen,
                              control_message_s *cm);
+
+// Sends the given CM to target host
+// Returns EXIT_SUCCESS or EXIT_FAILURE
+int cm_forward(const overseer_s *overseer,
+               struct sockaddr_in6 sockaddr,
+               socklen_t socklen,
+               const control_message_s *cm);
 
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

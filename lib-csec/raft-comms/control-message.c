@@ -813,19 +813,34 @@ int hb_actions_as_master(overseer_s *overseer,
         }
 
         // Else if local is HS or CS
-        log_commit_upto(overseer, cm->commit_index);
+        if (log_commit_upto(overseer, cm->commit_index) != EXIT_SUCCESS)
+            debug_log(0,
+                      stderr,
+                      "Failure committing entries as result of HB check.\n");
     }
 
     // Else if commit indexes are equal
-    debug_log(4, stdout, "Everything is in order, replying with HB Ack.\n");
-    if (cm_sendto_with_rt_init(overseer,
-                               sender_addr,
-                               socklen,
-                               MSG_TYPE_ACK_HB,
-                               CM_DEFAULT_RT_ATTEMPTS,
-                               0,
-                               cm->ack_reference) != EXIT_SUCCESS)
-        debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+
+    // If dist is CS or if dist is HS and local is P, reply with HB Ack
+    if (cm->status == HOST_STATUS_CS || (cm->status == HOST_STATUS_HS && local_status == HOST_STATUS_P)) {
+        debug_log(4, stdout, "Everything is in order, replying with HB Ack.\n");
+        if (cm_sendto_with_ack_back(overseer,
+                                    sender_addr,
+                                    socklen,
+                                    MSG_TYPE_GENERIC_ACK,
+                                    cm->ack_reference) != EXIT_SUCCESS)
+            debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+    } else {
+        debug_log(4, stdout, "Everything is in order, replying back with HB.\n");
+        if (cm_sendto_with_rt_init(overseer,
+                                   sender_addr,
+                                   socklen,
+                                   MSG_TYPE_HB_DEFAULT,
+                                   CM_DEFAULT_RT_ATTEMPTS,
+                                   0,
+                                   cm->ack_reference) != EXIT_SUCCESS)
+            debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+    }
 
     return EXIT_SUCCESS;
 }
@@ -944,6 +959,7 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
             break;
 
         case MSG_TYPE_INDICATE_HS:
+            debug_log(3, stdout, "-> CM is of type INDICATE HS\n");
             if (local_status != HOST_STATUS_CS) {
                 debug_log(0, stderr, "Fatal error: should not receive INDICATE HS as a S host\n");
                 exit(EXIT_FAILURE);
@@ -985,5 +1001,152 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
     // Save local status
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
+    switch (cm->type) {
+        case MSG_TYPE_LOG_REPLAY:
+            debug_log(3, stdout, "-> CM is of type LOG REPLAY\n");
+                    __attribute__ ((fallthrough));
+        case MSG_TYPE_LOG_REPAIR:
+            debug_log(3, stdout, "-> CM is of type LOG REPAIR\n");
+            debug_log(4, stdout, "Replying with Logfix ... ");
+            if (etr_reply_logfix(overseer, cm) == EXIT_SUCCESS)
+                debug_log(4, stdout, "Done.\n");
+            break;
+
+        case MSG_TYPE_GENERIC_ACK:
+            debug_log(3, stdout, "-> CM is of type GENERIC ACK\n");
+            // Do nothing
+            break;
+
+        case MSG_TYPE_ACK_COMMIT:
+            debug_log(3, stdout, "-> CM is of type ACK COMMIT\n");
+                    __attribute__ ((fallthrough));
+        case MSG_TYPE_ACK_ENTRY:
+            debug_log(3, stdout, "-> CM is of type ACK ENTRY\n");
+            if (local_status == HOST_STATUS_HS) {
+                uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
+                if (!(p_id == 1 && errno == ENONE) && cm_forward(overseer,
+                                                                 overseer->hl->hosts[p_id].addr,
+                                                                 overseer->hl->hosts[p_id].socklen,
+                                                                 cm) != EXIT_SUCCESS)
+                    debug_log(0, stderr, "Failure forwarding Ack to P.\n");
+            }
+            if (cm_sendto_with_ack_back(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        MSG_TYPE_GENERIC_ACK,
+                                        cm->ack_reference) != EXIT_SUCCESS) {
+                if (cm->type == MSG_TYPE_ACK_ENTRY)
+                    debug_log(4, stderr, "Failure acknowledging CM of type ACK ENTRY.\n");
+                else debug_log(4, stderr, "Failure acknowledging CM of type ACK COMMIT.\n");
+            }
+            break;
+
+        case MSG_TYPE_INDICATE_P:
+            debug_log(3, stdout, "-> CM is of type INDICATE P\n");
+            if (overseer->log->P_term > cm->P_term) {
+                if (local_status == HOST_STATUS_P) {
+                    if (cm_sendto_with_rt_init(overseer,
+                                               sender_addr,
+                                               socklen,
+                                               MSG_TYPE_HB_DEFAULT,
+                                               CM_DEFAULT_RT_ATTEMPTS,
+                                               0,
+                                               cm->ack_reference) != EXIT_SUCCESS)
+                        debug_log(0,
+                                  stderr,
+                                  "Failed to send CM of type HB DEFAULT.\n");
+                } else {
+                    if (cm_sendto_with_ack_back(overseer,
+                                                sender_addr,
+                                                socklen,
+                                                MSG_TYPE_INDICATE_P,
+                                                cm->ack_reference) != EXIT_SUCCESS)
+                        debug_log(0,
+                                  stderr,
+                                  "Failed to send CM of type INDICATE P.\n");
+                }
+            } else if (overseer->log->P_term < cm->P_term) {
+                if (local_status == HOST_STATUS_P)
+                    stepdown_to_cs(overseer);
+                if (overseer->log->next_index > 1 &&
+                    overseer->log->entries[overseer->log->next_index - 1].term == cm->P_term)
+                    log_replay_start(overseer);
+                else log_repair_start(overseer);
+            }
+            break;
+
+        case MSG_TYPE_INDICATE_HS:
+            debug_log(3, stdout, "-> CM is of type INDICATE HS\n");
+            if (overseer->log->HS_term > cm->HS_term) {
+                if (local_status == HOST_STATUS_HS) {
+                    if (cm_sendto_with_rt_init(overseer,
+                                               sender_addr,
+                                               socklen,
+                                               MSG_TYPE_HB_DEFAULT,
+                                               CM_DEFAULT_RT_ATTEMPTS,
+                                               0,
+                                               cm->ack_reference) != EXIT_SUCCESS)
+                        debug_log(0,
+                                  stderr,
+                                  "Failed to send CM of type HB DEFAULT.\n");
+                } else {
+                    if (cm_sendto_with_ack_back(overseer,
+                                                sender_addr,
+                                                socklen,
+                                                MSG_TYPE_INDICATE_HS,
+                                                cm->ack_reference) != EXIT_SUCCESS)
+                        debug_log(0,
+                                  stderr,
+                                  "Failed to send CM of type INDICATE HS.\n");
+                }
+            } else if (overseer->log->HS_term < cm->HS_term && local_status == HOST_STATUS_HS)
+                stepdown_to_cs(overseer);
+            break;
+
+        default:
+            fprintf(stderr, "Fatal error: Invalid CM type %d\n", cm->type);
+            fflush(stderr);
+            exit(EXIT_FAILURE);
+    }
+
+    // If local and dist are P and dist has outdated P-term, set it to CS in local HL
+    if (local_status == HOST_STATUS_P && cm->status == HOST_STATUS_P && cm->P_term < overseer->log->P_term)
+        return hl_update_status(overseer->hl, HOST_STATUS_CS, cm->host_id);
+    // If local and dist are HS and dist has outdated HS-term, set it to CS in local HL
+    if (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_HS && cm->HS_term < overseer->log->HS_term)
+        return hl_update_status(overseer->hl, HOST_STATUS_CS, cm->host_id);
+    // Otherwise update normally
+    return hl_update_status(overseer->hl, cm->status, cm->host_id);
+}
+
+
+int cm_forward(const overseer_s *overseer,
+               struct sockaddr_in6 sockaddr,
+               socklen_t socklen,
+               const control_message_s *cm) {
+    char buf[256];
+    evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
+
+    if (DEBUG_LEVEL >= 3) {
+        printf(" - Forwarding to %s the following CM:\n", buf);
+        cm_print(cm, stdout);
+    }
+
+    do {
+        errno = 0;
+        if (sendto(overseer->socket_cm,
+                   cm,
+                   sizeof(control_message_s),
+                   0,
+                   (const struct sockaddr *) &sockaddr,
+                   socklen) == -1) {
+            perror("CM sendto");
+            fflush(stderr);
+            if (errno != EAGAIN)
+                return EXIT_FAILURE;
+        }
+    } while (errno == EAGAIN);
+
+    debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
