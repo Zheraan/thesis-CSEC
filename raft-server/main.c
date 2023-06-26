@@ -1,4 +1,4 @@
-// TODO Insert file description, copyright, etc
+// TODO Extension Insert file description, copyright, etc
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 4

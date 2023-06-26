@@ -40,7 +40,7 @@ int server_random_ops_init(overseer_s *overseer) {
 void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout, "Start of random op callback -------------------------------------------------------\n");
 
-    // TODO Important: Add check for ongoing repair/replay before allowing new ops to be created
+    // TODO Needed Add check for ongoing repair/replay before allowing new ops to be created
 
     // Check if queue is empty
     int queue_was_empty = 1;
@@ -104,7 +104,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     if (server_random_ops_init((overseer_s *) arg) != EXIT_SUCCESS) {
         fprintf(stderr, "Fatal Error: random ops generator event couldn't be set\n");
         fflush(stderr);
-        exit(EXIT_FAILURE); // TODO Crash handler
+        exit(EXIT_FAILURE);
     }
 
     debug_log(4, stdout, "End of random op callback -------------------------------------------------------\n\n");
@@ -182,6 +182,6 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
     return EXIT_SUCCESS;
 }
 
-// TODO when data op commit order arrives, free cache and event, create pending entry, and send the next one
-//  in the queue.
+// FIXME Extension when new entry arrives, entries in the queue may relate to outdated data so invalidating them might
+//  be necessary
 //  attention : ops_queue_element_free doesn't free the data op but frees and removes the event

@@ -45,7 +45,7 @@ int etr_sendto(overseer_s *overseer,
 // event for it. The message sent will have the same ack_reference as the retransmission cache id for that ETR.
 // The associated etr will be automatically freed along with its cache entry once it's been resent rt_attempts
 // times, and must not be freed manually until then unless the whole cache entry and its related events are
-// removed through rt_cache_remove_by_id.
+// removed through rtc_remove_by_id.
 // Returns either EXIT_SUCCESS or EXIT_FAILURE
 int etr_sendto_with_rt_init(overseer_s *overseer,
                             struct sockaddr_in6 sockaddr,

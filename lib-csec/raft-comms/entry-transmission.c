@@ -101,13 +101,13 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
     if (rt_attempts == 0 && etr->cm.ack_reference == 0)
         etr->cm.ack_reference = 0;
     else if (etr->cm.ack_reference == 0) {
-        uint32_t rv = rt_cache_add_new(overseer,
-                                       rt_attempts,
-                                       sockaddr,
-                                       socklen,
-                                       etr->cm.type,
-                                       etr,
-                                       etr->cm.ack_back);
+        uint32_t rv = rtc_add_new(overseer,
+                                  rt_attempts,
+                                  sockaddr,
+                                  socklen,
+                                  etr->cm.type,
+                                  etr,
+                                  etr->cm.ack_back);
         if (rv == 0) {
             fprintf(stderr, "Failed creating retransmission cache\n");
             fflush(stderr);
@@ -178,6 +178,7 @@ int etr_reception_init(overseer_s *overseer) {
     return EXIT_SUCCESS;
 }
 
+// TODO Needed Remove and replace
 void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout, "Start of ETR reception callback ---------------------------------------------------\n");
 
@@ -204,8 +205,6 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
 
     // If the incoming message calls for an acknowledgement, we must set it the value for the next answer
-    // TODO later check if there can be a case where a message calling for an ack can lead to a message
-    //  being sent to another node, therefore possibly acknowledging the wrong message
     uint32_t ack_back = etr.cm.ack_reference;
 
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
@@ -213,7 +212,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         debug_log(4,
                   stdout,
                   "-> Ack back value is non-zero, removing corresponding RT cache entry ... ");
-        if (rt_cache_remove_by_id((overseer_s *) arg, etr.cm.ack_back) == EXIT_SUCCESS)
+        if (rtc_remove_by_id((overseer_s *) arg, etr.cm.ack_back) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else debug_log(4, stderr, "Failure.\n");
     }
@@ -225,13 +224,12 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                   "End of ETR reception callback ------------------------------------------------------\n\n");
         return;
     }
-    cm_check_action((overseer_s *) arg, crv, sender, sender_len, &(etr.cm)); // TODO Failure handling
+    cm_check_action((overseer_s *) arg, crv, sender, sender_len, &(etr.cm));
 
     // Responses depending on the type of transmission
     switch (etr.cm.type) {
         case MSG_TYPE_ETR_NEW : // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status == HOST_STATUS_P) {
-                // TODO Edgecase: reception of new entry as P
                 debug_log(1, stdout, "-> is ETR NEW, but local is P, aborting ...\n");
                 debug_log(4, stdout,
                           "End of ETR reception callback ------------------------------------------------------\n\n");
@@ -244,12 +242,10 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             else if (crv == CHECK_RV_NEED_REPLAY || crv == CHECK_RV_NEED_REPAIR)
                 log_add_entry((overseer_s *) arg, &etr, ENTRY_STATE_CACHED);
 
-            // TODO Effects of ETR NEW reception
             break;
 
         case MSG_TYPE_ETR_COMMIT: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             debug_log(1, stdout, "-> is ETR COMMIT\n");
-            // TODO Effects of ETR COMMIT reception
             break;
 
         case MSG_TYPE_ETR_PROPOSITION: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -276,17 +272,14 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                 fprintf(stderr, "Failed to add a new log entry from proposition\n");
                 return;
             }
-            // TODO Sync the proposition with other nodes
             break;
 
         case MSG_TYPE_ETR_LOGFIX: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             debug_log(1, stdout, "-> is ETR LOG FIX\n");
-            // TODO Effects of ETR LOG FIX reception
             break;
 
         case MSG_TYPE_ETR_NEW_AND_ACK: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             debug_log(1, stdout, "-> is ETR NEW AND ACK\n");
-            // TODO Effects of ETR NEW AND ACK reception
             break;
 
         default:
@@ -329,7 +322,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     // If attempts max reached, remove cache entry
     if (((retransmission_cache_s *) arg)->cur_attempts >= ((retransmission_cache_s *) arg)->max_attempts) {
-        rt_cache_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id);
+        rtc_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
@@ -370,7 +363,7 @@ int etr_commit_order(overseer_s *overseer,
                      uint32_t ack_reference) {
     entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                           MSG_TYPE_ETR_COMMIT,
-                                                          overseer->log->commit_index,
+                                                          index,
                                                           ack_reference);
     if (netr == NULL) {
         debug_log(0, stderr, "Failed to create a new ETR for sending commit order.\n");

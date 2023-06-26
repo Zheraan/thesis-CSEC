@@ -1,4 +1,4 @@
-// TODO Insert file description, copyright, etc
+// TODO Extension Insert file description, copyright, etc
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 4
@@ -17,11 +17,11 @@ int main() {
     }
     debug_log(1, stdout, "Done.\nStarting event loop initialization ...\n");
 
-    // TODO remove test statement
+    // TODO Test remove test statement
     overseer.hl->hosts[overseer.hl->localhost_id].status = HOST_STATUS_P;
 
     // Initialize event loop
-    // TODO Remove heartbeat to have it on only initialized when transitioning to HS (and thus it remains for P)
+    // TODO Test Remove heartbeat to have it on only initialized when transitioning to HS (and thus it remains for P)
     //  then remove when demoted to CS
     if (master_heartbeat_init(&overseer) != EXIT_SUCCESS || // Initialize heartbeat events
         cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize control message reception events

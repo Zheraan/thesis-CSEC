@@ -68,7 +68,7 @@ typedef struct host_s {
 
 typedef struct hosts_list_s {
     // Array of hosts
-    host_s hosts[HOSTS_LIST_SIZE]; //TODO Replace by a hashtable
+    host_s hosts[HOSTS_LIST_SIZE]; //TODO Extension Replace by a hashtable
     // ID of the localhost in the list
     uint32_t localhost_id;
     // Number of hosts in the list

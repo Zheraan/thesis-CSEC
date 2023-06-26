@@ -145,8 +145,8 @@ enum message_type {
     MSG_TYPE_LOG_REPAIR = 10,
     // Replaying the log, asking master for entry in next index
     MSG_TYPE_LOG_REPLAY = 11,
-    // Ack of heartbeat without issues, also sent back for takeover messages
-    MSG_TYPE_ACK_HB = 20,
+    // Ack without issues, sent back for takeover messages, heartbeats and back from commit or entry acks
+    MSG_TYPE_GENERIC_ACK = 20,
     // Ack message for an ETR New
     MSG_TYPE_ACK_ENTRY = 21,
     // Ack message for an ETR Commit
@@ -217,7 +217,7 @@ typedef struct control_message_s {
     uint32_t host_id;
     // Status of the sender
     enum host_status status;
-    // TODO Implement target status to avoid complex issues
+    // TODO Improvement Implement target status to avoid complex issues
     // Enum for determining the type of control message
     enum message_type type;
     // Message number to determine what number an ack back for this message should have, in which case it

@@ -182,7 +182,7 @@ void overseer_wipe(overseer_s *overseer) {
     }
     debug_log(3, stdout, "Done.\n- Event-list ... ");
 
-    rt_cache_free_all(overseer);
+    rtc_free_all(overseer);
     debug_log(3, stdout, "Done.\n- Event-base ... ");
 
     if (overseer->eb != NULL)

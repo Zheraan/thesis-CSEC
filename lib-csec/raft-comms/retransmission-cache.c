@@ -4,7 +4,9 @@
 
 #include "retransmission-cache.h"
 
-void rt_cache_free(retransmission_cache_s *rtc) {
+void rtc_free(retransmission_cache_s *rtc) {
+    if (rtc == NULL)
+        return;
     free(rtc->etr);
     if (rtc->ev != NULL) {
         event_free(rtc->ev);
@@ -17,25 +19,25 @@ void rt_cache_free(retransmission_cache_s *rtc) {
     return;
 }
 
-void rt_cache_free_all(overseer_s *overseer) {
+void rtc_free_all(overseer_s *overseer) {
     if (overseer->rt_cache != NULL) {
         retransmission_cache_s *next;
         for (retransmission_cache_s *cur = overseer->rt_cache; cur != NULL; cur = next) {
             next = cur->next;
-            rt_cache_free(cur);
+            rtc_free(cur);
         }
         overseer->rt_cache = NULL; // Avoid dangling pointer
     }
     return;
 }
 
-uint32_t rt_cache_add_new(overseer_s *overseer,
-                          uint8_t rt_attempts,
-                          struct sockaddr_in6 sockaddr,
-                          socklen_t socklen,
-                          enum message_type type,
-                          entry_transmission_s *etr,
-                          uint32_t ack_back) {
+uint32_t rtc_add_new(overseer_s *overseer,
+                     uint8_t rt_attempts,
+                     struct sockaddr_in6 sockaddr,
+                     socklen_t socklen,
+                     enum message_type type,
+                     entry_transmission_s *etr,
+                     uint32_t ack_back) {
     debug_log(4, stdout, "  - Creating a new retransmission cache element ... ");
 
     retransmission_cache_s *nrtc = malloc(sizeof(retransmission_cache_s));
@@ -71,7 +73,7 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
                                      (void *) nrtc);
     if (nevent == NULL) {
         fprintf(stderr, "Failed to create a retransmission event\n");
-        rt_cache_free(nrtc);
+        rtc_free(nrtc);
         return 0;
     }
 
@@ -86,7 +88,7 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
     struct timeval retransmission_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
     if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &retransmission_timeout) != 0) {
         fprintf(stderr, "Failed to add a retransmission event\n");
-        rt_cache_free(nrtc);
+        rtc_free(nrtc);
         return 0;
     }
 
@@ -116,7 +118,7 @@ uint32_t rt_cache_add_new(overseer_s *overseer,
     return nrtc->id;
 }
 
-retransmission_cache_s *rt_cache_find_by_id(overseer_s *o, uint32_t id) {
+retransmission_cache_s *rtc_find_by_id(overseer_s *o, uint32_t id) {
     if (o->rt_cache == NULL)
         return NULL;
     retransmission_cache_s *target = o->rt_cache;
@@ -124,9 +126,7 @@ retransmission_cache_s *rt_cache_find_by_id(overseer_s *o, uint32_t id) {
     return target;
 }
 
-// TODO Important: add parameter for what type of message is the acknowledgement for, to increase replication
-//  index for log replay/repair acks
-int rt_cache_remove_by_id(overseer_s *o, uint32_t id) {
+int rtc_remove_by_id(overseer_s *o, uint32_t id) {
     if (o->rt_cache == NULL) {
         fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
         fflush(stderr);
@@ -136,14 +136,14 @@ int rt_cache_remove_by_id(overseer_s *o, uint32_t id) {
     retransmission_cache_s *ptr = o->rt_cache;
     if (o->rt_cache->id == id) {
         o->rt_cache = ptr->next;
-        rt_cache_free(ptr);
+        rtc_free(ptr);
         return EXIT_SUCCESS;
     }
     for (; ptr->next != NULL && ptr->next->id != id; ptr = ptr->next);
     if (ptr->next != NULL && ptr->next->id == id) {
         retransmission_cache_s *tmp = ptr->next;
         ptr->next = tmp->next;
-        rt_cache_free(tmp);
+        rtc_free(tmp);
         return EXIT_SUCCESS;
     }
     fprintf(stderr, "Attempting to remove cache element %d but it does not exist.\n", id);

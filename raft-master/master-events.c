@@ -19,7 +19,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
     for (uint32_t i = 0; i < nb_hosts; i++) {
         target = &(((overseer_s *) arg)->hl->hosts[i]);
 
-        // TODO Add conditional re-resolving of nodes that are of unknown or unreachable status
+        // TODO Extension Add conditional re-resolving of nodes that are of unknown or unreachable status
 
         // Skip iteration if local is P and target is a CS node
         if (local->status == HOST_STATUS_P && target->status == HOST_STATUS_CS)
@@ -46,7 +46,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
             printf("- Heartbeat: ");
         }
 
-        if (cm_sendto_with_rt_init(((overseer_s *) arg), // TODO change to version with RT and only send to masters
+        if (cm_sendto_with_rt_init(((overseer_s *) arg),
                                    receiver,
                                    receiver_len,
                                    MSG_TYPE_HB_DEFAULT,
@@ -63,7 +63,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
     if (master_heartbeat_init((overseer_s *) arg) != EXIT_SUCCESS) {
         fprintf(stderr, "Fatal Error: next heartbeat event couldn't be set\n");
         fflush(stderr);
-        exit(EXIT_FAILURE); // TODO Crash handler
+        exit(EXIT_FAILURE); // TODO Extension Crash handler
     }
 
     if (DEBUG_LEVEL >= 3) {

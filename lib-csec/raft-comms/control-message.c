@@ -107,7 +107,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
     if (rt_attempts == 0 && ack_reference == 0)
         cm->ack_reference = 0;
     else if (ack_reference == 0) {
-        uint32_t rv = rt_cache_add_new(overseer, rt_attempts, sockaddr, socklen, type, NULL, ack_back);
+        uint32_t rv = rtc_add_new(overseer, rt_attempts, sockaddr, socklen, type, NULL, ack_back);
         if (rv == 0) {
             fprintf(stderr, "Failed creating retransmission cache\n");
             fflush(stderr);
@@ -135,9 +135,10 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                    socklen) == -1) {
             perror("CM sendto");
             fflush(stderr);
-            free(cm);
-            if (errno != EAGAIN)
+            if (errno != EAGAIN) {
+                free(cm);
                 return EXIT_FAILURE;
+            }
         }
     } while (errno == EAGAIN);
 
@@ -178,6 +179,7 @@ int cm_reception_init(overseer_s *overseer) {
     return EXIT_SUCCESS;
 }
 
+// TODO Needed Remove and replace
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout, "Start of CM reception callback ----------------------------------------------------\n");
 
@@ -219,14 +221,12 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             printf("-> Ack back value is non-zero (%d), removing corresponding RT cache entry ... ", cm.ack_back);
             fflush(stdout);
         }
-        if (rt_cache_remove_by_id((overseer_s *) arg, cm.ack_back) == EXIT_SUCCESS)
+        if (rtc_remove_by_id((overseer_s *) arg, cm.ack_back) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else debug_log(4, stderr, "Failure.\n");
     }
 
     // If the incoming message calls for an acknowledgement, we must set it the value for the next answer
-    // TODO later check if there can be a case where a message calling for an ack can lead to a message
-    //  being sent to another node, therefore possibly acknowledging the wrong message
     uint32_t ack_back = cm.ack_reference;
 
     enum cm_check_rv crv = cm_check_metadata((overseer_s *) arg, &cm);
@@ -240,7 +240,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             if (cm_sendto_with_rt_init(((overseer_s *) arg),
                                        sender,
                                        sender_len,
-                                       MSG_TYPE_ACK_HB,
+                                       MSG_TYPE_GENERIC_ACK,
                                        0, // No need for RT
                                        0,
                                        ack_back) != EXIT_SUCCESS) {
@@ -250,49 +250,40 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             }
             break;
 
-        case MSG_TYPE_ACK_HB:
+        case MSG_TYPE_GENERIC_ACK:
             debug_log(2, stdout, "-> is HB ACK\n");
-            // TODO Apply any effects of ack (reset timeout for next ack...)
             break;
 
         case MSG_TYPE_P_TAKEOVER:
             debug_log(2, stdout, "-> is P TAKEOVER\n");
-            // TODO Check P_term and apply any effects of P takeover if valid
             break;
 
         case MSG_TYPE_HS_TAKEOVER:
             debug_log(2, stdout, "-> is HS TAKEOVER\n");
-            // TODO Effects of HS TAKEOVER reception
             break;
 
         case MSG_TYPE_LOG_REPAIR:
             debug_log(2, stdout, "-> is LOG REPAIR\n");
-            // TODO Effects of LOG REPAIR reception
             break;
 
         case MSG_TYPE_LOG_REPLAY:
             debug_log(2, stdout, "-> is LOG REPLAY\n");
-            // TODO Effects of LOG REPLAY reception
             break;
 
         case MSG_TYPE_ACK_ENTRY:
             debug_log(2, stdout, "-> is ACK ENTRY\n");
-            // TODO Effects of ACK ENTRY reception
             break;
 
         case MSG_TYPE_ACK_COMMIT:
             debug_log(2, stdout, "-> is ACK COMMIT\n");
-            // TODO Effects of ACK COMMIT reception
             break;
 
         case MSG_TYPE_INDICATE_P:
             debug_log(2, stdout, "-> is INDICATE P\n");
-            // TODO Effects of INDICATE P reception
             break;
 
         case MSG_TYPE_INDICATE_HS:
             debug_log(2, stdout, "-> is INDICATE HS\n");
-            // TODO implement Indicate HS and HS term
             break;
 
         default:
@@ -306,6 +297,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     return;
 }
 
+// TODO Needed Remove and replace
 enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb) {
     // If local P-term is outdated
     if (hb->P_term > overseer->log->P_term) {
@@ -359,7 +351,6 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
     }
 
     // Rest of function: P-terms are equal
-    // TODO Implement HS-term checks too
 
     // If local commit index is outdated and local is not P (and P-term was up-to-date)
     if (hb->commit_index > overseer->log->commit_index &&
@@ -370,7 +361,6 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
                    hb->commit_index);
             fflush(stdout);
         }
-        // TODO Commit up to commit index and update the index
     }
         // Else if dist commit is outdated do nothing and set the status of the sender in the hosts list
     else {
@@ -381,7 +371,7 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
                    hb->status);
             fflush(stdout);
         }
-        overseer->hl->hosts[hb->host_id].status = hb->status; // TODO figure a way to make a security check on this
+        overseer->hl->hosts[hb->host_id].status = hb->status;
     }
 
     // In case of Log Repair messages, indexes will have different values than their host's, so don't check for them
@@ -397,13 +387,14 @@ enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s
                 // Send value entry corresponding to sender's next index
                 return CHECK_RV_NEED_ETR_NEXT;
             }
-            // Else if local is not P ignore message // TODO optimize with sending entry if you have it
+            // Else if local is not P ignore message
         }
     }
 
     return CHECK_RV_CLEAN;
 }
 
+// TODO Needed Remove and replace
 int cm_check_action(overseer_s *overseer,
                     enum cm_check_rv check_rv,
                     struct sockaddr_in6 addr,
@@ -589,7 +580,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     // If attempts max reached, remove cache entry
     if (((retransmission_cache_s *) arg)->cur_attempts >= ((retransmission_cache_s *) arg)->max_attempts) {
-        rt_cache_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id);
+        rtc_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
@@ -655,7 +646,7 @@ int hb_actions_as_master(overseer_s *overseer,
         if (cm_sendto_with_rt_init(overseer,
                                    sender_addr,
                                    socklen,
-                                   MSG_TYPE_ACK_HB,
+                                   MSG_TYPE_GENERIC_ACK,
                                    CM_DEFAULT_RT_ATTEMPTS,
                                    0,
                                    cm->ack_reference) != EXIT_SUCCESS) {
@@ -703,7 +694,7 @@ int hb_actions_as_master(overseer_s *overseer,
 
     // Else if local and dist P-terms are equal
 
-    /* TODO Implement HS-term
+    /* TODO Needed Implement HS-term
     if(cm->HS_term > overseer->log->HS_term){ // If dist HS-term is greater
 
     }
@@ -744,7 +735,7 @@ int hb_actions_as_master(overseer_s *overseer,
             if (cm_sendto_with_rt_init(overseer,
                                        sender_addr,
                                        socklen,
-                                       MSG_TYPE_ACK_HB,
+                                       MSG_TYPE_GENERIC_ACK,
                                        CM_DEFAULT_RT_ATTEMPTS,
                                        0,
                                        cm->ack_reference) != EXIT_SUCCESS)
@@ -776,7 +767,7 @@ int hb_actions_as_master(overseer_s *overseer,
 
         if (log_repair_ongoing(overseer) == 1) {
             debug_log(4, stdout, "Overriding outdated Log Repair process.\n");
-            // TODO implement log repair override
+            // TODO Improvement implement log repair override
         }
 
         log_invalidate_from(overseer->log, cm->next_index);
@@ -878,7 +869,7 @@ int hb_actions_as_server(overseer_s *overseer,
             if (cm_sendto_with_rt_init(overseer,
                                        sender_addr,
                                        socklen,
-                                       MSG_TYPE_ACK_HB,
+                                       MSG_TYPE_GENERIC_ACK,
                                        CM_DEFAULT_RT_ATTEMPTS,
                                        0,
                                        cm->ack_reference) != EXIT_SUCCESS)
@@ -910,7 +901,7 @@ int hb_actions_as_server(overseer_s *overseer,
     if (cm_sendto_with_rt_init(overseer,
                                sender_addr,
                                socklen,
-                               MSG_TYPE_ACK_HB,
+                               MSG_TYPE_GENERIC_ACK,
                                CM_DEFAULT_RT_ATTEMPTS,
                                0,
                                cm->ack_reference) != EXIT_SUCCESS)
@@ -927,9 +918,11 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
     switch (cm->type) {
-        case MSG_TYPE_ACK_HB:
+        case MSG_TYPE_GENERIC_ACK:
+            debug_log(3, stdout, "-> CM is of type GENERIC ACK\n");
                     __attribute__ ((fallthrough));
         case MSG_TYPE_INDICATE_P:
+            debug_log(3, stdout, "-> CM is of type INDICATE P\n");
             if (cm->P_term < overseer->log->P_term) { // If local P-term is greater
                 debug_log(4, stdout, "Local P-term is greater.\n");
                 if (cm_sendto(overseer,
