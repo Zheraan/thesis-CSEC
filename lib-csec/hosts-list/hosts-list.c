@@ -178,6 +178,21 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
     if (DEBUG_LEVEL >= 1) {
         printf("%d hosts parsed from file \"%s\" (%d/%d resolved)\n", parsed, hostfile, resolved, parsed);
     }
+    if (localhost_init == 0) {
+        debug_log(0, stderr, "Fatal error: no local host parsed.\n");
+        errno = ENOLOCALHOST;
+        return 0;
+    }
+    if (list->nb_servers == 0) {
+        debug_log(0, stderr, "Fatal error: no server hosts parsed.\n");
+        errno = ENOSERVER;
+        return 0;
+    }
+    if (list->nb_masters == 0) {
+        debug_log(0, stderr, "Fatal error: no master hosts parsed.\n");
+        errno = ENOMASTER;
+        return 0;
+    }
     return parsed;
 }
 
