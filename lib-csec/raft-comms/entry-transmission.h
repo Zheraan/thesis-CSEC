@@ -74,10 +74,6 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm);
 
 // Sends the commit order for the given entry if it's committed, or fails otherwise
-int etr_commit_order(overseer_s *overseer,
-                     struct sockaddr_in6 addr,
-                     socklen_t socklen,
-                     uint64_t index,
-                     uint32_t ack_reference);
+int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index);
 
 #endif //THESIS_CSEC_ENTRY_TRANSMISSION_H

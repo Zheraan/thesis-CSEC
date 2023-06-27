@@ -356,26 +356,66 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
     return EXIT_SUCCESS;
 }
 
-int etr_commit_order(overseer_s *overseer,
-                     struct sockaddr_in6 addr,
-                     socklen_t socklen,
-                     uint64_t index,
-                     uint32_t ack_reference) {
+int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
+    if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P) {
+        debug_log(0, stderr, "Error: only P can send a Commit Order\n.");
+        return EXIT_FAILURE;
+    }
+
+    debug_log(4, stdout, "Start of Commit Order broadcast ----------------------------------------------------\n");
+
     entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                           MSG_TYPE_ETR_COMMIT,
                                                           index,
-                                                          ack_reference);
+                                                          0);
     if (netr == NULL) {
         debug_log(0, stderr, "Failed to create a new ETR for sending commit order.\n");
         return EXIT_FAILURE;
     }
-    if (etr_sendto_with_rt_init(overseer,
-                                addr,
-                                socklen,
-                                netr,
-                                CM_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
-        debug_log(0, stderr, "Failed to send and RT init a commit order\n");
-        return EXIT_FAILURE;
+
+    host_s *target;
+    uint32_t nb_hosts = overseer->hl->nb_hosts;
+    struct sockaddr_in6 receiver;
+    socklen_t receiver_len;
+    char buf[256];
+
+    debug_log(3, stdout, "Broadcasting Commit Order ... ");
+    int nb_orders = 0;
+    for (uint32_t i = 0; i < nb_hosts; i++) {
+        target = &(overseer->hl->hosts[i]);
+
+        // TODO Extension Add conditional re-resolving of nodes that are of unknown or unreachable status
+
+        // Skip if target is the local host
+        if (target->locality == HOST_LOCALITY_LOCAL)
+            continue;
+
+        if (DEBUG_LEVEL >= 4) {
+            printf("\n- Order target: %s\n", target->name);
+            fflush(stdout);
+        }
+
+        receiver = (target->addr);
+        receiver_len = (target->socklen);
+
+        evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
+        if (DEBUG_LEVEL >= 3) {
+            printf("- Commit order: ");
+        }
+
+        if (etr_sendto_with_rt_init(overseer,
+                                    receiver,
+                                    receiver_len,
+                                    netr,
+                                    ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+            fprintf(stderr, "Failed to send and RT init Commit Order\n");
+        } else nb_orders++;
     }
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Done (%d orders sent).\n", nb_orders);
+        fflush(stdout);
+    }
+    debug_log(4, stdout, "End of Commit Order broadcast ------------------------------------------------------\n\n");
     return EXIT_SUCCESS;
 }
