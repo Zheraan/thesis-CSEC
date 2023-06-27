@@ -300,3 +300,64 @@ int hl_update_status(hosts_list_s *list, enum host_status status, uint32_t id) {
         list->hosts[id].status = status;
     return EXIT_SUCCESS;
 }
+
+int hl_host_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_index, uint64_t commit_index) {
+    if (host_id >= overseer->hl->nb_hosts) {
+        fprintf(stderr,
+                "Given host id (%d) beyond host list boundary (%d)",
+                host_id,
+                overseer->hl->nb_hosts - 1);
+        fflush(stderr);
+        return EXIT_FAILURE;
+    }
+    host_s *target_host = &overseer->hl->hosts[host_id];
+    log_s *log = overseer->log;
+    int local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
+    // Stores the highest entry number that needs committing so as to only send one order in case several entries
+    // require committing.
+    uint64_t commit_order = 0;
+
+    // Duplicate code with type check outside of loop for performance
+    if (target_host->status == NODE_TYPE_M) {
+        // If new next index is higher, increment replication index on each of the concerned log entries
+        for (uint64_t i = target_host->next_index; i < next_index; ++i) {
+            log->entries[i].master_rep++;
+            // If local is P, both majorities are reached, and the entry is not already committed,
+            // send the commit order
+            if (local_status == HOST_STATUS_P &&
+                log->entries[i].state != ENTRY_STATE_COMMITTED &&
+                log->entries[i].master_rep >= log->master_majority &&
+                log->entries[i].server_rep >= log->server_majority) {
+                commit_order = i;
+            }
+        }
+        // Otherwise decrement it
+        for (uint64_t i = target_host->next_index; i > next_index; --i) {
+            log->entries[i - 1].master_rep--;
+        }
+    } else if (target_host->status == NODE_TYPE_S) {
+        // If new next index is higher, increment replication index on each of the concerned log entries
+        for (uint64_t i = target_host->next_index; i < next_index; ++i) {
+            log->entries[i].server_rep++;
+            // If local is P, both majorities are reached, and the entry is not already committed,
+            // send the commit order
+            if (local_status == HOST_STATUS_P &&
+                log->entries[i].state != ENTRY_STATE_COMMITTED &&
+                log->entries[i].master_rep >= log->master_majority &&
+                log->entries[i].server_rep >= log->server_majority) {
+                commit_order = i;
+            }
+        }
+        // Otherwise decrement it
+        for (uint64_t i = target_host->next_index; i > next_index; --i) {
+            log->entries[i - 1].server_rep--;
+        }
+    }
+
+    if (commit_order != 0) {
+        etr_broadcast_commit_order(overseer, commit_order);
+    }
+    target_host->next_index = next_index;
+    target_host->commit_index = commit_index;
+    return EXIT_SUCCESS;
+}
