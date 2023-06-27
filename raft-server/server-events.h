@@ -17,13 +17,13 @@
 
 #ifndef QUEUE_ELEMENTS_TIMED_DELETION
 // Enables the deletion of queued elements after a timeout to avoid stacking outdated elements if network is slow
-#define QUEUE_ELEMENTS_TIMED_DELETION 1 // TODO Make timed deletion conditional
+#define QUEUE_ELEMENTS_TIMED_DELETION 1 // TODO Extension Make timed deletion conditional
 #endif
 
 #ifndef PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS
 // Defines how many times should the server attempt to retransmit a proposition before ditching it
 #define PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS 2 \
-// TODO Label P is unreachable if too many attempts failed, or transition to partition mode
+// TODO Extension Label P is unreachable if too many attempts failed, or transition to partition mode
 #endif
 
 // Initializes the server-side random operation generation event, with a randomized timeout
