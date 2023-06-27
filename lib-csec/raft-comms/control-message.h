@@ -23,6 +23,9 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
 // Outputs the state of the structure to the specified stream
 void cm_print(const control_message_s *hb, FILE *stream);
 
+// Prints a line of text indicating the CM's type
+void cm_print_type(const control_message_s *cm, FILE *stream);
+
 // Sends a control message to the provided address with the provided message type, without retransmission
 // or acknowledgement.
 // Returns EXIT_SUCCESS or EXIT_FAILURE depending on result
@@ -56,7 +59,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            uint32_t ack_back);
 
 // Initializes the control message reception event.
-// Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
+// Returns EXIT_SUCCESS in case of success or causes a fatal error in case of failure.
 int cm_reception_init(overseer_s *overseer);
 
 // Callback for receiving control messages, arg must be an overseer_s*
@@ -78,26 +81,37 @@ int cm_check_action(overseer_s *overseer,
 // Arg must be an overseer_s*
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 
+// Determines the correct actions to take depending on local status and incoming CM.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int cm_actions(overseer_s *overseer,
                struct sockaddr_in6 sender_addr,
                socklen_t socklen,
                control_message_s *cm);
 
+// Determines the correct actions to take depending on local status and incoming CM. Used for incoming
+// heartbeats and a local
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int hb_actions_as_master(overseer_s *overseer,
                          struct sockaddr_in6 sender_addr,
                          socklen_t socklen,
                          control_message_s *cm);
 
+// Determines the correct actions to take depending on local status and incoming CM.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int hb_actions_as_server(overseer_s *overseer,
                          struct sockaddr_in6 sender_addr,
                          socklen_t socklen,
                          control_message_s *cm);
 
+// Determines the correct actions to take depending on local status and incoming CM.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int cm_other_actions_as_s_cs(overseer_s *overseer,
                              struct sockaddr_in6 sender_addr,
                              socklen_t socklen,
                              control_message_s *cm);
 
+// Determines the correct actions to take depending on local status and incoming CM.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int cm_other_actions_as_p_hs(overseer_s *overseer,
                              struct sockaddr_in6 sender_addr,
                              socklen_t socklen,
