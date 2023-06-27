@@ -76,4 +76,9 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm);
 // Sends the commit order for the given entry if it's committed, or fails otherwise
 int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index);
 
+int etr_actions(overseer_s *overseer,
+                struct sockaddr_in6 sender_addr,
+                socklen_t socklen,
+                entry_transmission_s *etr); // TODO
+
 #endif //THESIS_CSEC_ENTRY_TRANSMISSION_H

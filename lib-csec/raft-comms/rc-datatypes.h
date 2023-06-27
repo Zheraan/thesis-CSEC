@@ -173,26 +173,6 @@ enum message_type {
     MSG_TYPE_ETR_NEW_AND_ACK = 105,
 };
 
-// Control message metadata check return values specifying the action to take if any
-enum cm_check_rv {
-    // Return value indicating that everything is in order and no additional action is required
-    CHECK_RV_CLEAN = 0,
-    // Return value indicating that the check failed
-    CHECK_RV_FAILURE = 1,
-    // Return value indicating that it is necessary to send a Log Repair request to P
-    CHECK_RV_NEED_REPAIR = 2,
-    // Return value indicating that it is necessary to send a Log Replay request to P
-    CHECK_RV_NEED_REPLAY = 3,
-    // Return value indicating that it is necessary to reply an Indicate P CM to the sender
-    CHECK_RV_NEED_INDICATE_P = 4,
-    // Return value indicating that it is necessary to reply with a transmission of the latest entry to the sender
-    // if P is local, and indicate P otherwise
-    CHECK_RV_NEED_ETR_LATEST = 5,
-    // Return value indicating that it is necessary to reply with a transmission of the entry corresponding to
-    // the sender's next index (only if P is local)
-    CHECK_RV_NEED_ETR_NEXT = 6,
-};
-
 enum timeout_type {
     // P master heartbeat timeout type
     TIMEOUT_TYPE_P_HB = 0,
@@ -249,7 +229,7 @@ typedef struct entry_transmission_s {
     // Transmitted entry's P-term
     uint32_t term;
     // Term of the entry before transmitted entry
-    uint32_t prev_term; // TODO Important: implement this
+    uint32_t prev_term;
     // Transmitted entry's state
     enum entry_state state;
 } entry_transmission_s;

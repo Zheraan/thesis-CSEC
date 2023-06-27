@@ -29,6 +29,7 @@ entry_transmission_s *etr_new(const overseer_s *overseer,
     netr->op.row = op->row;
     netr->op.column = op->column;
     netr->term = term;
+    netr->prev_term = index > 1 ? overseer->log->entries[index - 1].term : 0;
     netr->index = index;
     netr->state = state;
     return netr;
@@ -178,17 +179,16 @@ int etr_reception_init(overseer_s *overseer) {
     return EXIT_SUCCESS;
 }
 
-// TODO Needed Remove and replace
 void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout, "Start of ETR reception callback ---------------------------------------------------\n");
 
     entry_transmission_s etr;
-    struct sockaddr_in6 sender;
-    socklen_t sender_len = sizeof(sender);
+    struct sockaddr_in6 sender_addr;
+    socklen_t socklen = sizeof(sender_addr);
 
     do {
         errno = 0;
-        if (recvfrom(fd, &etr, sizeof(entry_transmission_s), 0, (struct sockaddr *) &sender, &sender_len) == -1) {
+        if (recvfrom(fd, &etr, sizeof(entry_transmission_s), 0, (struct sockaddr *) &sender_addr, &socklen) == -1) {
             perror("recvfrom ETR");
             if (errno != EAGAIN)
                 return; // Failure
@@ -197,7 +197,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
     if (DEBUG_LEVEL >= 1) {
         char buf[256];
-        evutil_inet_ntop(AF_INET6, &(sender.sin6_addr), buf, 256);
+        evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
         printf("Received from %s an ETR:\n", buf);
         if (DEBUG_LEVEL >= 3)
             etr_print(&etr, stdout);
@@ -217,74 +217,11 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         else debug_log(4, stderr, "Failure.\n");
     }
 
-    enum cm_check_rv crv = cm_check_metadata((overseer_s *) arg, &(etr.cm));
-    if (crv == CHECK_RV_FAILURE) {
-        // Cause of failure should be printed to stderr by the function
-        debug_log(4, stdout,
-                  "End of ETR reception callback ------------------------------------------------------\n\n");
-        return;
-    }
-    cm_check_action((overseer_s *) arg, crv, sender, sender_len, &(etr.cm));
+    if (DEBUG_LEVEL >= 2)
+        cm_print_type(&(etr.cm), stdout);
 
-    // Responses depending on the type of transmission
-    switch (etr.cm.type) {
-        case MSG_TYPE_ETR_NEW : // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status == HOST_STATUS_P) {
-                debug_log(1, stdout, "-> is ETR NEW, but local is P, aborting ...\n");
-                debug_log(4, stdout,
-                          "End of ETR reception callback ------------------------------------------------------\n\n");
-                return;
-            }
-
-            debug_log(1, stdout, "-> is ETR NEW\n");
-            if (crv == CHECK_RV_CLEAN)
-                log_add_entry((overseer_s *) arg, &etr, etr.state);
-            else if (crv == CHECK_RV_NEED_REPLAY || crv == CHECK_RV_NEED_REPAIR)
-                log_add_entry((overseer_s *) arg, &etr, ENTRY_STATE_CACHED);
-
-            break;
-
-        case MSG_TYPE_ETR_COMMIT: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            debug_log(1, stdout, "-> is ETR COMMIT\n");
-            break;
-
-        case MSG_TYPE_ETR_PROPOSITION: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            debug_log(1, stdout, "-> is ETR PROPOSITION\n");
-            // If local node isn't P, send correction on who is P
-            if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status != HOST_STATUS_P) {
-                debug_log(1, stdout, "Local node isn't P, answering with INDICATE P ... ");
-                if (cm_sendto_with_rt_init(((overseer_s *) arg),
-                                           sender,
-                                           sender_len,
-                                           MSG_TYPE_INDICATE_P,
-                                           0,
-                                           0,
-                                           ack_back) != EXIT_SUCCESS) {
-                    fprintf(stderr, "Failed to Ack heartbeat\n");
-                    return;
-                }
-                debug_log(1, stdout, "Done.\n");
-                return;
-            }
-            // Else local is P:
-            // add entry to the log
-            if (log_add_entry((overseer_s *) arg, &etr, ENTRY_STATE_PENDING) != EXIT_SUCCESS) {
-                fprintf(stderr, "Failed to add a new log entry from proposition\n");
-                return;
-            }
-            break;
-
-        case MSG_TYPE_ETR_LOGFIX: // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            debug_log(1, stdout, "-> is ETR LOG FIX\n");
-            break;
-
-        case MSG_TYPE_ETR_NEW_AND_ACK: // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            debug_log(1, stdout, "-> is ETR NEW AND ACK\n");
-            break;
-
-        default:
-            fprintf(stderr, "Invalid transmission type %d\n", etr.cm.type);
-    }
+    if (etr_actions((overseer_s *) arg, sender_addr, socklen, &etr) != EXIT_SUCCESS)
+        debug_log(1, stderr, "ETR action failure.\n");
 
     // Init next event so it can keep receiving messages
     etr_reception_init((overseer_s *) arg);
