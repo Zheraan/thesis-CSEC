@@ -9,7 +9,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
     debug_log(3, stdout, "Broadcasting heartbeat ... ");
 
     host_s *target;
-    host_s *local = &(((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]);
+    enum host_status local_status = (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]).status;
     uint32_t nb_hosts = ((overseer_s *) arg)->hl->nb_hosts;
     struct sockaddr_in6 receiver;
     socklen_t receiver_len;
@@ -22,11 +22,11 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         // TODO Extension Add conditional re-resolving of nodes that are of unknown or unreachable status
 
         // Skip iteration if local is P and target is a CS node
-        if (local->status == HOST_STATUS_P && target->status == HOST_STATUS_CS)
+        if (local_status == HOST_STATUS_P && target->status == HOST_STATUS_CS)
             continue;
 
         // Skip iteration if local is HS and target isn't a master node
-        if (local->status == HOST_STATUS_HS && target->type != NODE_TYPE_M)
+        if (local_status == HOST_STATUS_HS && target->type != NODE_TYPE_M)
             continue;
 
         // Skip if target is the local host
@@ -54,8 +54,6 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
                                    0,
                                    0) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send and RT init heartbeat\n");
-            fflush(stderr);
-            return;
         } else nb_heartbeats++;
     }
 
