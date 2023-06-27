@@ -5,15 +5,19 @@
 #include "hosts-list.h"
 
 uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
+    errno = 0;
     uint32_t parsed = 0, resolved = 0;
     FILE *file = fopen(hostfile, "r");
 
     // Initializing
-    list->localhost_id = (uint32_t) -1; // Setting to the max value
+    int localhost_init = 0;
+    list->nb_masters = 0;
+    list->nb_servers = 0;
 
     if (file == NULL) {
         perror("hosts_init fopen");
-        exit(EXIT_FAILURE);
+        errno = EPARSINGFAILURE;
+        return 0;
     }
 
     struct addrinfo *res = NULL;
@@ -52,7 +56,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                     nb_lines);
             freeaddrinfo(res);
             fclose(file);
-            exit(EXIT_FAILURE);
+            errno = EPARSINGFAILURE;
+            return 0;
         }
 
         // Strip newline characters in case there are some
@@ -69,10 +74,12 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             case 'M':
             case 'm':
                 list->hosts[parsed].type = NODE_TYPE_M;
+                list->nb_masters++;
                 break;
             case 'S':
             case 's':
                 list->hosts[parsed].type = NODE_TYPE_S;
+                list->nb_servers++;
                 break;
             case 'C':
             case 'c':
@@ -82,7 +89,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                 fprintf(stderr, "Failure to parse host: invalid host type \"%s\"\n", token);
                 freeaddrinfo(res);
                 fclose(file);
-                exit(EXIT_FAILURE);
+                errno = EPARSINGFAILURE;
+                return 0;
         }
 
         // Parsing name
@@ -103,18 +111,21 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         } else if (strncmp(token, "l", 1) == 0 ||
                    strncmp(token, "L", 1) == 0) {
             list->hosts[parsed].locality = HOST_LOCALITY_LOCAL;
-            if (list->localhost_id != (uint32_t) -1) { // Checking we did not already set the value
+            if (localhost_init) { // Checking we did not already set the value
                 fprintf(stderr, "Failure to parse hostfile: several local hosts defined\n");
                 freeaddrinfo(res);
                 fclose(file);
-                exit(EXIT_FAILURE);
+                errno = EPARSINGFAILURE;
+                return 0;
             }
+            localhost_init = 1;
             list->localhost_id = parsed;
         } else {
             fprintf(stderr, "Failure to parse host: invalid host locality \"%s\"", token);
             freeaddrinfo(res);
             fclose(file);
-            exit(EXIT_FAILURE);
+            errno = EPARSINGFAILURE;
+            return 0;
         }
 
         // Parsing IPv6 address
@@ -127,16 +138,15 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             fprintf(stderr, "Failure to parse host with address '%s': %s (%d)\n", token, gai_strerror(rc), rc);
             freeaddrinfo(res);
             fclose(file);
-            exit(EXIT_FAILURE);
+            errno = EPARSINGFAILURE;
+            return 0;
         }
 
         if (res == NULL) {
             // In case getaddrinfo failed to resolve the address contained in the row
             fprintf(stderr, "No host resolved for '%s'", token);
             list->hosts[parsed].status = HOST_STATUS_UNRESOLVED;
-            if (DEBUG_LEVEL >= 2) {
-                fprintf(stdout, " (unresolved)\n");
-            }
+            debug_log(2, stdout, " (unresolved)\n");
         } else {
             list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
             // Only the first returned entry is used
@@ -156,13 +166,15 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         // Can be used to try again later in case the host can't be resolved now
         snprintf(list->hosts[parsed].addr_string, 256, "%s", token);
 
+        list->hosts[parsed].next_index = 0;
+        list->hosts[parsed].commit_index = 0;
         parsed++;
         freeaddrinfo(res);
         res = NULL;
     }
 
     fclose(file);
-    list->nb_hosts = parsed;
+    list->nb_hosts = resolved;
     if (DEBUG_LEVEL >= 1) {
         printf("%d hosts parsed from file \"%s\" (%d/%d resolved)\n", parsed, hostfile, resolved, parsed);
     }

@@ -15,6 +15,22 @@
 #define DEBUG_LEVEL 4
 #endif
 
+#ifndef ENOLOCALHOST
+#define ENOLOCALHOST 90
+#endif
+
+#ifndef ENOMASTER
+#define ENOMASTER 91
+#endif
+
+#ifndef ENOSERVER
+#define ENOSERVER 92
+#endif
+
+#ifndef EPARSINGFAILURE
+#define EPARSINGFAILURE 93
+#endif
+
 // Status of a host, if it is available and what type is it if so
 enum host_status {
     // Unknown, which is the default value after the hosts list is initialized
@@ -64,6 +80,10 @@ typedef struct host_s {
     socklen_t socklen;
     // String parsed by the hosts_list initializer corresponding to this host entry, used for re-resolution
     char addr_string[256];
+    // Known next index of that node, for the purpose of determining replication threshold
+    uint64_t next_index;
+    // Known commit index of that node, for the purpose of determining replication threshold
+    uint64_t commit_index;
 } host_s;
 
 typedef struct hosts_list_s {
@@ -73,6 +93,10 @@ typedef struct hosts_list_s {
     uint32_t localhost_id;
     // Number of hosts in the list
     uint32_t nb_hosts;
+    // Number of hosts in the list
+    uint32_t nb_servers;
+    // Number of hosts in the list
+    uint32_t nb_masters;
 } hosts_list_s;
 
 #endif //THESIS_CSEC_HL_DATATYPES_H

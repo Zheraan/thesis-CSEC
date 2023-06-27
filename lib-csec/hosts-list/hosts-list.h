@@ -14,6 +14,7 @@
 #include <ctype.h>
 #include <event2/util.h>
 #include "hl-datatypes.h"
+#include "../overseer.h"
 
 #ifndef HOSTS_LIST_SIZE
 #define HOSTS_LIST_SIZE 128 // May be redefined

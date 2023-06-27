@@ -17,12 +17,6 @@ void log_print(log_s *log); //TODO Needed implement this
 // Returns EXIT_FAILURE in case of failure (ie. log is full) or EXIT_SUCCESS otherwise.
 int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum entry_state state);
 
-// Frees the log entire log stored in the pointer, as well as its entries' replication arrays
-void log_free(log_s *log);
-
-// Frees the replication arrays in the log entry but not the entry itself
-void log_entry_replication_arrays_free(log_entry_s *entry);
-
 // Returns a pointer to the entry with the given id, or NULL if there is none
 log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id);
 

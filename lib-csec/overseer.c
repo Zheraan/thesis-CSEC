@@ -30,10 +30,13 @@ int overseer_init(overseer_s *overseer) {
         return EXIT_FAILURE;
     }
     overseer->log = log_init(log);
+    log->master_majority = hl->nb_masters / 2 + 1;
+    log->server_majority = hl->nb_servers / 2 + 1;
 
     // Init the hosts list
     if (hosts_init("hostfile.txt", overseer->hl) < 1) {
-        fprintf(stderr, "Failed to parse any hosts\n");
+        if (errno == 0)
+            fprintf(stderr, "Fatal error: Failed to parse any hosts.\n");
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
@@ -162,33 +165,24 @@ void overseer_wipe(overseer_s *overseer) {
     fflush(stderr);
 
     debug_log(3, stdout, "Beginning cleanup ...\n- Log ... ");
+    free(overseer->log);
 
-    // If the local node is a Master node, it is necessary to free the replication arrays in the entries as well
-    if (overseer->hl != NULL && overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M) {
-        if (overseer->log != NULL)
-            log_free(overseer->log);
-    } else {
-        free(overseer->log);
-    }
     debug_log(3, stdout, "Done.\n- Hosts-list ... ");
-
     if (overseer->hl != NULL)
         free(overseer->hl);
-    debug_log(3, stdout, "Done.\n- Mocked filesystem ... ");
 
+    debug_log(3, stdout, "Done.\n- Mocked filesystem ... ");
     if (overseer->mfs != NULL) {
         ops_queue_free_all(overseer, overseer->mfs->queue);
         free(overseer->mfs);
     }
+
     debug_log(3, stdout, "Done.\n- Event-list ... ");
-
     rtc_free_all(overseer);
-    debug_log(3, stdout, "Done.\n- Event-base ... ");
 
+    debug_log(3, stdout, "Done.\n- Event-base ... ");
     if (overseer->eb != NULL)
         event_base_free(overseer->eb);
-    debug_log(3, stdout, "Done.\n- Closing sockets ... ");
-
     if (overseer->special_event != NULL)
         event_free(overseer->special_event);
     if (overseer->cm_reception_event != NULL)
@@ -196,6 +190,7 @@ void overseer_wipe(overseer_s *overseer) {
     if (overseer->etr_reception_event != NULL)
         event_free(overseer->etr_reception_event);
 
+    debug_log(3, stdout, "Done.\n- Closing sockets ... ");
     if (overseer->socket_cm != 0 && close(overseer->socket_cm) != 0)
         perror("Error closing communication socket file descriptor");
     if (overseer->socket_etr != 0 && close(overseer->socket_etr) != 0)
