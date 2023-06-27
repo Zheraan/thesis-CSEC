@@ -788,12 +788,14 @@ int hb_actions_as_master(overseer_s *overseer,
 
         if (local_status == HOST_STATUS_P || (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_CS)) {
             // Send commit order with latest committed entry
-            debug_log(4, stdout, "Sending commit order with latest committed entry.\n");
-            return etr_commit_order(overseer,
-                                    sender_addr,
-                                    socklen,
-                                    overseer->log->commit_index,
-                                    cm->ack_reference);
+            debug_log(4, stdout, "Sending heartbeat for target node to update its commit index.\n");
+            return cm_sendto_with_rt_init(overseer,
+                                          sender_addr,
+                                          socklen,
+                                          MSG_TYPE_HB_DEFAULT,
+                                          CM_DEFAULT_RT_ATTEMPTS,
+                                          0,
+                                          cm->ack_reference);
         }
 
         // Else if local is HS and dist is P
