@@ -8,7 +8,8 @@
 // Returns a pointer to the initialized log (same as argument)
 log_s *log_init(log_s *log);
 
-void log_print(log_s *log); //TODO Needed implement this
+// Prints the log state to the specified output
+void log_print(log_s *log, FILE *stream);
 
 // Adds the entry contained in the transmission to the log as new entry with the given state.
 // State parameter is voluntarily redundant with transmission's state field to allow for caching new entries

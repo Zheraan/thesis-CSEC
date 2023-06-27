@@ -13,6 +13,24 @@ log_s *log_init(log_s *log) {
     return log;
 }
 
+void log_print(log_s *log, FILE *stream) {
+    fprintf(stream,
+            "Next index:        %ld\n"
+            "Commit index:      %ld\n"
+            "P-term:            %d\n"
+            "HS-term:           %d\n"
+            "Server majority:   %d\n"
+            "Master majority:   %d\n",
+            log->next_index,
+            log->commit_index,
+            log->P_term,
+            log->HS_term,
+            log->server_majority,
+            log->master_majority);
+
+    return;
+}
+
 int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum entry_state state) {
     if (overseer->log->next_index == LOG_LENGTH) {
         fprintf(stderr, "Log full\n");
