@@ -20,12 +20,6 @@
 #define QUEUE_ELEMENTS_TIMED_DELETION 1 // TODO Extension Make timed deletion conditional
 #endif
 
-#ifndef PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS
-// Defines how many times should the server attempt to retransmit a proposition before ditching it
-#define PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS 2 \
-// TODO Extension Label P is unreachable if too many attempts failed, or transition to partition mode
-#endif
-
 // Initializes the server-side random operation generation event, with a randomized timeout
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
 int server_random_ops_init(overseer_s *overseer);
@@ -42,12 +36,5 @@ void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void
 // Returns EXIT_FAILURE in case of failure, requiring cleanup of target ops_queue element and subsequent ones,
 // otherwise returns EXIT_SUCCESS
 int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *element);
-
-// Sends the first element in the proposition queue (added the earliest) and sets its retransmission through
-// the retransmission cache.
-// Returns EXIT_FAILURE and wipes the proposition queue in case of failure, returns EXIT_SUCCESS otherwise
-// FIXME If a proposition isn't accepted after all retransmission attempts, the queue needs to be wiped to
-//  prevent incoherences because of subsequent entries that may depend on the first and succeed
-int server_send_first_prop(overseer_s *overseer);
 
 #endif //THESIS_CSEC_SERVER_EVENTS_H

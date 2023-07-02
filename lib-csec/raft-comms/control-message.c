@@ -372,7 +372,7 @@ int cm_actions(overseer_s *overseer,
         hl_host_index_change(overseer, cm->host_id, cm->next_index, cm->commit_index);
     }
 
-    // If CM is a default HB or takeover HB
+    // If CM is a default HB or takeover HB or network probe message
     if (cm->type == MSG_TYPE_HB_DEFAULT ||
         cm->type == MSG_TYPE_HS_TAKEOVER ||
         cm->type == MSG_TYPE_P_TAKEOVER ||

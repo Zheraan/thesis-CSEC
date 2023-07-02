@@ -11,6 +11,12 @@
 #include "../raft-log/log.h"
 #include "control-message.h"
 
+#ifndef PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS
+// Defines how many times should the server attempt to retransmit a proposition before ditching it
+#define PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS 2 \
+// TODO Extension Label P is unreachable if too many attempts failed, or transition to partition mode
+#endif
+
 // Allocates a new transmission struct and initializes it with the parameters. The contents of the data op
 // are copied in the transmission, so they can (and have to) be freed at some point afterward.
 // Returns NULL if the allocation fails, or a pointer to the newly allocated struct.
@@ -80,5 +86,22 @@ int etr_actions(overseer_s *overseer,
                 struct sockaddr_in6 sender_addr,
                 socklen_t socklen,
                 entry_transmission_s *etr); // TODO
+
+int etr_actions_as_p(overseer_s *overseer,
+                     struct sockaddr_in6 sender_addr,
+                     socklen_t socklen,
+                     entry_transmission_s *etr);
+
+int etr_actions_as_s_hs_cs(overseer_s *overseer,
+                           struct sockaddr_in6 sender_addr,
+                           socklen_t socklen,
+                           entry_transmission_s *etr);
+
+// Sends the first element in the proposition queue (added the earliest) and sets its retransmission through
+// the retransmission cache.
+// Returns EXIT_FAILURE and wipes the proposition queue in case of failure, returns EXIT_SUCCESS otherwise
+// FIXME If a proposition isn't accepted after all retransmission attempts, the queue needs to be wiped to
+//  prevent incoherences because of subsequent entries that may depend on the first and succeed
+int server_send_first_prop(overseer_s *overseer, uint32_t ack_back);
 
 #endif //THESIS_CSEC_ENTRY_TRANSMISSION_H

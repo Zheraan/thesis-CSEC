@@ -11,7 +11,7 @@ int main() {
     debug_log(1, stdout, "Starting program state initialization ...\n");
 
     if ((TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC * 1000000 + TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC)
-        * PROPOSITION_RETRANSMISSION_MAX_ATTEMPTS >
+        * PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS >
         TIMEOUT_VALUE_PROPOSITION_SEC * 1000000 + TIMEOUT_VALUE_PROPOSITION_USEC) {
         debug_log(0, stdout, "Warning: timeout for queued propositions is smaller than the timeout"
                              "for retransmissions multiplied by the number of retransmission attempts. This may cause "
