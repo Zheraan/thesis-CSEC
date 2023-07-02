@@ -15,19 +15,28 @@ void log_print(log_s *log, FILE *stream);
 // State parameter is voluntarily redundant with transmission's state field to allow for caching new entries
 // in a log that has missing entries, to not require them again when repairing the missing ones.
 // If the state parameter is ENTRY_STATE_CACHED, log indexes are not modified when adding the new entry.
-// Returns EXIT_FAILURE in case of failure (ie. log is full) or EXIT_SUCCESS otherwise.
-int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum entry_state state);
+// If the state parameter is ENTRY_STATE_COMMITTED, first commits all entries up to the given entry.
+// Returns EXIT_FAILURE in case of failure (if log is full or if it was not possible to commit all entries
+// up to the new one) or EXIT_SUCCESS otherwise.
+int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum entry_state state);
 
 // Returns a pointer to the entry with the given id, or NULL if there is none
 log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id);
 
 int log_repair_start(overseer_s *overseer); // TODO Needed implement log_repair_start, add ack back
 
-int log_replay_start(overseer_s *overseer); // TODO Needed implement log_replay_start, add ack back
+int log_replay_start(
+        overseer_s *overseer); // TODO Needed implement log_replay_start, add ack back, stop log repair if ongoing
+
+int log_repair_stop(overseer_s *overseer); // TODO Needed implement log_repair_stop
+
+int log_replay_stop(overseer_s *overseer); // TODO Needed implement log_replay_stop
 
 int log_repair_ongoing(overseer_s *overseer); // TODO Needed implement log_repair_ongoing
 
 int log_replay_ongoing(overseer_s *overseer); // TODO Needed implement log_replay_ongoing
+
+int log_repair_override(overseer_s *overseer); // TODO Extension implement log_repair_override
 
 // Marks all non-empty entries from given index included as invalid, and sets the log's next index as the
 // given index if it was greater than it.

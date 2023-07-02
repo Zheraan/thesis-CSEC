@@ -31,20 +31,21 @@ void log_print(log_s *log, FILE *stream) {
     return;
 }
 
-int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum entry_state state) {
+int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum entry_state state) {
     if (overseer->log->next_index == LOG_LENGTH) {
         fprintf(stderr, "Log full\n");
         return EXIT_FAILURE;
     }
-    log_entry_s *nentry = &(overseer->log->entries[tr->index]);
+
+    log_entry_s *nentry = &(overseer->log->entries[etr->index]);
     nentry->term = overseer->log->P_term;
     nentry->state = state;
     nentry->server_rep = 0;
     nentry->master_rep = 0;
 
-    nentry->op.newval = tr->op.newval;
-    nentry->op.row = tr->op.row;
-    nentry->op.column = tr->op.column;
+    nentry->op.newval = etr->op.newval;
+    nentry->op.row = etr->op.row;
+    nentry->op.column = etr->op.column;
 
     if (DEBUG_LEVEL >= 1) {
         printf("Added to the log the following entry:\n"
@@ -62,7 +63,14 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *tr, enum ent
                nentry->op.newval);
     }
 
-    if (state != ENTRY_STATE_CACHED)
+    if (state == ENTRY_STATE_COMMITTED) {
+        if (log_commit_upto(overseer, etr->index) != EXIT_SUCCESS) {
+            debug_log(0, stderr, "Failure committing all necessary entries.\n");
+            return EXIT_FAILURE;
+        }
+    }
+
+    if (state == ENTRY_STATE_PENDING && etr->index == overseer->log->next_index)
         overseer->log->next_index++;
     return EXIT_SUCCESS;
 }
@@ -104,6 +112,8 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
 
     overseer->log->entries[index].state = ENTRY_STATE_COMMITTED;
     overseer->log->commit_index++;
+    if (index == overseer->log->next_index)
+        overseer->log->next_index++;
     return mfs_apply_op(overseer->mfs, &overseer->log->entries[index].op);
 }
 
