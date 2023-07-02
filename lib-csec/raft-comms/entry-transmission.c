@@ -43,7 +43,7 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
     log_entry_s *target_entry = log_get_entry_by_id(overseer->log, entry_id);
     if (target_entry == NULL) {
         fprintf(stderr,
-                "Error creating new ETR from local entry: no entry has ID %ld\n",
+                "Error creating new ETR from local entry: no entry has ID %ld.\n",
                 entry_id);
         return NULL;
     }
@@ -110,13 +110,13 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                                   etr,
                                   etr->cm.ack_back);
         if (rv == 0) {
-            fprintf(stderr, "Failed creating retransmission cache\n");
+            fprintf(stderr, "Failed creating retransmission cache.\n");
             fflush(stderr);
             return EXIT_FAILURE;
         }
         etr->cm.ack_reference = rv;
 
-        debug_log(4, stdout, " - ETR RT init OK\n");
+        debug_log(4, stdout, " - ETR RT init OK.\n");
     }
 
     char buf[256];
@@ -250,7 +250,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
                    ((retransmission_cache_s *) arg)->addr,
                    ((retransmission_cache_s *) arg)->socklen,
                    ((retransmission_cache_s *) arg)->etr)) {
-        fprintf(stderr, "Failed retransmitting ETR\n");
+        fprintf(stderr, "Failed retransmitting ETR.\n");
         success = 0;
     }
 
@@ -265,7 +265,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
         if (errno == EUNKNOWN_TIMEOUT_TYPE ||
             event_add(((retransmission_cache_s *) arg)->ev, &ops_timeout) != 0) {
-            fprintf(stderr, "Failed to add the ETR retransmission event\n");
+            fprintf(stderr, "Failed to add the ETR retransmission event.\n");
             fflush(stderr);
             success = 0;
         }
@@ -286,7 +286,7 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
                                 overseer->hl->hosts[cm->host_id].socklen,
                                 netr,
                                 ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
-        debug_log(0, stderr, "Failed to send and RT init a LOGFIX as reply\n");
+        debug_log(0, stderr, "Failed to send and RT init a LOGFIX as reply.\n");
         return EXIT_FAILURE;
     }
 
@@ -295,30 +295,29 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
 
 int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
     if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P) {
-        debug_log(0, stderr, "Error: only P can send a Commit Order\n.");
+        debug_log(0, stderr, "Error: only P can send a Commit Order.\n");
         return EXIT_FAILURE;
     }
 
     debug_log(4, stdout, "Start of Commit Order broadcast ----------------------------------------------------\n");
 
-    entry_transmission_s *netr = etr_new_from_local_entry(overseer,
-                                                          MSG_TYPE_ETR_COMMIT,
-                                                          index,
-                                                          0);
-    if (netr == NULL) {
+    entry_transmission_s *netr_blueprint = etr_new_from_local_entry(overseer,
+                                                                    MSG_TYPE_ETR_COMMIT,
+                                                                    index,
+                                                                    0);
+    if (netr_blueprint == NULL) {
         debug_log(0, stderr, "Failed to create a new ETR for sending commit order.\n");
         return EXIT_FAILURE;
     }
 
     host_s *target;
-    uint32_t nb_hosts = overseer->hl->nb_hosts;
     struct sockaddr_in6 receiver;
     socklen_t receiver_len;
     char buf[256];
 
     debug_log(3, stdout, "Broadcasting Commit Order ... ");
     int nb_orders = 0;
-    for (uint32_t i = 0; i < nb_hosts; i++) {
+    for (uint32_t i = 0; i < overseer->hl->nb_hosts; i++) {
         target = &(overseer->hl->hosts[i]);
 
         // TODO Extension Add conditional re-resolving of nodes that are of unknown or unreachable status
@@ -335,6 +334,14 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
         receiver = (target->addr);
         receiver_len = (target->socklen);
 
+
+        entry_transmission_s *netr = malloc(sizeof(entry_transmission_s));
+        if (netr == NULL) {
+            perror("Malloc new ETR for Entry Broadcast.\n");
+            continue;
+        }
+        *netr = *netr_blueprint;
+
         evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
         if (DEBUG_LEVEL >= 3) {
             printf("- Commit order: ");
@@ -345,7 +352,7 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
                                     receiver_len,
                                     netr,
                                     ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
-            fprintf(stderr, "Failed to send and RT init Commit Order\n");
+            fprintf(stderr, "Failed to send and RT init Commit Order.\n");
         } else nb_orders++;
     }
 
@@ -353,6 +360,7 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
         printf("Done (%d orders sent).\n", nb_orders);
         fflush(stdout);
     }
+    free(netr_blueprint);
     debug_log(4, stdout, "End of Commit Order broadcast ------------------------------------------------------\n\n");
     return EXIT_SUCCESS;
 }
