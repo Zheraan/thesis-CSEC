@@ -12,6 +12,19 @@
 #include <event2/event.h>
 #include <event2/util.h>
 
+#ifndef ENTRY_STATE_
+#define ENTRY_STATE_
+// Defines the entry's state
+enum entry_state {
+    ENTRY_STATE_INVALID = -2,
+    ENTRY_STATE_EMPTY = -1,
+    ENTRY_STATE_PROPOSAL = 0,
+    ENTRY_STATE_PENDING = 1,
+    ENTRY_STATE_COMMITTED = 2,
+    ENTRY_STATE_CACHED = 3,
+};
+#endif
+
 #include "datatypes.h"
 #include "hosts-list/hosts-list.h"
 #include "raft-log/log.h"

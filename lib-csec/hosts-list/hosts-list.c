@@ -264,6 +264,7 @@ uint32_t hl_whois(hosts_list_s *list, enum host_status status) {
             return i;
     }
     errno = ENONE;
+    fprintf(stderr, "Error: no host of status %d was found in the hosts-list.\n", status);
     return EXIT_FAILURE;
 }
 

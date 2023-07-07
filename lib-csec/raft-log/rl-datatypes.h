@@ -6,6 +6,7 @@
 #define THESIS_CSEC_RL_DATATYPES_H
 
 #include <stdint.h>
+#include "../raft-comms/rc-datatypes.h"
 #include "../mocked-fs/mfs-datatypes.h"
 
 #ifndef LOG_LENGTH
@@ -16,6 +17,8 @@
 #define DEBUG_LEVEL 4
 #endif
 
+#ifndef ENTRY_STATE_
+#define ENTRY_STATE_
 // Defines the entry's state
 enum entry_state {
     ENTRY_STATE_INVALID = -2,
@@ -24,6 +27,13 @@ enum entry_state {
     ENTRY_STATE_PENDING = 1,
     ENTRY_STATE_COMMITTED = 2,
     ENTRY_STATE_CACHED = 3,
+};
+#endif
+
+enum fix_type {
+    FIX_TYPE_NONE = 0,
+    FIX_TYPE_REPAIR = 1,
+    FIX_TYPE_REPLAY = 2,
 };
 
 typedef struct log_entry_s {
@@ -56,6 +66,12 @@ typedef struct log_s {
     uint32_t server_majority;
     // Number of master nodes needed to reach majority
     uint32_t master_majority;
+
+    // Contains the ID of the latest retransmission-cache entry related to an ongoing log repair or replay
+    // conversation, or 0 otherwise.
+    uint32_t fix_conversation;
+    // Contains the type of ongoing fix, or FIX_TYPE_NONE otherwise.
+    enum fix_type fix_type;
 
     // Arrays of entries in the log. Defined as static array for performance.
     log_entry_s entries[LOG_LENGTH];

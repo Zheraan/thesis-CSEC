@@ -11,18 +11,18 @@ add_library(
         mocked-fs/mfs-datatypes.h
         raft-comms/rc-datatypes.h
         raft-log/rl-datatypes.h
-        mocked-fs/data-op.h
         mocked-fs/data-op.c
+        mocked-fs/data-op.h
         hosts-list/hosts-list.c
         hosts-list/hosts-list.h
         mocked-fs/mocked-fs.c
         mocked-fs/mocked-fs.h
-        raft-comms/control-message.h
         raft-comms/control-message.c
+        raft-comms/control-message.h
         raft-log/log.c
         raft-log/log.h
-        overseer.h
         overseer.c
+        overseer.h
         raft-comms/retransmission-cache.c
         raft-comms/retransmission-cache.h
         raft-comms/timeout.c
@@ -31,4 +31,5 @@ add_library(
         mocked-fs/ops-queue.h
         raft-comms/entry-transmission.c
         raft-comms/entry-transmission.h
-        stepdown.c stepdown.h)
+        stepdown.c
+        stepdown.h)

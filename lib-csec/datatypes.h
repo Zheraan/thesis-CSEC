@@ -15,6 +15,7 @@ enum message_type;
 enum host_locality;
 enum node_type;
 enum host_status;
+enum fix_type;
 
 typedef struct overseer_s overseer_s;
 typedef struct host_s host_s;
@@ -28,9 +29,9 @@ typedef struct log_entry_s log_entry_s;
 typedef struct log_s log_s;
 typedef struct retransmission_cache_s retransmission_cache_s;
 
+#include "raft-log/rl-datatypes.h"
 #include "mocked-fs/mfs-datatypes.h"
 #include "hosts-list/hl-datatypes.h"
-#include "raft-log/rl-datatypes.h"
 #include "raft-comms/rc-datatypes.h"
 
 // Program state structure.
