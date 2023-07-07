@@ -46,7 +46,8 @@ int is_comment(char const *line);
 // Returns 1 if there is a node with HOST_STATUS_P in the list, 0 otherwise
 int is_p_available(hosts_list_s *list);
 
-// Returns the ID of the first node with given status encountered, otherwise returns 1 and sets errno to ENONE
+// Returns the ID of the first node with given status encountered, otherwise returns EXIT_FAILURE and
+// sets errno to ENONE
 uint32_t hl_whois(hosts_list_s *list, enum host_status status);
 
 // Resets any master node with the given status to CS, and sets the node with the given ID to the given status

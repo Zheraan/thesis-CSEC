@@ -28,6 +28,8 @@ void rtc_free_all(overseer_s *overseer) {
         }
         overseer->rt_cache = NULL; // Avoid dangling pointer
     }
+    overseer->log->fix_conversation = 0;
+    overseer->log->fix_type = FIX_TYPE_NONE;
     return;
 }
 
@@ -118,24 +120,26 @@ uint32_t rtc_add_new(overseer_s *overseer,
     return nrtc->id;
 }
 
-retransmission_cache_s *rtc_find_by_id(overseer_s *o, uint32_t id) {
-    if (o->rt_cache == NULL)
+retransmission_cache_s *rtc_find_by_id(overseer_s *overseer, uint32_t id) {
+    if (overseer->rt_cache == NULL)
         return NULL;
-    retransmission_cache_s *target = o->rt_cache;
+    retransmission_cache_s *target = overseer->rt_cache;
     for (; target != NULL && target->id != id; target = target->next);
     return target;
 }
 
-int rtc_remove_by_id(overseer_s *o, uint32_t id) {
-    if (o->rt_cache == NULL) {
+int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
+    if (overseer->rt_cache == NULL) {
+        if (flag && FLAG_SILENT == FLAG_SILENT)
+            return EXIT_SUCCESS;
         fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
         fflush(stderr);
         return EXIT_FAILURE;
     }
 
-    retransmission_cache_s *ptr = o->rt_cache;
-    if (o->rt_cache->id == id) {
-        o->rt_cache = ptr->next;
+    retransmission_cache_s *ptr = overseer->rt_cache;
+    if (overseer->rt_cache->id == id) {
+        overseer->rt_cache = ptr->next;
         rtc_free(ptr);
         return EXIT_SUCCESS;
     }
@@ -143,9 +147,15 @@ int rtc_remove_by_id(overseer_s *o, uint32_t id) {
     if (ptr->next != NULL && ptr->next->id == id) {
         retransmission_cache_s *tmp = ptr->next;
         ptr->next = tmp->next;
+        if (tmp->id == overseer->log->fix_conversation) {
+            overseer->log->fix_conversation = 0;
+            overseer->log->fix_type = FIX_TYPE_NONE;
+        }
         rtc_free(tmp);
         return EXIT_SUCCESS;
     }
+    if (flag && FLAG_SILENT == FLAG_SILENT)
+        return EXIT_SUCCESS;
     fprintf(stderr, "Attempting to remove cache element %d but it does not exist.\n", id);
     fflush(stderr);
     return EXIT_FAILURE;

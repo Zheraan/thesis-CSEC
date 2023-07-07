@@ -203,16 +203,12 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             etr_print(&etr, stdout);
     }
 
-
-    // If the incoming message calls for an acknowledgement, we must set it the value for the next answer
-    uint32_t ack_back = etr.cm.ack_reference;
-
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
     if (etr.cm.ack_back != 0) {
         debug_log(4,
                   stdout,
                   "-> Ack back value is non-zero, removing corresponding RT cache entry ... ");
-        if (rtc_remove_by_id((overseer_s *) arg, etr.cm.ack_back) == EXIT_SUCCESS)
+        if (rtc_remove_by_id((overseer_s *) arg, etr.cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else debug_log(4, stderr, "Failure.\n");
     }
@@ -259,7 +255,8 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     // If attempts max reached, remove cache entry
     if (((retransmission_cache_s *) arg)->cur_attempts >= ((retransmission_cache_s *) arg)->max_attempts) {
-        rtc_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id);
+        rtc_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id,
+                         FLAG_DEFAULT);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
@@ -540,12 +537,11 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                            socklen_t socklen,
                            entry_transmission_s *etr) {
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
-    int rv = EXIT_SUCCESS;
 
     // If dist P-term is greater than local
     if (etr->cm.P_term > overseer->log->P_term) {
         hl_update_status(overseer->hl, etr->cm.status, etr->cm.host_id);
-        return log_repair_start(overseer);
+        return log_repair(overseer, &etr->cm);
     }
 
     // If local P-term is greater than dist
@@ -603,9 +599,9 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
         if ((overseer->log->next_index > 1 &&
              overseer->log->entries[overseer->log->next_index - 1].state == ENTRY_STATE_COMMITTED) ||
             overseer->log->entries[overseer->log->next_index - 1].term == etr->cm.P_term)
-            log_replay_start(overseer);
+            log_replay(overseer, &etr->cm);
         else {
-            log_repair_start(overseer);
+            log_repair(overseer, &etr->cm);
         }
         next_check = 0;
     }
@@ -614,7 +610,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
     if (etr->cm.next_index < overseer->log->next_index) {
         if (log_repair_ongoing(overseer) == 1)
             log_repair_override(overseer);
-        else log_repair_start(overseer);
+        else log_repair(overseer, &etr->cm);
         next_check = 0;
     }
 
@@ -676,7 +672,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                 if (overseer->log->next_index > 1 && overseer->log->entries[etr->index - 1].term != etr->prev_term) {
                     log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
                     overseer->log->entries[etr->index - 1].state = ENTRY_STATE_INVALID;
-                    log_repair_start(overseer);
+                    log_repair(overseer, &etr->cm);
                     errno = 0;
                     if (errno != ENONE && cm_sendto_with_rt_init(overseer,
                                                                  overseer->hl->hosts[p_id].addr,
@@ -714,7 +710,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                         overseer->log->next_index++;
                     }
                 } else {
-                    log_replay_start(overseer);
+                    log_replay(overseer, &etr->cm);
                     if (etr->cm.status == HOST_STATUS_HS) {
                         if (cm_sendto_with_rt_init(overseer,
                                                    overseer->hl->hosts[p_id].addr,
@@ -733,7 +729,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             }
 
             // At this point the log is in a valid and up-to-date state as far as the current logfix is concerned
-            log_replay_stop(overseer);
+            log_fix_end(overseer);
             if (etr->cm.status == HOST_STATUS_HS) {
                 // Ack entry to P
                 if (cm_sendto_with_rt_init(overseer,
@@ -801,9 +797,14 @@ int server_send_first_prop(overseer_s *overseer, uint32_t ack_back) {
                                          ack_back);
     ops_queue_element_free(opq);
 
+    errno = 0;
+    uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
+    if (p_id == EXIT_FAILURE && errno == ENONE)
+        return EXIT_FAILURE;
+
     if (etr_sendto_with_rt_init(overseer,
-                                overseer->hl->hosts[hl_whois(overseer->hl, HOST_STATUS_P)].addr,
-                                overseer->hl->hosts[hl_whois(overseer->hl, HOST_STATUS_P)].socklen,
+                                overseer->hl->hosts[p_id].addr,
+                                overseer->hl->hosts[p_id].socklen,
                                 netr,
                                 PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS) != EXIT_SUCCESS) {
         // Cleanup and abort in case of failure, including subsequent elements

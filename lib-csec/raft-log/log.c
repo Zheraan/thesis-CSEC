@@ -5,6 +5,8 @@ log_s *log_init(log_s *log) {
     log->commit_index = 0;
     log->P_term = 0;
     log->HS_term = 0;
+    log->fix_conversation = 0;
+    log->fix_type = FIX_TYPE_NONE;
     memset(log->entries, 0, LOG_LENGTH * sizeof(log_entry_s));
     for (int i = 0; i < LOG_LENGTH; ++i) {
         log->entries[i].state = ENTRY_STATE_EMPTY;
@@ -78,6 +80,171 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
 log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id) {
     if (id >= LOG_LENGTH || log->entries[id].state == ENTRY_STATE_EMPTY) return NULL;
     return &(log->entries[id]);
+}
+
+int log_repair(overseer_s *overseer, control_message_s *cm) {
+    debug_log(1, stdout, "Starting Log Repair ... ");
+    // Adjust local next index based on dist and invalidate anything above
+    log_invalidate_from(overseer->log, cm->next_index);
+
+    switch (overseer->log->fix_type) {
+        case FIX_TYPE_REPAIR:
+            // If there is another repair conversation ongoing
+            if (cm->ack_back != overseer->log->fix_conversation) {
+                // Ignore repair request to not lead to proliferation
+                debug_log(2,
+                          stdout,
+                          "Log Repair requested but already ongoing through another conversation, ignoring action.\n");
+                return EXIT_SUCCESS;
+            }
+                    __attribute__ ((fallthrough));
+
+        case FIX_TYPE_REPLAY:
+            // Override current Replay if any
+            log_fix_end(overseer);
+                    __attribute__ ((fallthrough));
+
+        case FIX_TYPE_NONE:
+            overseer->log->fix_type = FIX_TYPE_REPAIR;
+            break;
+
+        default:
+            debug_log(0, stderr, "Failure: invalid Fix Type.\n");
+            return EXIT_FAILURE;
+    }
+
+    // Decrement next index (with boundary check)
+    overseer->log->next_index = overseer->log->next_index > 1 ? overseer->log->next_index - 1 : 1;
+
+    // Determine if P is known
+    errno = 0;
+    uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
+    if (p_id == EXIT_FAILURE && errno == ENONE) {
+        debug_log(0, stderr, "Log repair failed consequently.\n");
+        return EXIT_FAILURE;
+    }
+
+    // Create a retransmission cache for the Fix conversation
+    uint32_t rv = rtc_add_new(overseer,
+                              CM_DEFAULT_RT_ATTEMPTS,
+                              overseer->hl->hosts[p_id].addr,
+                              overseer->hl->hosts[p_id].socklen,
+                              MSG_TYPE_LOG_REPAIR,
+                              NULL,
+                              cm->ack_reference);
+    if (rv == 0) {
+        debug_log(0, stderr, "Failed creating retransmission cache for Log Repair.\n");
+        return EXIT_FAILURE;
+    }
+
+    // Save the fix conversation id
+    overseer->log->fix_conversation = rv;
+
+    // Request Logfix through Log Repair
+    if (cm_sendto_with_rt_init(overseer,
+                               overseer->hl->hosts[p_id].addr,
+                               overseer->hl->hosts[p_id].socklen,
+                               MSG_TYPE_LOG_REPAIR,
+                               0,
+                               rv,
+                               cm->ack_reference) != EXIT_SUCCESS) {
+        debug_log(0, stderr, "Failed to Log Repair send and RT init.\n");
+        return EXIT_FAILURE;
+    }
+
+    debug_log(1, stdout, "Done.\n");
+    return EXIT_SUCCESS;
+}
+
+int log_replay(overseer_s *overseer, control_message_s *cm) {
+    debug_log(1, stdout, "Starting Log Replay ... ");
+    switch (overseer->log->fix_type) {
+        case FIX_TYPE_REPLAY:
+            // If there is another replay conversation ongoing
+            if (cm->ack_back != overseer->log->fix_conversation) {
+                // Ignore replay request to not lead to proliferation
+                debug_log(2,
+                          stdout,
+                          "Log Replay requested but already ongoing through another conversation, ignoring action.\n");
+                return EXIT_SUCCESS;
+            }
+                    __attribute__ ((fallthrough));
+
+        case FIX_TYPE_REPAIR:
+            // If there is a repair conversation ongoing
+            log_fix_end(overseer);
+                    __attribute__ ((fallthrough));
+
+        case FIX_TYPE_NONE:
+            overseer->log->fix_type = FIX_TYPE_REPLAY;
+            break;
+
+        default:
+            debug_log(0, stderr, "Failure: invalid Fix Type.\n");
+            return EXIT_FAILURE;
+    }
+
+    // Determine if P is known
+    errno = 0;
+    uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
+    if (p_id == EXIT_FAILURE && errno == ENONE) {
+        debug_log(0, stderr, "Log replay failed consequently.\n");
+        return EXIT_FAILURE;
+    }
+
+    // Create a retransmission cache for the Fix conversation
+    uint32_t rv = rtc_add_new(overseer,
+                              CM_DEFAULT_RT_ATTEMPTS,
+                              overseer->hl->hosts[p_id].addr,
+                              overseer->hl->hosts[p_id].socklen,
+                              MSG_TYPE_LOG_REPLAY,
+                              NULL,
+                              cm->ack_reference);
+    if (rv == 0) {
+        debug_log(0, stderr, "Failed creating retransmission cache for Log Replay.\n");
+        return EXIT_FAILURE;
+    }
+
+    // Save the fix conversation id
+    overseer->log->fix_conversation = rv;
+
+    // Request Logfix through Log Replay
+    if (cm_sendto_with_rt_init(overseer,
+                               overseer->hl->hosts[p_id].addr,
+                               overseer->hl->hosts[p_id].socklen,
+                               MSG_TYPE_LOG_REPLAY,
+                               0,
+                               rv,
+                               cm->ack_reference) != EXIT_SUCCESS) {
+        debug_log(0, stderr, "Failed to Log Replay send and RT init.\n");
+        return EXIT_FAILURE;
+    }
+
+    debug_log(1, stdout, "Done.\n");
+    return EXIT_SUCCESS;
+}
+
+void log_fix_end(overseer_s *overseer) {
+    rtc_remove_by_id(overseer, overseer->log->fix_conversation, FLAG_SILENT);
+    overseer->log->fix_conversation = 0;
+    overseer->log->fix_type = FIX_TYPE_NONE;
+}
+
+int log_repair_ongoing(overseer_s *overseer) {
+    if (overseer->log->fix_type == FIX_TYPE_REPAIR)
+        return 1;
+    return 0;
+}
+
+int log_replay_ongoing(overseer_s *overseer) {
+    if (overseer->log->fix_type == FIX_TYPE_REPLAY)
+        return 1;
+    return 0;
+}
+
+int log_repair_override(overseer_s *overseer) {
+    debug_log(0, stderr, "Log Repair Override not implemented. This is an optimization for future work.\n");
+    return EXIT_SUCCESS;
 }
 
 void log_invalidate_from(log_s *log, uint64_t index) {

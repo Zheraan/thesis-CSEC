@@ -11,6 +11,9 @@
 #include "../datatypes.h"
 #include "../overseer.h"
 
+#define FLAG_DEFAULT 0
+#define FLAG_SILENT 1
+
 // Adds a new cache element to the list in the overseer to keep track of messages waiting for an ack that
 // also need to be freed later. Given etr parameter MUST be NULL for CM retransmission.
 // Returns the ID of the allocated cache RT cache, or 0 otherwise
@@ -23,12 +26,15 @@ uint32_t rtc_add_new(overseer_s *overseer,
                      uint32_t ack_back);
 
 // Returns a pointer to the cache element designated by the given ID, or NULL if none is found to match.
-retransmission_cache_s *rtc_find_by_id(overseer_s *o, uint32_t id);
+retransmission_cache_s *rtc_find_by_id(overseer_s *overseer, uint32_t id);
 
 // Removes and frees the element in the cache list with the given ID
-// Returns EXIT_SUCCESS or EXIT_FAILURE
+// Returns EXIT_SUCCESS, or EXIT_FAILURE if cache was empty or did not contain any entry with the given ID.
+// If the flag parameter is FLAG_SILENT, does not throw an error for empty cache or if no entry with the
+// given ID is found. If the id was the same as the local fix_conversation value, sets it back to 0 and
+// the fix_type to FIX_TYPE_NONE.
 // TODO Improvement: store and check sender in cache to avoid disruption
-int rtc_remove_by_id(overseer_s *o, uint32_t id);
+int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag);
 
 // Frees the full cache and deletes associated events
 void rtc_free_all(overseer_s *overseer);

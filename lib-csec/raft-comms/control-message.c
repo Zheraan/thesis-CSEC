@@ -15,6 +15,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
 
     // Use P/HS values in case of INDICATE P/HS message
     if (type == MSG_TYPE_INDICATE_P) {
+        errno = 0;
         uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
         if (p_id == EXIT_FAILURE && errno == ENONE) {
             debug_log(0, stderr, "Requesting INDICATE P message but no host has P status\n");
@@ -23,6 +24,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
         }
         ncm->host_id = p_id;
     } else if (type == MSG_TYPE_INDICATE_HS) {
+        errno = 0;
         uint32_t hs_id = hl_whois(overseer->hl, HOST_STATUS_HS);
         if (hs_id == EXIT_FAILURE && errno == ENONE) {
             debug_log(0, stderr, "Requesting INDICATE HS message but no host has HS status\n");
@@ -298,7 +300,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             printf("-> Ack back value is non-zero (%d), removing corresponding RT cache entry ... ", cm.ack_back);
             fflush(stdout);
         }
-        if (rtc_remove_by_id((overseer_s *) arg, cm.ack_back) == EXIT_SUCCESS)
+        if (rtc_remove_by_id((overseer_s *) arg, cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else debug_log(4, stderr, "Failure.\n");
     }
@@ -342,7 +344,8 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     // If attempts max reached, remove cache entry
     if (((retransmission_cache_s *) arg)->cur_attempts >= ((retransmission_cache_s *) arg)->max_attempts) {
-        rtc_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id);
+        rtc_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id,
+                         FLAG_DEFAULT);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
@@ -424,7 +427,7 @@ int hb_actions_as_master(overseer_s *overseer,
         } else debug_log(4, stdout, "Done.\n");
 
         debug_log(4, stdout, "Starting Log Repair ... ");
-        if (log_repair_start(overseer) != EXIT_SUCCESS) {
+        if (log_repair(overseer, cm) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to start Log Repair\n");
             rv = EXIT_FAILURE;
         } else debug_log(4, stdout, "Done.\n");
@@ -535,14 +538,14 @@ int hb_actions_as_master(overseer_s *overseer,
             // If the latest entry in the log committed or if the latest entry in the log has the same term as dist
             if (overseer->log->commit_index == overseer->log->next_index - 1) {
                 debug_log(4, stdout, "Last log entry is committed, starting Log Replay.\n");
-                return log_replay_start(overseer);
+                return log_replay(overseer, cm);
             } else if (overseer->log->next_index != 1 &&
                        overseer->log->entries[overseer->log->next_index - 1].term == cm->P_term) {
                 debug_log(4, stdout, "Last log entry has the same term as dist, starting Log Replay.\n");
-                return log_replay_start(overseer);
+                return log_replay(overseer, cm);
             } else {
                 debug_log(4, stdout, "Potential log inconsistencies detected, starting Log Repair.\n");
-                return log_repair_start(overseer);
+                return log_repair(overseer, cm);
             }
         }
     }
@@ -562,7 +565,7 @@ int hb_actions_as_master(overseer_s *overseer,
 
         log_invalidate_from(overseer->log, cm->next_index);
         debug_log(4, stdout, "Starting Log Repair.\n");
-        return log_repair_start(overseer);
+        return log_repair(overseer, cm);
     }
 
     // Else if local and dist next_indexes are equal
@@ -686,8 +689,8 @@ int hb_actions_as_server(overseer_s *overseer,
         // If the log is empty or if its latest entry has the same term as dist
         if (overseer->log->next_index == 1 ||
             overseer->log->entries[overseer->log->next_index - 1].term == cm->P_term)
-            return log_replay_start(overseer);
-        return log_repair_start(overseer);
+            return log_replay(overseer, cm);
+        return log_repair(overseer, cm);
     }
 
     // Else if local and dist P-terms are equal
@@ -816,11 +819,12 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
         case MSG_TYPE_ACK_ENTRY:
             debug_log(3, stdout, "-> CM is of type ACK ENTRY\n");
             if (local_status == HOST_STATUS_HS) {
+                errno = 0;
                 uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
-                if (!(p_id == 1 && errno == ENONE) && cm_forward(overseer,
-                                                                 overseer->hl->hosts[p_id].addr,
-                                                                 overseer->hl->hosts[p_id].socklen,
-                                                                 cm) != EXIT_SUCCESS)
+                if (!(p_id == EXIT_FAILURE && errno == ENONE) && cm_forward(overseer,
+                                                                            overseer->hl->hosts[p_id].addr,
+                                                                            overseer->hl->hosts[p_id].socklen,
+                                                                            cm) != EXIT_SUCCESS)
                     debug_log(0, stderr, "Failure forwarding Ack to P.\n");
             }
             // We ack back to the host the id refers to instead of the sender because it may have been forwarded
@@ -864,8 +868,8 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                     stepdown_to_cs(overseer);
                 if (overseer->log->next_index > 1 &&
                     overseer->log->entries[overseer->log->next_index - 1].term == cm->P_term)
-                    log_replay_start(overseer);
-                else log_repair_start(overseer);
+                    log_replay(overseer, cm);
+                else log_repair(overseer, cm);
             }
             break;
 
