@@ -9,10 +9,11 @@ int overseer_init(overseer_s *overseer) {
     overseer->mfs = NULL;
     overseer->log = NULL;
     overseer->eb = NULL;
-    overseer->rt_cache = NULL;
+    overseer->rtc = NULL;
     overseer->special_event = NULL;
     overseer->cm_reception_event = NULL;
     overseer->etr_reception_event = NULL;
+    overseer->es = NULL;
 
     // Malloc the hosts list
     hosts_list_s *hl = malloc(sizeof(hosts_list_s));
@@ -123,6 +124,19 @@ int overseer_init(overseer_s *overseer) {
     nmfs->queue = NULL;
     overseer->mfs = nmfs;
 
+    // If local host is a master node
+    if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M) {
+        // Allocate and initialize the election state struct
+        election_state_s *nes = malloc(sizeof(election_state_s));
+        if (nes == NULL) {
+            perror("malloc election state");
+            overseer_wipe(overseer);
+            return EXIT_FAILURE;
+        }
+        election_state_reset(nes);
+        overseer->es = nes;
+    }
+
     return EXIT_SUCCESS;
 }
 
@@ -189,6 +203,11 @@ void overseer_wipe(overseer_s *overseer) {
         event_free(overseer->cm_reception_event);
     if (overseer->etr_reception_event != NULL)
         event_free(overseer->etr_reception_event);
+
+    if (overseer->es != NULL) {
+        debug_log(3, stdout, "Done.\n- Election state ... ");
+        free(overseer->es);
+    }
 
     debug_log(3, stdout, "Done.\n- Closing sockets ... ");
     if (overseer->socket_cm != 0 && close(overseer->socket_cm) != 0)

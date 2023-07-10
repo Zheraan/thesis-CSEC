@@ -47,17 +47,18 @@ int is_comment(char const *line);
 int is_p_available(hosts_list_s *list);
 
 // Returns the ID of the first node with given status encountered, otherwise returns EXIT_FAILURE and
-// sets errno to ENONE
+// sets errno to ENONE.
 uint32_t hl_whois(hosts_list_s *list, enum host_status status);
 
 // Resets any master node with the given status to CS, and sets the node with the given ID to the given status
-// Returns EXIT_SUCCESS or EXIT_FAILURE
-int hl_change_master(hosts_list_s *list, enum host_status status, uint32_t id);
+// If the concerned node was the local host, calls stepdown_to_cs.
+// Returns EXIT_SUCCESS, or EXIT_FAILURE if id or status parameters are invalid.
+int hl_change_master(overseer_s *overseer, enum host_status status, uint32_t id);
 
 // Changes the status of the target node in the list to the one given in parameter, calls hl_change_master if
 // it concerns HS or P.
-// Returns EXIT_SUCCESS or EXIT_FAILURE
-int hl_update_status(hosts_list_s *list, enum host_status status, uint32_t id);
+// Returns EXIT_SUCCESS, or EXIT_FAILURE if id parameter is invalid.
+int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id);
 
 // Changes the local known indexes of target host, and adjust the replication indexes for each concerned log
 // entry.

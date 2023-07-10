@@ -82,16 +82,25 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm);
 // Sends the commit order for the given entry if it's committed, or fails otherwise
 int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index);
 
+// Determines the correct actions to take depending on local status and incoming ETR, for all host types.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int etr_actions(overseer_s *overseer,
                 struct sockaddr_in6 sender_addr,
                 socklen_t socklen,
-                entry_transmission_s *etr); // TODO
+                entry_transmission_s *etr);
 
+// Determines the correct actions to take depending on local status and incoming ETR. Used for incoming ETRs
+// and a local host of status P.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int etr_actions_as_p(overseer_s *overseer,
                      struct sockaddr_in6 sender_addr,
                      socklen_t socklen,
                      entry_transmission_s *etr);
 
+
+// Determines the correct actions to take depending on local status and incoming ETR. Used for incoming ETRs
+// and a local host of status S, HS or CS.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int etr_actions_as_s_hs_cs(overseer_s *overseer,
                            struct sockaddr_in6 sender_addr,
                            socklen_t socklen,

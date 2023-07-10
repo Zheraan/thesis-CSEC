@@ -20,13 +20,13 @@ void rtc_free(retransmission_cache_s *rtc) {
 }
 
 void rtc_free_all(overseer_s *overseer) {
-    if (overseer->rt_cache != NULL) {
+    if (overseer->rtc != NULL) {
         retransmission_cache_s *next;
-        for (retransmission_cache_s *cur = overseer->rt_cache; cur != NULL; cur = next) {
+        for (retransmission_cache_s *cur = overseer->rtc; cur != NULL; cur = next) {
             next = cur->next;
             rtc_free(cur);
         }
-        overseer->rt_cache = NULL; // Avoid dangling pointer
+        overseer->rtc = NULL; // Avoid dangling pointer
     }
     overseer->log->fix_conversation = 0;
     overseer->log->fix_type = FIX_TYPE_NONE;
@@ -95,8 +95,8 @@ uint32_t rtc_add_new(overseer_s *overseer,
     }
 
     // If there are no other cached elements, just insert it in first place with ID 1
-    if (overseer->rt_cache == NULL) {
-        overseer->rt_cache = nrtc;
+    if (overseer->rtc == NULL) {
+        overseer->rtc = nrtc;
         nrtc->id = 1;
         debug_log(4, stdout, "Done.\n");
         return nrtc->id;
@@ -104,7 +104,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
 
     // Otherwise insert the cache in the list with id equal to previous + 1, or resets to 1 when hitting the max value
     // 0 is the value for CMs without retransmission
-    retransmission_cache_s *iterator = overseer->rt_cache;
+    retransmission_cache_s *iterator = overseer->rtc;
     do {
         if (iterator->next == NULL) {
             iterator->next = nrtc;
@@ -121,15 +121,15 @@ uint32_t rtc_add_new(overseer_s *overseer,
 }
 
 retransmission_cache_s *rtc_find_by_id(overseer_s *overseer, uint32_t id) {
-    if (overseer->rt_cache == NULL)
+    if (overseer->rtc == NULL)
         return NULL;
-    retransmission_cache_s *target = overseer->rt_cache;
+    retransmission_cache_s *target = overseer->rtc;
     for (; target != NULL && target->id != id; target = target->next);
     return target;
 }
 
 int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
-    if (overseer->rt_cache == NULL) {
+    if (overseer->rtc == NULL) {
         if (flag && FLAG_SILENT == FLAG_SILENT)
             return EXIT_SUCCESS;
         fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
@@ -137,9 +137,9 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
         return EXIT_FAILURE;
     }
 
-    retransmission_cache_s *ptr = overseer->rt_cache;
-    if (overseer->rt_cache->id == id) {
-        overseer->rt_cache = ptr->next;
+    retransmission_cache_s *ptr = overseer->rtc;
+    if (overseer->rtc->id == id) {
+        overseer->rtc = ptr->next;
         rtc_free(ptr);
         return EXIT_SUCCESS;
     }

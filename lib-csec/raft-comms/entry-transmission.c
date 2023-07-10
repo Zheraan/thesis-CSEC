@@ -465,7 +465,7 @@ int etr_actions_as_p(overseer_s *overseer,
 
     // If dist P-term is greater than local
     if (etr->cm.P_term > overseer->log->P_term) {
-        hl_update_status(overseer->hl, etr->cm.status, etr->cm.host_id);
+        hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
         stepdown_to_cs(overseer);
         if (cm_sendto_with_rt_init(overseer,
                                    sender_addr,
@@ -520,7 +520,7 @@ int etr_actions_as_p(overseer_s *overseer,
             debug_log(0, stderr, "Failed to broadcast new entry.\n");
             rv = EXIT_FAILURE;
         }
-        hl_update_status(overseer->hl, etr->cm.status, etr->cm.host_id);
+        hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
 
     } else {
         debug_log(0,
@@ -540,7 +540,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
 
     // If dist P-term is greater than local
     if (etr->cm.P_term > overseer->log->P_term) {
-        hl_update_status(overseer->hl, etr->cm.status, etr->cm.host_id);
+        hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
         return log_repair(overseer, &etr->cm);
     }
 
@@ -562,7 +562,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
     // If local is CS and dist HS-term is greater than local
     if (local_status == HOST_STATUS_CS && etr->cm.HS_term > overseer->log->HS_term) {
         overseer->log->HS_term = etr->cm.HS_term;
-        hl_update_status(overseer->hl, etr->cm.status, etr->cm.host_id);
+        hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
     }
 
     // If local is CS and local HS-term is greater than dist

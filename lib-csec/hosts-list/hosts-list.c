@@ -268,8 +268,8 @@ uint32_t hl_whois(hosts_list_s *list, enum host_status status) {
     return EXIT_FAILURE;
 }
 
-int hl_change_master(hosts_list_s *list, enum host_status status, uint32_t id) {
-    if (id >= list->nb_hosts) {
+int hl_change_master(overseer_s *overseer, enum host_status status, uint32_t id) {
+    if (id >= overseer->hl->nb_hosts) {
         fprintf(stderr, "HL change master error: host ID out of hosts list range\n");
         return EXIT_FAILURE;
     }
@@ -279,26 +279,30 @@ int hl_change_master(hosts_list_s *list, enum host_status status, uint32_t id) {
                 status);
         return EXIT_FAILURE;
     }
-    for (uint32_t i = 0; i < list->nb_hosts; ++i) {
+
+    for (uint32_t i = 0; i < overseer->hl->nb_hosts; ++i) {
         // If current id is of the given status (HS or P), resets it to CS
-        if (list->hosts[i].status == status && list->hosts[i].type == NODE_TYPE_M)
-            list->hosts[i].status = HOST_STATUS_CS;
+        if (overseer->hl->hosts[i].status == status && overseer->hl->hosts[i].type == NODE_TYPE_M) {
+            if (i == overseer->hl->localhost_id)
+                stepdown_to_cs(overseer); // Stepdown to CS if local host is changed from P or HS
+            else overseer->hl->hosts[i].status = HOST_STATUS_CS; // Or simply set the concerned node's status as CS in the HL
+        }
         // Sets the status for the node with the given ID
         if (i == id)
-            list->hosts[i].status = status;
+            overseer->hl->hosts[i].status = status;
     }
     return EXIT_SUCCESS;
 }
 
-int hl_update_status(hosts_list_s *list, enum host_status status, uint32_t id) {
-    if (id >= list->nb_hosts) {
+int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id) {
+    if (id >= overseer->hl->nb_hosts) {
         fprintf(stderr, "HL change master error: host ID out of hosts list range\n");
         return EXIT_FAILURE;
     }
     if (status == HOST_STATUS_P || status == HOST_STATUS_HS)
-        return hl_change_master(list, status, id);
+        return hl_change_master(overseer, status, id);
     else
-        list->hosts[id].status = status;
+        overseer->hl->hosts[id].status = status;
     return EXIT_SUCCESS;
 }
 

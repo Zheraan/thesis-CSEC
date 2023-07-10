@@ -158,6 +158,12 @@ enum message_type {
     // the sender of a message had an outdated HS-term
     MSG_TYPE_INDICATE_HS = 31,
 
+    // STATUS
+    // Message for indicating candidacy to be the next HS to other nodes
+    MSG_TYPE_HS_VOTING_BID = 40,
+    // Message for giving a vote to another node
+    MSG_TYPE_HS_VOTE = 41,
+
     // ETR Message types (only valid within transmissions) ----------------------------------------
     // Master sending a new entry to add to the log as pending
     MSG_TYPE_ETR_NEW = 101,
@@ -206,12 +212,13 @@ typedef struct control_message_s {
     uint32_t ack_reference;
     // Message number to acknowledge a precedent message sent by the receptor of this message, in which case
     // it must be the same number as the receptor's message's retransmission cache number. Otherwise, it has
-    // to be 0 if the message is not carrying the acknowledgement of a previous message
+    // to be 0 if the message is not carrying the acknowledgement of a previous message.
     uint32_t ack_back;
 
     // Sender's next index
     uint64_t next_index;
-    // Sender's commit index
+    // Sender's commit index. In case of a voting bid or vote CM, is replaced with the bid number and
+    // therefore should not be used for commit-related checks.
     uint64_t commit_index;
     // Sender's current P_term
     uint32_t P_term;
