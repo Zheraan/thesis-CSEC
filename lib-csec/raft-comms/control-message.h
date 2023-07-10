@@ -12,7 +12,7 @@
 #include "../hosts-list/hosts-list.h"
 #include "timeout.h"
 #include "../overseer.h"
-#include "../stepdown.h"
+#include "../elections.h"
 
 // Allocates a new control message struct and initializes it with the overseer's values. Returns NULL in case
 // memory allocation fails.
@@ -81,7 +81,7 @@ int cm_check_action(overseer_s *overseer,
 // Arg must be an overseer_s*
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 
-// Determines the correct actions to take depending on local status and incoming CM.
+// Determines the correct actions to take depending on local status and incoming CM, for all host types.
 // Returns EXIT_SUCCESS or EXIT_FAILURE
 int cm_actions(overseer_s *overseer,
                struct sockaddr_in6 sender_addr,
@@ -89,35 +89,46 @@ int cm_actions(overseer_s *overseer,
                control_message_s *cm);
 
 // Determines the correct actions to take depending on local status and incoming CM. Used for incoming
-// heartbeats and a local
+// heartbeats and a local host that is a master node.
 // Returns EXIT_SUCCESS or EXIT_FAILURE
 int hb_actions_as_master(overseer_s *overseer,
                          struct sockaddr_in6 sender_addr,
                          socklen_t socklen,
                          control_message_s *cm);
 
-// Determines the correct actions to take depending on local status and incoming CM.
+// Determines the correct actions to take depending on local status and incoming CM. Used for incoming
+// heartbeats and a local host that is a server node.
 // Returns EXIT_SUCCESS or EXIT_FAILURE
 int hb_actions_as_server(overseer_s *overseer,
                          struct sockaddr_in6 sender_addr,
                          socklen_t socklen,
                          control_message_s *cm);
 
-// Determines the correct actions to take depending on local status and incoming CM.
+// Determines the correct actions to take depending on local status and incoming CM. Used for incoming CM
+// pertaining to elections and a local host that is a master node.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
+int election_actions(overseer_s *overseer,
+                     struct sockaddr_in6 sender_addr,
+                     socklen_t socklen,
+                     control_message_s *cm);
+
+// Determines the correct actions to take depending on local status and incoming CM. Used for incoming
+// non-heartbeat CMs and a local host of status S or CS.
 // Returns EXIT_SUCCESS or EXIT_FAILURE
 int cm_other_actions_as_s_cs(overseer_s *overseer,
                              struct sockaddr_in6 sender_addr,
                              socklen_t socklen,
                              control_message_s *cm);
 
-// Determines the correct actions to take depending on local status and incoming CM.
+// Determines the correct actions to take depending on local status and incoming CM. Used for incoming
+// non-heartbeat CMs and a local host of status P or HS.
 // Returns EXIT_SUCCESS or EXIT_FAILURE
 int cm_other_actions_as_p_hs(overseer_s *overseer,
                              struct sockaddr_in6 sender_addr,
                              socklen_t socklen,
                              control_message_s *cm);
 
-// Sends the given CM to target host
+// Sends the given CM to target host as is, without altering its contents using local metadata.
 // Returns EXIT_SUCCESS or EXIT_FAILURE
 int cm_forward(const overseer_s *overseer,
                struct sockaddr_in6 sockaddr,

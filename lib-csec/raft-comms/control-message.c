@@ -40,7 +40,10 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
     ncm->ack_reference = 0;
     ncm->ack_back = ack_back;
     ncm->next_index = overseer->log->next_index;
-    ncm->commit_index = overseer->log->commit_index;
+    // If CM is vote or voting bid
+    if (type == MSG_TYPE_HS_VOTE || type == MSG_TYPE_HS_VOTING_BID)
+        ncm->commit_index = overseer->es->bid_number; // Use commit index field as bid number
+    else ncm->commit_index = overseer->log->commit_index;
     ncm->P_term = overseer->log->P_term;
     ncm->HS_term = overseer->log->HS_term;
 
@@ -368,24 +371,32 @@ int cm_actions(overseer_s *overseer,
                control_message_s *cm) {
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
+    // If local is P or HS and P-terms are equal and message is not Indicate P, Indicate HS, HS Vote or HS Voting Bid
     if ((local_status == HOST_STATUS_P || local_status == HOST_STATUS_HS) &&
         cm->P_term == overseer->log->P_term &&
         cm->type != MSG_TYPE_INDICATE_P &&
-        cm->type != MSG_TYPE_INDICATE_HS) {
+        cm->type != MSG_TYPE_INDICATE_HS &&
+        cm->type != MSG_TYPE_HS_VOTE &&
+        cm->type != MSG_TYPE_HS_VOTING_BID) {
+        // Update local version of next index
         hl_host_index_change(overseer, cm->host_id, cm->next_index, cm->commit_index);
     }
 
-    // If CM is a default HB or takeover HB or network probe message
+    // If CM is a default HB, takeover message or network probe message
     if (cm->type == MSG_TYPE_HB_DEFAULT ||
+        cm->type == MSG_TYPE_NETWORK_PROBE ||
         cm->type == MSG_TYPE_HS_TAKEOVER ||
-        cm->type == MSG_TYPE_P_TAKEOVER ||
-        cm->type == MSG_TYPE_NETWORK_PROBE) {
+        cm->type == MSG_TYPE_P_TAKEOVER) {
         // If local host is a master node
         if (local_status != HOST_STATUS_S)
             return hb_actions_as_master(overseer, sender_addr, socklen, cm);
         else  // If local host is a server node
             return hb_actions_as_server(overseer, sender_addr, socklen, cm);
     }
+
+    // If CM is elections-related
+    if (cm->type == MSG_TYPE_HS_VOTING_BID || cm->type == MSG_TYPE_HS_VOTE)
+        return election_actions(overseer, sender_addr, socklen, cm);
 
     // Else if CM is any other type
 
@@ -404,7 +415,7 @@ int hb_actions_as_master(overseer_s *overseer,
 
     if (cm->P_term > overseer->log->P_term) { // If dist P-term is greater
         debug_log(4, stdout, "Dist P-term is greater than local\n");
-        int rv = hl_update_status(overseer->hl, cm->status, cm->host_id);
+        int rv = hl_update_status(overseer, cm->status, cm->host_id);
 
         if (local_status != HOST_STATUS_CS) { // If local host is P or HS
             debug_log(4, stdout, "Stepping down to CS ... ");
@@ -468,9 +479,9 @@ int hb_actions_as_master(overseer_s *overseer,
 
     if (cm->HS_term > overseer->log->HS_term) { // If dist HS-term is greater
         if (cm->status == HOST_STATUS_HS)
-            hl_update_status(overseer->hl, HOST_STATUS_HS, cm->host_id);
-        if (local_status == HOST_STATUS_HS)
-            stepdown_to_cs(overseer);
+            hl_update_status(overseer, HOST_STATUS_HS, cm->host_id); // Auto steps down if necessary
+        stop_hs_candidacy(overseer); // Stop local candidacy
+        election_state_reset(overseer->es); // Reset state
         overseer->log->HS_term = cm->HS_term;
     }
 
@@ -501,7 +512,7 @@ int hb_actions_as_master(overseer_s *overseer,
 
     // Else if local and dist HS-terms are equal
     debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
-    if (hl_update_status(overseer->hl, cm->status, cm->host_id) == EXIT_SUCCESS)
+    if (hl_update_status(overseer, cm->status, cm->host_id) == EXIT_SUCCESS)
         debug_log(4, stdout, "Done.\n");
 
     if (cm->next_index > overseer->log->next_index) { // If dist next_index is greater than local
@@ -656,14 +667,14 @@ int hb_actions_as_server(overseer_s *overseer,
 
         // Outdated Master nodes return to CS status
         debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
-        if (hl_update_status(overseer->hl, HOST_STATUS_CS, cm->host_id) == EXIT_SUCCESS)
+        if (hl_update_status(overseer, HOST_STATUS_CS, cm->host_id) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
 
         return rv;
     }
 
     debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
-    if (hl_update_status(overseer->hl, cm->status, cm->host_id) == EXIT_SUCCESS)
+    if (hl_update_status(overseer, cm->status, cm->host_id) == EXIT_SUCCESS)
         debug_log(4, stdout, "Done.\n");
 
     // If dist P_term or Next index is greater
@@ -719,6 +730,83 @@ int hb_actions_as_server(overseer_s *overseer,
         debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
 
     return EXIT_SUCCESS;
+}
+
+int election_actions(overseer_s *overseer,
+                     struct sockaddr_in6 sender_addr,
+                     socklen_t socklen,
+                     control_message_s *cm) {
+    enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
+
+    // If local is S, or if local is P and CM is a vote
+    if (local_status == HOST_STATUS_S || (local_status == HOST_STATUS_P && cm->type == MSG_TYPE_HS_VOTE)) {
+        fprintf(stderr,
+                "Fatal error: a node with host status %d should not receive a CM of type %d.\n",
+                local_status,
+                cm->type);
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    switch (cm->type) {
+        case MSG_TYPE_HS_VOTE:
+            if (cm->HS_term != overseer->log->HS_term || // If HS-terms don't match
+                overseer->es->candidacy != HS_CANDIDATE || // If the local node is not a candidate
+                cm->commit_index != overseer->es->bid_number) // If vote does not concern the right bid
+                break; // Ignore vote
+
+            overseer->es->vote_count++;
+            // Ack back CM
+            if (cm_sendto_with_ack_back(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        MSG_TYPE_GENERIC_ACK,
+                                        cm->ack_reference) != EXIT_SUCCESS)
+                debug_log(0, stderr, "Failed to ack back HS Vote.\n");
+
+            // If majority is reached, step up as the new HS
+            if (overseer->es->vote_count >= overseer->log->master_majority)
+                return promote_to_hs(overseer);
+            return EXIT_SUCCESS;
+
+        case MSG_TYPE_HS_VOTING_BID:
+            if (cm->HS_term < overseer->log->HS_term || // If dist HS-term is inferior to local
+                cm->P_term < overseer->log->P_term || // If dist P-term is inferior to local
+                cm->next_index < overseer->log->next_index || // If dist next index is inferior to local
+                cm->commit_index < overseer->es->bid_number || // If dist bid number is inferior to local
+                cm->commit_index <=
+                overseer->es->last_voted_bid) // If local node has already voted for this bid or a higher one
+                break; // Ignore bid
+
+            overseer->log->HS_term = cm->HS_term; // Set the HS-term if dist was higher
+            overseer->es->bid_number = cm->commit_index; // Set the local bid if dist was higher
+            overseer->es->last_voted_bid = cm->commit_index; // Keep track of vote
+            stop_hs_candidacy(overseer); // Stop local candidacy
+
+            // Reply with HS vote
+            return cm_sendto_with_rt_init(overseer,
+                                          sender_addr,
+                                          socklen,
+                                          MSG_TYPE_HS_VOTE,
+                                          CM_DEFAULT_RT_ATTEMPTS,
+                                          0,
+                                          cm->ack_back);
+
+        default:
+            fprintf(stderr, "Fatal error: Invalid election CM type %d.\n", cm->type);
+            fflush(stderr);
+            exit(EXIT_FAILURE);
+    }
+
+    // send a generic ack back
+    int rv = cm_sendto_with_ack_back(overseer,
+                                     sender_addr,
+                                     socklen,
+                                     MSG_TYPE_GENERIC_ACK,
+                                     cm->ack_reference);
+    if (rv != EXIT_SUCCESS)
+        fprintf(stderr, "Failed to ack back election CM of type %d.\n", cm->type);
+    return rv;
 }
 
 int cm_other_actions_as_s_cs(overseer_s *overseer,
@@ -787,7 +875,7 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
             exit(EXIT_FAILURE);
     }
 
-    return hl_update_status(overseer->hl, cm->status, cm->host_id);
+    return hl_update_status(overseer, cm->status, cm->host_id);
 }
 
 int cm_other_actions_as_p_hs(overseer_s *overseer,
@@ -909,12 +997,12 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
 
     // If local and dist are P and dist has outdated P-term, set it to CS in local HL
     if (local_status == HOST_STATUS_P && cm->status == HOST_STATUS_P && cm->P_term < overseer->log->P_term)
-        return hl_update_status(overseer->hl, HOST_STATUS_CS, cm->host_id);
+        return hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
     // If local and dist are HS and dist has outdated HS-term, set it to CS in local HL
     if (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_HS && cm->HS_term < overseer->log->HS_term)
-        return hl_update_status(overseer->hl, HOST_STATUS_CS, cm->host_id);
+        return hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
     // Otherwise update normally
-    return hl_update_status(overseer->hl, cm->status, cm->host_id);
+    return hl_update_status(overseer, cm->status, cm->host_id);
 }
 
 
