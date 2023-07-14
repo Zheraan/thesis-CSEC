@@ -92,7 +92,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
             printf("Sending ETR of type %d with %d retransmission attempt(s) ... \n", etr->cm.type, rt_attempts);
         else
             printf("Sending ETR of type %d ... \n", etr->cm.type);
-        fflush(stdout);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
 
     // If there are no retransmissions attempts (and thus no need for an ack), the ack number is always 0. Otherwise,
@@ -111,7 +111,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                                   etr->cm.ack_back);
         if (rv == 0) {
             fprintf(stderr, "Failed creating retransmission cache.\n");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             return EXIT_FAILURE;
         }
         etr->cm.ack_reference = rv;
@@ -157,7 +157,7 @@ int etr_reception_init(overseer_s *overseer) {
                                               (void *) overseer);
     if (reception_event == NULL) {
         fprintf(stderr, "Fatal error: failed to create the next ETR reception event\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -171,7 +171,7 @@ int etr_reception_init(overseer_s *overseer) {
     // Add the event in the loop
     if (event_add(reception_event, NULL) != 0) {
         fprintf(stderr, "Fatal error: failed to add the next ETR reception event\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -230,7 +230,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 3) {
         printf("ETR retransmission timed out, reattempting transmission (attempt %d) ... ",
                ((retransmission_cache_s *) arg)->cur_attempts + 1);
-        fflush(stdout);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
     int success = 1;
 
@@ -263,7 +263,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         if (errno == EUNKNOWN_TIMEOUT_TYPE ||
             event_add(((retransmission_cache_s *) arg)->ev, &ops_timeout) != 0) {
             fprintf(stderr, "Failed to add the ETR retransmission event.\n");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             success = 0;
         }
     }
@@ -296,7 +296,9 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
         return EXIT_FAILURE;
     }
 
-    debug_log(4, stdout, "Start of Commit Order broadcast ----------------------------------------------------\n");
+    debug_log(4,
+              stdout,
+              "Start of Commit Order broadcast ----------------------------------------------------\n");
 
     entry_transmission_s *netr_blueprint = etr_new_from_local_entry(overseer,
                                                                     MSG_TYPE_ETR_COMMIT,
@@ -325,7 +327,7 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
 
         if (DEBUG_LEVEL >= 4) {
             printf("\n- Order target: %s\n", target->name);
-            fflush(stdout);
+            if (INSTANT_FFLUSH) fflush(stdout);
         }
 
         receiver = (target->addr);
@@ -355,10 +357,12 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
 
     if (DEBUG_LEVEL >= 3) {
         printf("Done (%d orders sent).\n", nb_orders);
-        fflush(stdout);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
     free(netr_blueprint);
-    debug_log(4, stdout, "End of Commit Order broadcast ------------------------------------------------------\n\n");
+    debug_log(4,
+              stdout,
+              "End of Commit Order broadcast ------------------------------------------------------\n\n");
     return EXIT_SUCCESS;
 }
 
@@ -385,8 +389,6 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
     }
 
     host_s *target;
-    struct sockaddr_in6 receiver;
-    socklen_t receiver_len;
     char buf[256];
 
     debug_log(3, stdout, "Broadcasting New Entry ... ");
@@ -402,11 +404,8 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
 
         if (DEBUG_LEVEL >= 4) {
             printf("\n- ETR target: %s\n", target->name);
-            fflush(stdout);
+            if (INSTANT_FFLUSH) fflush(stdout);
         }
-
-        receiver = (target->addr);
-        receiver_len = (target->socklen);
 
         entry_transmission_s *netr = malloc(sizeof(entry_transmission_s));
         if (netr == NULL) {
@@ -415,14 +414,14 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
         }
         *netr = i == sender_id ? *netr_ack : *netr_noack; // Copy data from the "blueprint" ETR
 
-        evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
+        evutil_inet_ntop(AF_INET6, &(target->addr.sin6_addr), buf, 256);
         if (DEBUG_LEVEL >= 3) {
             printf("- New Entry: ");
         }
 
         if (etr_sendto_with_rt_init(overseer,
-                                    receiver,
-                                    receiver_len,
+                                    target->addr,
+                                    target->socklen,
                                     netr,
                                     ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send and RT init New Entry.\n");
@@ -431,7 +430,7 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
 
     if (DEBUG_LEVEL >= 3) {
         printf("Done (%d ETR sent).\n", nb_etr);
-        fflush(stdout);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
     free(netr_noack);
     free(netr_ack);
@@ -814,7 +813,7 @@ int server_send_first_prop(overseer_s *overseer, uint32_t ack_back) {
                 "Failed to transmit proposition.\n"
                 "Resetting the queue: %d elements freed.\n",
                 ops_queue_free_all(overseer, overseer->mfs->queue));
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

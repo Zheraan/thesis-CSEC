@@ -44,13 +44,13 @@ int log_replay(overseer_s *overseer, control_message_s *cm);
 
 // Removes the RTC (through rtc_remove_by_id) whose ID is stored in the local fix_conversation value, then
 // sets this value to 0 and the fix_type to FIX_TYPE_NONE.
-void log_fix_end(overseer_s *overseer); // TODO Needed implement log_fix_end
+void log_fix_end(overseer_s *overseer);
 
 // Returns a boolean value based on if the local fix_type is FIX_TYPE_REPAIR
-int log_repair_ongoing(overseer_s *overseer); // TODO Needed implement log_repair_ongoing
+int log_repair_ongoing(overseer_s *overseer);
 
 // Returns a boolean value based on if the local fix_type is FIX_TYPE_REPLAY
-int log_replay_ongoing(overseer_s *overseer); // TODO Needed implement log_replay_ongoing
+int log_replay_ongoing(overseer_s *overseer);
 
 // Not implemented yet, only logs an error message and returns EXIT_SUCCESS
 int log_repair_override(overseer_s *overseer); // TODO Extension implement log_repair_override

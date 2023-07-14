@@ -13,6 +13,7 @@ int overseer_init(overseer_s *overseer) {
     overseer->special_event = NULL;
     overseer->cm_reception_event = NULL;
     overseer->etr_reception_event = NULL;
+    overseer->p_liveness_event = NULL;
     overseer->es = NULL;
 
     // Malloc the hosts list
@@ -176,7 +177,7 @@ struct event_base *eb_new() {
 }
 
 void overseer_wipe(overseer_s *overseer) {
-    fflush(stderr);
+    if (INSTANT_FFLUSH) fflush(stderr);
 
     debug_log(3, stdout, "Beginning cleanup ...\n- Log ... ");
     free(overseer->log);
@@ -203,6 +204,8 @@ void overseer_wipe(overseer_s *overseer) {
         event_free(overseer->cm_reception_event);
     if (overseer->etr_reception_event != NULL)
         event_free(overseer->etr_reception_event);
+    if (overseer->p_liveness_event != NULL)
+        event_free(overseer->p_liveness_event);
 
     if (overseer->es != NULL) {
         debug_log(3, stdout, "Done.\n- Election state ... ");
@@ -222,7 +225,7 @@ void overseer_wipe(overseer_s *overseer) {
 void debug_log(uint8_t level, FILE *stream, const char *string) {
     if (DEBUG_LEVEL >= level) {
         fprintf(stream, "%s", string);
-        fflush(stream);
+        if (INSTANT_FFLUSH) fflush(stream);
     }
     return;
 }

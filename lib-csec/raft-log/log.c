@@ -267,13 +267,13 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
                 "Failed to commit entry %ld: it is marked as empty.\n" :
                 "Failed to commit entry %ld: it is marked as invalid.\n",
                 index);
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
 
     if (index > 1 && overseer->log->commit_index < index - 1) {
         fprintf(stderr, "Failed to commit entry %ld: previous entry is not in a committed state.\n", index);
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
 

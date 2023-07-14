@@ -13,7 +13,7 @@ void mfs_array_print(mocked_fs_s *mfs, FILE *stream) {
         fprintf(stream, "\n");
     }
     fprintf(stream, "%ld Total ops applied\n", mfs->nb_ops);
-    fflush(stream);
+    if (INSTANT_FFLUSH) fflush(stream);
     return;
 }
 

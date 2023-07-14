@@ -45,7 +45,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
     retransmission_cache_s *nrtc = malloc(sizeof(retransmission_cache_s));
     if (nrtc == NULL) {
         perror("Malloc retransmission cache");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return 0;
     }
 
@@ -133,7 +133,7 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
         if (flag && FLAG_SILENT == FLAG_SILENT)
             return EXIT_SUCCESS;
         fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
 
@@ -157,6 +157,6 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
     if (flag && FLAG_SILENT == FLAG_SILENT)
         return EXIT_SUCCESS;
     fprintf(stderr, "Attempting to remove cache element %d but it does not exist.\n", id);
-    fflush(stderr);
+    if (INSTANT_FFLUSH) fflush(stderr);
     return EXIT_FAILURE;
 }

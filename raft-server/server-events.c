@@ -7,29 +7,28 @@
 int server_random_ops_init(overseer_s *overseer) {
     debug_log(3, stdout, "- Initializing random ops generation events ... ");
     // Create a non-persistent event only triggered by timeout
-    struct event *nevent = event_new(overseer->eb,
-                                     -1,
-                                     EV_TIMEOUT,
-                                     server_random_ops_cb,
-                                     (void *) overseer);
+    struct event *nevent = evtimer_new(overseer->eb,
+                                       server_random_ops_cb,
+                                       (void *) overseer);
     if (nevent == NULL) {
         fprintf(stderr, "Failed to create the data op event\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
 
     // Random operation generator has low priority
     event_priority_set(nevent, 1);
 
-    if (overseer->special_event != NULL) // Freeing the past heartbeat if any
+    if (overseer->special_event != NULL) // Freeing the past random op generator event if any
         event_free(overseer->special_event);
     overseer->special_event = nevent;
 
     // Add the event in the loop
+    errno = 0;
     struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_RANDOM_OPS);
     if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
         fprintf(stderr, "Failed to add the data op event\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
 
@@ -53,7 +52,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         data_op_s *nop = op_new();
         if (nop == NULL) {
             fprintf(stderr, "Failed to generate a new data op\n");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             return; // Abort in case of failure
         }
 
@@ -67,7 +66,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         if (nqelem == NULL) {
             free(nop); // Cleanup and abort in case of failure
             fprintf(stderr, "Failed to add a new op in the queue\n");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             return;
         }
 
@@ -88,7 +87,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
                     "Failed to initialize queue element deletion timeout.\n"
                     "Clear queue from element: %d element(s) freed.\n",
                     ops_queue_free_all((overseer_s *) arg, nqelem));
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             return;
         }
 
@@ -107,7 +106,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     // Set next generator event
     if (server_random_ops_init((overseer_s *) arg) != EXIT_SUCCESS) {
         fprintf(stderr, "Fatal Error: random ops generator event couldn't be set\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -123,7 +122,7 @@ void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void
     int nb_freed = ops_queue_free_all((overseer_s *) arg, ((overseer_s *) arg)->mfs->queue);
     if (DEBUG_LEVEL >= 1) {
         printf("Proposition queue element timed out: %d element(s) freed.\n", nb_freed);
-        fflush(stdout);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
     return;
 }

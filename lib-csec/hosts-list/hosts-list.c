@@ -312,7 +312,7 @@ int hl_host_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_i
                 "Given host id (%d) beyond host list boundary (%d)",
                 host_id,
                 overseer->hl->nb_hosts - 1);
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
     host_s *target_host = &overseer->hl->hosts[host_id];

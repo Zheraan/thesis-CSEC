@@ -24,7 +24,7 @@ int main() {
     overseer_s overseer;
     if (overseer_init(&overseer) != EXIT_SUCCESS) {
         fprintf(stderr, "Failed to initialize the program state\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
     debug_log(1, stdout, "Done.\nStarting event loop initialization ...\n");

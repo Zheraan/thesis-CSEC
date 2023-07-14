@@ -9,7 +9,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
 
     if (ncm == NULL) {
         perror("malloc new control message struct");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return (NULL);
     }
 
@@ -70,7 +70,7 @@ void cm_print(const control_message_s *hb, FILE *stream) {
             hb->commit_index,
             hb->P_term,
             hb->HS_term);
-    fflush(stream);
+    if (INSTANT_FFLUSH) fflush(stream);
     return;
 }
 
@@ -143,7 +143,7 @@ void cm_print_type(const control_message_s *cm, FILE *stream) {
 
         default:
             fprintf(stderr, "Invalid control message type %d\n", cm->type);
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
     }
 
     return;
@@ -177,13 +177,13 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
             printf("Sending CM of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
         else
             printf("Sending CM of type %d ... \n", type);
-        fflush(stdout);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
 
     control_message_s *cm = cm_new(overseer, type, ack_back);
     if (cm == NULL) {
         fprintf(stderr, "Failed to create message of type %d", type);
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
 
@@ -193,7 +193,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         uint32_t rv = rtc_add_new(overseer, rt_attempts, sockaddr, socklen, type, NULL, ack_back);
         if (rv == 0) {
             fprintf(stderr, "Failed creating retransmission cache\n");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             return EXIT_FAILURE;
         }
         cm->ack_reference = rv;
@@ -217,7 +217,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                    (const struct sockaddr *) &sockaddr,
                    socklen) == -1) {
             perror("CM sendto");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             if (errno != EAGAIN) {
                 free(cm);
                 return EXIT_FAILURE;
@@ -239,8 +239,8 @@ int cm_reception_init(overseer_s *overseer) {
                                               cm_receive_cb,
                                               (void *) overseer);
     if (reception_event == NULL) {
-        fprintf(stderr, "Fatal error: failed to create the next CM reception event\n");
-        fflush(stderr);
+        fprintf(stderr, "Fatal error: failed to create the next CM reception event.\n");
+        if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -253,8 +253,8 @@ int cm_reception_init(overseer_s *overseer) {
 
     // Add the event in the loop
     if (event_add(reception_event, NULL) != 0) {
-        fprintf(stderr, "Fatal error: failed to add the next CM reception event\n");
-        fflush(stderr);
+        fprintf(stderr, "Fatal error: failed to add the next CM reception event.\n");
+        if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -278,7 +278,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
                      (struct sockaddr *) &sender_addr,
                      &socklen) == -1) {
             perror("CM recvfrom");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             if (errno != EAGAIN) {
                 debug_log(1, stdout, "Failure receiving CM.\n");
                 cm_reception_init((overseer_s *) arg);
@@ -301,7 +301,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (cm.ack_back != 0) {
         if (DEBUG_LEVEL >= 4) {
             printf("-> Ack back value is non-zero (%d), removing corresponding RT cache entry ... ", cm.ack_back);
-            fflush(stdout);
+            if (INSTANT_FFLUSH) fflush(stdout);
         }
         if (rtc_remove_by_id((overseer_s *) arg, cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
@@ -326,7 +326,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 3) {
         printf("CM retransmission timed out, reattempting transmission (attempt %d) ... ",
                ((retransmission_cache_s *) arg)->cur_attempts + 1);
-        fflush(stdout);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
     int success = 1;
 
@@ -355,7 +355,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         if (errno == EUNKNOWN_TIMEOUT_TYPE ||
             event_add(((retransmission_cache_s *) arg)->ev, &ops_timeout) != 0) {
             fprintf(stderr, "Failed to add the CM retransmission event\n");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             success = 0;
         }
     }
@@ -744,14 +744,14 @@ int election_actions(overseer_s *overseer,
                 "Fatal error: a node with host status %d should not receive a CM of type %d.\n",
                 local_status,
                 cm->type);
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
     switch (cm->type) {
         case MSG_TYPE_HS_VOTE:
             if (cm->HS_term != overseer->log->HS_term || // If HS-terms don't match
-                overseer->es->candidacy != HS_CANDIDATE || // If the local node is not a candidate
+                overseer->es->candidacy != CANDIDACY_HS || // If the local node is not a candidate
                 cm->commit_index != overseer->es->bid_number) // If vote does not concern the right bid
                 break; // Ignore vote
 
@@ -794,7 +794,7 @@ int election_actions(overseer_s *overseer,
 
         default:
             fprintf(stderr, "Fatal error: Invalid election CM type %d.\n", cm->type);
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             exit(EXIT_FAILURE);
     }
 
@@ -871,7 +871,7 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
 
         default:
             fprintf(stderr, "Fatal error: Invalid CM type %d\n", cm->type);
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             exit(EXIT_FAILURE);
     }
 
@@ -991,7 +991,7 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
 
         default:
             fprintf(stderr, "Fatal error: Invalid CM type %d\n", cm->type);
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             exit(EXIT_FAILURE);
     }
 
@@ -1027,7 +1027,7 @@ int cm_forward(const overseer_s *overseer,
                    (const struct sockaddr *) &sockaddr,
                    socklen) == -1) {
             perror("CM sendto");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             if (errno != EAGAIN)
                 return EXIT_FAILURE;
         }

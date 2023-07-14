@@ -9,6 +9,10 @@
 #define DEBUG_LEVEL 4
 #endif
 
+#ifndef INSTANT_FFLUSH
+#define INSTANT_FFLUSH 1
+#endif
+
 enum entry_state;
 enum timeout_type;
 enum message_type;
@@ -54,6 +58,8 @@ struct overseer_s {
     struct event *cm_reception_event;
     // Pointer to keep track of entry transmission reception events
     struct event *etr_reception_event;
+    // Pointer to keep track of P liveness timeout events
+    struct event *p_liveness_event;
     // Socket for sending and receiving control messages
     evutil_socket_t socket_cm;
     // Socket for sending and receiving transmissions

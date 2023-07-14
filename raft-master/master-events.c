@@ -35,7 +35,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
 
         if (DEBUG_LEVEL >= 4) {
             printf("\n- Heartbeat target: %s\n", target->name);
-            fflush(stdout);
+            if (INSTANT_FFLUSH) fflush(stdout);
         }
 
         receiver = (target->addr);
@@ -60,13 +60,13 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
     // Set the next event
     if (master_heartbeat_init((overseer_s *) arg) != EXIT_SUCCESS) {
         fprintf(stderr, "Fatal Error: next heartbeat event couldn't be set\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE); // TODO Extension Crash handler
     }
 
     if (DEBUG_LEVEL >= 3) {
         printf("Done (%d heartbeats sent).\n", nb_heartbeats);
-        fflush(stdout);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
     debug_log(4, stdout, "End of HB broadcast callback ------------------------------------------------------\n\n");
     return;
@@ -83,7 +83,7 @@ int master_heartbeat_init(overseer_s *overseer) {
                                        (void *) overseer);
     if (hb_event == NULL) {
         fprintf(stderr, "Failed to create the heartbeat event\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return (EXIT_FAILURE);
     }
 
@@ -105,11 +105,10 @@ int master_heartbeat_init(overseer_s *overseer) {
     // Add the event in the loop
     if (event_add(hb_event, &sender_timeout) != 0) {
         fprintf(stderr, "Failed to add the heartbeat event\n");
-        fflush(stderr);
+        if (INSTANT_FFLUSH) fflush(stderr);
         return (EXIT_FAILURE);
     }
 
     debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
-

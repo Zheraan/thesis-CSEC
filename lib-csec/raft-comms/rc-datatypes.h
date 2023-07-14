@@ -196,9 +196,9 @@ enum timeout_type {
     TIMEOUT_TYPE_PROPOSITION = 2,
     // Message ack timeout type, after which a message is considered to be lost
     TIMEOUT_TYPE_ACK = 3,
-    // Master election timeout type
-    TIMEOUT_TYPE_ELECTION = 4,
-    // Fuzzer delay introduction timeout type
+    // Master election timeout type, after which a round of HS elections starts
+    TIMEOUT_TYPE_HS_ELECTION = 4,
+    // Fuzzer delay introduction timeout type, after which a message delayed by the fuzzer is sent
     TIMEOUT_TYPE_FUZZER = 5,
     // Random data op generator timeout type, after which a new random data op is generated and proposed
     TIMEOUT_TYPE_RANDOM_OPS = 6,
