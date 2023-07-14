@@ -382,6 +382,13 @@ int cm_actions(overseer_s *overseer,
         hl_host_index_change(overseer, cm->host_id, cm->next_index, cm->commit_index);
     }
 
+    // If message has superior or equal P-term and comes from P and local is not already P
+    if (cm->P_term >= overseer->log->P_term && cm->status == HOST_STATUS_P && local_status != HOST_STATUS_P)
+        p_liveness_set_timeout(overseer); // Reset P liveness timer
+    // If message has superior or equal HS-term and comes from HS and local is not already HS
+    if (cm->HS_term >= overseer->log->HS_term && cm->status == HOST_STATUS_HS && local_status != HOST_STATUS_HS)
+        election_set_timeout(overseer); // Reset HS election timer
+
     // If CM is a default HB, takeover message or network probe message
     if (cm->type == MSG_TYPE_HB_DEFAULT ||
         cm->type == MSG_TYPE_NETWORK_PROBE ||
@@ -480,8 +487,7 @@ int hb_actions_as_master(overseer_s *overseer,
     if (cm->HS_term > overseer->log->HS_term) { // If dist HS-term is greater
         if (cm->status == HOST_STATUS_HS)
             hl_update_status(overseer, HOST_STATUS_HS, cm->host_id); // Auto steps down if necessary
-        stop_hs_candidacy(overseer); // Stop local candidacy
-        election_state_reset(overseer->es); // Reset state
+        election_state_reset(overseer); // Reset election state
         overseer->log->HS_term = cm->HS_term;
     }
 
@@ -781,7 +787,7 @@ int election_actions(overseer_s *overseer,
             overseer->log->HS_term = cm->HS_term; // Set the HS-term if dist was higher
             overseer->es->bid_number = cm->commit_index; // Set the local bid if dist was higher
             overseer->es->last_voted_bid = cm->commit_index; // Keep track of vote
-            stop_hs_candidacy(overseer); // Stop local candidacy
+            end_hs_candidacy_round(overseer); // Stop local candidacy
 
             // Reply with HS vote
             return cm_sendto_with_rt_init(overseer,

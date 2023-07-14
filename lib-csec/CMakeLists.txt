@@ -32,4 +32,4 @@ add_library(
         raft-comms/entry-transmission.c
         raft-comms/entry-transmission.h
         elections.c
-        elections.h)
+        elections.h p-liveness.c p-liveness.h)

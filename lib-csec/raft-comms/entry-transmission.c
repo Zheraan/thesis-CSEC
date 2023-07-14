@@ -451,6 +451,13 @@ int etr_actions(overseer_s *overseer,
         hl_host_index_change(overseer, etr->cm.host_id, etr->cm.next_index, etr->cm.commit_index);
     }
 
+    // If message has superior or equal P-term and comes from P and local is not already P
+    if (etr->cm.P_term >= overseer->log->P_term && etr->cm.status == HOST_STATUS_P && local_status != HOST_STATUS_P)
+        p_liveness_set_timeout(overseer); // Reset P liveness timer
+    // If message has superior or equal HS-term and comes from HS and local is not already HS
+    if (etr->cm.HS_term >= overseer->log->HS_term && etr->cm.status == HOST_STATUS_HS && local_status != HOST_STATUS_HS)
+        election_set_timeout(overseer); // Reset HS election timer
+
     if (local_status == HOST_STATUS_P)
         return etr_actions_as_p(overseer, sender_addr, socklen, etr);
     else return etr_actions_as_s_hs_cs(overseer, sender_addr, socklen, etr);

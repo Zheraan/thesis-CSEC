@@ -25,6 +25,7 @@ int main() {
     //  then remove when demoted to CS
     if (master_heartbeat_init(&overseer) != EXIT_SUCCESS || // Initialize heartbeat events
         cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize control message reception events
+        p_liveness_set_timeout(&overseer) != EXIT_SUCCESS || // Initialize P liveness check
         etr_reception_init(&overseer) != EXIT_SUCCESS) // Initialize the entry transmission event
     {
         fprintf(stderr, "Failed to initialized the event loop\n");

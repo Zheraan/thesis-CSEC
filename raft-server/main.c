@@ -32,6 +32,7 @@ int main() {
     // Initialize event loop
     if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the message reception handler event
         server_random_ops_init(&overseer) != EXIT_SUCCESS || // Initialize the random ops generator
+        p_liveness_set_timeout(&overseer) != EXIT_SUCCESS || // Initialize P liveness check
         etr_reception_init(&overseer) != EXIT_SUCCESS) // Initialize the entry transmission event
     {
         fprintf(stderr, "Failed to initialize the event loop\n");
