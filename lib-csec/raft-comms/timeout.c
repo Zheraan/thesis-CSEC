@@ -41,7 +41,13 @@ struct timeval timeout_gen(enum timeout_type type) {
             randomize = 0;
             break;
 
-        case TIMEOUT_TYPE_ELECTION:
+        case TIMEOUT_TYPE_P_LIVENESS:
+            ntv.tv_usec = TIMEOUT_VALUE_P_LIVENESS_USEC;
+            ntv.tv_sec = TIMEOUT_VALUE_P_LIVENESS_SEC;
+            randomize = 0;
+            break;
+
+        case TIMEOUT_TYPE_HS_ELECTION:
             if (TIMEOUT_RANGE_ELECTION_USEC > 0)
                 modulo_usec = TIMEOUT_RANGE_ELECTION_USEC + 1;
             if (TIMEOUT_RANGE_ELECTION_SEC > 0)
@@ -70,7 +76,7 @@ struct timeval timeout_gen(enum timeout_type type) {
 
         default:
             fprintf(stderr, "Unknown timeout type\n");
-            fflush(stderr);
+            if (INSTANT_FFLUSH) fflush(stderr);
             errno = EUNKNOWN_TIMEOUT_TYPE;
             return ntv;
     }

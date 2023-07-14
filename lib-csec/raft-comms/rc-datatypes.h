@@ -18,12 +18,12 @@
 #define EUNKNOWN_TIMEOUT_TYPE (-1)
 
 #ifndef CM_DEFAULT_RT_ATTEMPTS
-// Default number of retransmission attempts for Control Messages
+// Default number of retransmission attempts for Control Messages (in addition to the original transmission)
 #define CM_DEFAULT_RT_ATTEMPTS 2
 #endif
 
 #ifndef ETR_DEFAULT_RT_ATTEMPTS
-// Default number of retransmission attempts for Control Messages
+// Default number of retransmission attempts for ETRs (in addition to the original transmission)
 #define ETR_DEFAULT_RT_ATTEMPTS 2
 #endif
 
@@ -36,26 +36,26 @@
 #endif
 
 // Timeout duration range for elections. Default value of 500ms
-#ifndef TIMEOUT_RANGE_ELECTION_USEC
-#define TIMEOUT_RANGE_ELECTION_USEC 500000
-#endif
 #ifndef TIMEOUT_RANGE_ELECTION_SEC
 #define TIMEOUT_RANGE_ELECTION_SEC 0
 #endif
-// Timeout duration offset for elections. Default value of 150ms
-#ifndef TIMEOUT_OFFSET_ELECTION_USEC
-#define TIMEOUT_OFFSET_ELECTION_USEC 150000
+#ifndef TIMEOUT_RANGE_ELECTION_USEC
+#define TIMEOUT_RANGE_ELECTION_USEC 500000
 #endif
+// Timeout duration offset for elections. Default value of 150ms
 #ifndef TIMEOUT_OFFSET_ELECTION_SEC
 #define TIMEOUT_OFFSET_ELECTION_SEC 0
 #endif
+#ifndef TIMEOUT_OFFSET_ELECTION_USEC
+#define TIMEOUT_OFFSET_ELECTION_USEC 150000
+#endif
 
 // Timeout duration range for the fuzzer. Default value of 2s
-#ifndef TIMEOUT_RANGE_FUZZER_USEC
-#define TIMEOUT_RANGE_FUZZER_USEC 999999
-#endif
 #ifndef TIMEOUT_RANGE_FUZZER_SEC
 #define TIMEOUT_RANGE_FUZZER_SEC 1
+#endif
+#ifndef TIMEOUT_RANGE_FUZZER_USEC
+#define TIMEOUT_RANGE_FUZZER_USEC 999999
 #endif
 // Timeout duration offset for the fuzzer. Default value of 10ms
 #ifndef TIMEOUT_OFFSET_FUZZER_SEC
@@ -66,11 +66,11 @@
 #endif
 
 // Timeout duration range for the random op generator. Default value of 8s
-#ifndef TIMEOUT_RANGE_RANDOM_OPS_USEC
-#define TIMEOUT_RANGE_RANDOM_OPS_USEC 999999
-#endif
 #ifndef TIMEOUT_RANGE_RANDOM_OPS_SEC
 #define TIMEOUT_RANGE_RANDOM_OPS_SEC 7
+#endif
+#ifndef TIMEOUT_RANGE_RANDOM_OPS_USEC
+#define TIMEOUT_RANGE_RANDOM_OPS_USEC 999999
 #endif
 // Timeout duration offset for the random op generator. Default value of 0ms
 #ifndef TIMEOUT_OFFSET_RANDOM_OPS_SEC
@@ -81,19 +81,19 @@
 #endif
 
 // Timeout duration for propositions. Default value of 500ms
-#ifndef TIMEOUT_VALUE_PROPOSITION_USEC
-#define TIMEOUT_VALUE_PROPOSITION_USEC 500000
-#endif
 #ifndef TIMEOUT_VALUE_PROPOSITION_SEC
 #define TIMEOUT_VALUE_PROPOSITION_SEC 0
 #endif
+#ifndef TIMEOUT_VALUE_PROPOSITION_USEC
+#define TIMEOUT_VALUE_PROPOSITION_USEC 500000
+#endif
 
-// Timeout duration for Acks. Default value of 150ms
+// Timeout duration for Acks. Default value of 170ms
 #ifndef TIMEOUT_VALUE_ACK_SEC
 #define TIMEOUT_VALUE_ACK_SEC 0
 #endif
 #ifndef TIMEOUT_VALUE_ACK_USEC
-#define TIMEOUT_VALUE_ACK_USEC 150000
+#define TIMEOUT_VALUE_ACK_USEC 170000
 #endif
 
 // Timeout duration for the proposition retransmission. Default value of 300ms
@@ -104,20 +104,28 @@
 #define TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC 300000
 #endif
 
-// Timeout duration for P's heartbeat. Default value of 2s
+// Timeout duration for P's heartbeat. Default value of 1.5s
 #ifndef TIMEOUT_VALUE_P_HB_SEC
-#define TIMEOUT_VALUE_P_HB_SEC 2
+#define TIMEOUT_VALUE_P_HB_SEC 1
 #endif
 #ifndef TIMEOUT_VALUE_P_HB_USEC
-#define TIMEOUT_VALUE_P_HB_USEC 0
+#define TIMEOUT_VALUE_P_HB_USEC 500000
 #endif
 
-// Timeout duration for HS's heartbeat. Default value of 2s
+// Timeout duration for HS's heartbeat. Default value of 1.5s
 #ifndef TIMEOUT_VALUE_HS_HB_SEC
-#define TIMEOUT_VALUE_HS_HB_SEC 2
+#define TIMEOUT_VALUE_HS_HB_SEC 1
 #endif
 #ifndef TIMEOUT_VALUE_HS_HB_USEC
-#define TIMEOUT_VALUE_HS_HB_USEC 0
+#define TIMEOUT_VALUE_HS_HB_USEC 500000
+#endif
+
+// Timeout duration for P's liveness. Default value of 3s
+#ifndef TIMEOUT_VALUE_P_LIVENESS_SEC
+#define TIMEOUT_VALUE_P_LIVENESS_SEC 3
+#endif
+#ifndef TIMEOUT_VALUE_P_LIVENESS_USEC
+#define TIMEOUT_VALUE_P_LIVENESS_USEC 0
 #endif
 
 
@@ -180,22 +188,24 @@ enum message_type {
 };
 
 enum timeout_type {
-    // P master heartbeat timeout type
+    // P master heartbeat timeout type, after which a new heartbeat is sent
     TIMEOUT_TYPE_P_HB = 0,
-    // HS master heartbeat timeout
+    // HS master heartbeat timeout type, after which a new heartbeat is sent
     TIMEOUT_TYPE_HS_HB = 1,
     // Data op proposition timeout type, after which the proposition is deleted from queue
     TIMEOUT_TYPE_PROPOSITION = 2,
-    // Message ack timeout type
+    // Message ack timeout type, after which a message is considered to be lost
     TIMEOUT_TYPE_ACK = 3,
     // Master election timeout type
     TIMEOUT_TYPE_ELECTION = 4,
     // Fuzzer delay introduction timeout type
     TIMEOUT_TYPE_FUZZER = 5,
-    // Random data op generator timeout type
+    // Random data op generator timeout type, after which a new random data op is generated and proposed
     TIMEOUT_TYPE_RANDOM_OPS = 6,
     // Timeout before retransmitting cached ops proposition
     TIMEOUT_TYPE_PROP_RETRANSMISSION = 7,
+    // Timeout before P is considered unreachable
+    TIMEOUT_TYPE_P_LIVENESS = 8,
 };
 
 typedef struct control_message_s {
