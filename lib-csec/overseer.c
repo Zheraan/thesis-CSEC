@@ -134,7 +134,8 @@ int overseer_init(overseer_s *overseer) {
             overseer_wipe(overseer);
             return EXIT_FAILURE;
         }
-        election_state_reset(nes);
+        overseer->es->election_round_event = NULL;
+        election_state_reset(overseer);
         overseer->es = nes;
     }
 
