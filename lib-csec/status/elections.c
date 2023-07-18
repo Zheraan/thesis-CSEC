@@ -80,22 +80,89 @@ void end_hs_candidacy_round(overseer_s *overseer) {
 }
 
 int stepdown_to_cs(overseer_s *overseer) {
+    debug_log(1, stdout, "Stepping down to CS ... ");
 
+    if (overseer->hl->nb_masters == 1) {
+        debug_log(1, stdout, "Local host is only master, aborting.\n");
+        return EXIT_SUCCESS;
+    }
+
+    hl_update_status(overseer, HOST_STATUS_CS, overseer->hl->localhost_id);
+
+    // Resets the elections and automatically adds the corresponding event
+    election_state_reset(overseer);
+
+    // Remove Master Heartbeat
+    if (overseer->special_event != NULL) {
+        event_free(overseer->special_event);
+        overseer->special_event = NULL;
+    }
+
+    // Remove P liveness event if set (meaning last role was HS)
+    if (overseer->p_liveness_event != NULL) {
+        event_free(overseer->p_liveness_event);
+        overseer->p_liveness_event = NULL;
+    }
+
+    // TODO Improvement Reset replication array to avoid having stale data impact future promotions ?
+
+    debug_log(1, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 int promote_to_hs(overseer_s *overseer) {
+    debug_log(1, stdout, "Promoting local node to HS ... ");
+
+    if (overseer->hl->nb_masters == 1) {
+        debug_log(1, stdout, "Local host is only master, promoting to P instead.\n");
+        return promote_to_p(overseer);
+    }
+
+    hl_update_status(overseer, HOST_STATUS_HS, overseer->hl->localhost_id);
+
+    // Automatically removes the corresponding event
     election_state_reset(overseer);
 
+    if (master_heartbeat_init(overseer) != EXIT_SUCCESS) {
+        debug_log(0, stderr, "Failure initializing master heartbeat, stepping back down to CS.\n");
+        return stepdown_to_cs(overseer);
+    }
+
+    cm_broadcast(overseer, MSG_TYPE_HS_TAKEOVER, CM_DEFAULT_RT_ATTEMPTS, FLAG_SKIP_S);
+
+    debug_log(1, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 int promote_to_p(overseer_s *overseer) {
+    debug_log(1, stdout, "Promoting local node to P ... ");
+    // TODO Improvement query for P's liveness before taking over
+    hl_update_status(overseer, HOST_STATUS_P, overseer->hl->localhost_id);
 
+    // Remove P liveness event if set (meaning last role was HS)
+    if (overseer->p_liveness_event != NULL) {
+        event_free(overseer->p_liveness_event);
+        overseer->p_liveness_event = NULL;
+    }
+
+    // Automatically removes the corresponding event
+    election_state_reset(overseer);
+
+    // Add heartbeat if not set
+    if (overseer->special_event == NULL) {
+        if (master_heartbeat_init(overseer) != EXIT_SUCCESS) {
+            debug_log(0, stderr, "Failure initializing master heartbeat, stepping back down to CS.\n");
+            return stepdown_to_cs(overseer);
+        }
+    }
+
+    cm_broadcast(overseer, MSG_TYPE_P_TAKEOVER, CM_DEFAULT_RT_ATTEMPTS, FLAG_NOSKIP);
+
+    debug_log(1, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
-void election_set_timeout(overseer_s *overseer) {
+int election_set_timeout(overseer_s *overseer) {
     debug_log(4, stdout, "- Initializing next election timeout event ... ");
     struct event *election_event = evtimer_new(overseer->eb,
                                                election_timeout_cb,
@@ -123,12 +190,14 @@ void election_set_timeout(overseer_s *overseer) {
     }
 
     debug_log(4, stdout, "Done.\n");
-    return;
+    return EXIT_SUCCESS;
 }
 
 // Callback for when an election times out, arg must be an overseer_s*
 void election_timeout_cb(evutil_socket_t fd, short event, void *arg) {
-    debug_log(2, stdout, "Election timeout: starting new HS bid.\n");
-    start_hs_candidacy_round((overseer_s *) arg);
+    if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status == HOST_STATUS_CS) {
+        debug_log(2, stdout, "Election timeout: starting new HS bid.\n");
+        start_hs_candidacy_round((overseer_s *) arg);
+    }
     return;
 }

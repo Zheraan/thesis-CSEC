@@ -26,16 +26,27 @@ int start_hs_candidacy_round(overseer_s *overseer);
 // Calls election_set_timeout to set the next round.
 void end_hs_candidacy_round(overseer_s *overseer);
 
-int stepdown_to_cs(overseer_s *overseer); // TODO Needed
+// Updates the local node status to be CS, removes the master heartbeat if set, removes P liveness if set,
+// calls election_state_reset (which adds election timer).
+// Has no effect if local host is the only master node.
+int stepdown_to_cs(overseer_s *overseer);
 
-int promote_to_hs(overseer_s *overseer); // TODO Needed
+// Updates the local node status to be HS, removes the election event, sets the master heartbeat, and
+// broadcasts a takeover message to all master nodes.
+// Calls promote_to_p if local host is the only master node
+int promote_to_hs(overseer_s *overseer);
 
-int promote_to_p(overseer_s *overseer); // TODO Needed
+
+// Updates the local node status to be P, removes the election event, sets the master heartbeat, removes
+// P liveness monitoring and broadcasts a takeover message to all master nodes.
+// Calls promote_to_p if local host is the only master node
+int promote_to_p(overseer_s *overseer);
 
 // (re)sets the timeout event for the elections.
-void election_set_timeout(overseer_s *overseer);
+// Always returns EXIT_SUCCESS
+int election_set_timeout(overseer_s *overseer);
 
-// Callback for receiving control messages, arg must be an overseer_s*
+// Callback for receiving control messages, arg must be an overseer_s*. Has no effect if local is not CS.
 void election_timeout_cb(evutil_socket_t fd, short event, void *arg);
 
 #endif //THESIS_CSEC_ELECTIONS_H

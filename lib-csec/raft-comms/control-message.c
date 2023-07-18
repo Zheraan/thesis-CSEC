@@ -448,7 +448,7 @@ int cm_actions(overseer_s *overseer,
 
     // If CM is elections-related
     if (cm->type == MSG_TYPE_HS_VOTING_BID || cm->type == MSG_TYPE_HS_VOTE)
-        return election_actions(overseer, sender_addr, socklen, cm);
+        return cm_election_actions(overseer, sender_addr, socklen, cm);
 
     // Else if CM is any other type
 
@@ -783,10 +783,10 @@ int hb_actions_as_server(overseer_s *overseer,
     return EXIT_SUCCESS;
 }
 
-int election_actions(overseer_s *overseer,
-                     struct sockaddr_in6 sender_addr,
-                     socklen_t socklen,
-                     control_message_s *cm) {
+int cm_election_actions(overseer_s *overseer,
+                        struct sockaddr_in6 sender_addr,
+                        socklen_t socklen,
+                        control_message_s *cm) {
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
     // If local is S, or if local is P and CM is a vote

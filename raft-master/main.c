@@ -17,21 +17,19 @@ int main() {
     }
     debug_log(1, stdout, "Done.\nStarting event loop initialization ...\n");
 
-    // TODO Test remove test statement
-    overseer.hl->hosts[overseer.hl->localhost_id].status = HOST_STATUS_P;
-
     // Initialize event loop
-    // TODO Test Remove heartbeat to have it on only initialized when transitioning to HS (and thus it remains for P)
-    //  then remove when demoted to CS
-    if (master_heartbeat_init(&overseer) != EXIT_SUCCESS || // Initialize heartbeat events
-        cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize control message reception events
-        p_liveness_set_timeout(&overseer) != EXIT_SUCCESS || // Initialize P liveness check
-        etr_reception_init(&overseer) != EXIT_SUCCESS) // Initialize the entry transmission event
-    {
+    if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize control message reception events
+        etr_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the entry transmission event
+        stepdown_to_cs(&overseer) != EXIT_SUCCESS) { // Sets the status and necessary events
         fprintf(stderr, "Failed to initialized the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }
+
+    // If there is only one master, we can directly set it as P
+    if (overseer.hl->nb_masters == 1)
+        promote_to_p(&overseer);
+
     debug_log(1, stdout, "Done.\nLaunching raft-master.\n");
 
     // Run the loop

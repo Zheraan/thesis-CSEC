@@ -117,10 +117,10 @@ int hb_actions_as_server(overseer_s *overseer,
 // Determines the correct actions to take depending on local status and incoming CM. Used for incoming CM
 // pertaining to elections and a local host that is a master node.
 // Returns EXIT_SUCCESS or EXIT_FAILURE
-int election_actions(overseer_s *overseer,
-                     struct sockaddr_in6 sender_addr,
-                     socklen_t socklen,
-                     control_message_s *cm);
+int cm_election_actions(overseer_s *overseer,
+                        struct sockaddr_in6 sender_addr,
+                        socklen_t socklen,
+                        control_message_s *cm);
 
 // Determines the correct actions to take depending on local status and incoming CM. Used for incoming
 // non-heartbeat CMs and a local host of status S or CS.
