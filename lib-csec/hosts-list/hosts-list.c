@@ -119,6 +119,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                 return 0;
             }
             localhost_init = 1;
+            list->hosts[parsed].status = list->hosts[parsed].type == NODE_TYPE_M ? HOST_STATUS_CS : HOST_STATUS_S;
             list->localhost_id = parsed;
         } else {
             fprintf(stderr, "Failure to parse host: invalid host locality \"%s\"", token);
@@ -148,7 +149,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             list->hosts[parsed].status = HOST_STATUS_UNRESOLVED;
             debug_log(2, stdout, " (unresolved)\n");
         } else {
-            list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
+            if (list->hosts[parsed].locality != HOST_LOCALITY_LOCAL)
+                list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
             // Only the first returned entry is used
             memcpy(&(list->hosts[parsed].addr), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
             list->hosts[parsed].socklen = res->ai_addrlen;

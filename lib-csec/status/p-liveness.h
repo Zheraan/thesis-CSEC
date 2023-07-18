@@ -5,7 +5,8 @@
 #ifndef THESIS_CSEC_P_LIVENESS_H
 #define THESIS_CSEC_P_LIVENESS_H
 
-#include "overseer.h"
+#include "status-datatypes.h"
+#include "../overseer.h"
 
 // (re)sets the timeout event for P's liveness. Returns EXIT_SUCCESS or causes a Fatal Error in case of failure.
 int p_liveness_set_timeout(overseer_s *overseer);

@@ -5,9 +5,9 @@
 #ifndef THESIS_CSEC_MASTER_EVENTS_H
 #define THESIS_CSEC_MASTER_EVENTS_H
 
-#include "raft-comms/timeout.h"
-#include "raft-comms/control-message.h"
-#include "overseer.h"
+#include "../raft-comms/timeout.h"
+#include "../raft-comms/control-message.h"
+#include "../overseer.h"
 
 // Broadcasts a heartbeat to all S and HS if local is P, and to all CS if local is HS
 // Callback for HS and P's periodic heartbeat

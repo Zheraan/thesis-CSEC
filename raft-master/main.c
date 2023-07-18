@@ -5,7 +5,7 @@
 #endif
 
 #include "lib-csec.h"
-#include "master-events.h"
+#include "status/master-events.h"
 
 int main() {
     debug_log(1, stdout, "Starting program state initialization ...\n");

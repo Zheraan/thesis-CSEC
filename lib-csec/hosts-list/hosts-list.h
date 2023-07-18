@@ -15,6 +15,7 @@
 #include <event2/util.h>
 #include "hl-datatypes.h"
 #include "../overseer.h"
+#include "../status/elections.h"
 
 #ifndef HOSTS_LIST_SIZE
 #define HOSTS_LIST_SIZE 128 // May be redefined

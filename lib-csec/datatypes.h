@@ -39,8 +39,7 @@ typedef struct election_state_s election_state_s;
 #include "mocked-fs/mfs-datatypes.h"
 #include "hosts-list/hl-datatypes.h"
 #include "raft-comms/rc-datatypes.h"
-#include "elections.h"
-#include "p-liveness.h"
+#include "status/status-datatypes.h"
 
 // Program state structure.
 // Contains pointers to its composing data structures and the communication socket

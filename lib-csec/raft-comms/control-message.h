@@ -5,14 +5,20 @@
 #ifndef THESIS_CSEC_CONTROL_MESSAGE_H
 #define THESIS_CSEC_CONTROL_MESSAGE_H
 
+#define FLAG_NOSKIP 0x0
+#define FLAG_SKIP_S 0x1
+#define FLAG_SKIP_CS 0x10
+#define FLAG_SKIP_HS 0x100
+#define FLAG_SKIP_P 0x1000
+
 #include <stdio.h>
 #include <event2/util.h>
 #include <event2/event.h>
 #include "rc-datatypes.h"
 #include "../hosts-list/hosts-list.h"
 #include "timeout.h"
+#include "../status/p-liveness.h"
 #include "../overseer.h"
-#include "../elections.h"
 
 // Allocates a new control message struct and initializes it with the overseer's values. Returns NULL in case
 // memory allocation fails.
@@ -80,6 +86,10 @@ int cm_check_action(overseer_s *overseer,
 // Callback for retransmitting events, cleans up after the maximum number of attempts has been made.
 // Arg must be an overseer_s*
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
+
+// Broadcasts a CM to all master nodes except for the local host.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
+int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attempts, uint8_t flags);
 
 // Determines the correct actions to take depending on local status and incoming CM, for all host types.
 // Returns EXIT_SUCCESS or EXIT_FAILURE

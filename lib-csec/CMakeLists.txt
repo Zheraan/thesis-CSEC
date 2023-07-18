@@ -31,5 +31,12 @@ add_library(
         mocked-fs/ops-queue.h
         raft-comms/entry-transmission.c
         raft-comms/entry-transmission.h
-        elections.c
-        elections.h p-liveness.c p-liveness.h)
+        status/p-liveness.c
+        status/p-liveness.h
+        status/elections.c
+        status/elections.h
+        status/master-events.c
+        status/master-events.h
+        status/server-events.c
+        status/server-events.h
+        status/status-datatypes.h)

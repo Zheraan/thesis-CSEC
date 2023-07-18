@@ -312,7 +312,6 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
     host_s *target;
     struct sockaddr_in6 receiver;
     socklen_t receiver_len;
-    char buf[256];
 
     debug_log(3, stdout, "Broadcasting Commit Order ... ");
     int nb_orders = 0;
@@ -341,7 +340,6 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
         }
         *netr = *netr_blueprint;
 
-        evutil_inet_ntop(AF_INET6, &(receiver.sin6_addr), buf, 256);
         if (DEBUG_LEVEL >= 3) {
             printf("- Commit order: ");
         }
@@ -389,7 +387,6 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
     }
 
     host_s *target;
-    char buf[256];
 
     debug_log(3, stdout, "Broadcasting New Entry ... ");
     int nb_etr = 0;
@@ -414,7 +411,6 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
         }
         *netr = i == sender_id ? *netr_ack : *netr_noack; // Copy data from the "blueprint" ETR
 
-        evutil_inet_ntop(AF_INET6, &(target->addr.sin6_addr), buf, 256);
         if (DEBUG_LEVEL >= 3) {
             printf("- New Entry: ");
         }

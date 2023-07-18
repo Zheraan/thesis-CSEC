@@ -365,6 +365,51 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     return;
 }
 
+int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attempts, uint8_t flags) {
+    host_s *target;
+    uint32_t nb_hosts = overseer->hl->nb_hosts;
+    uint32_t nb_cm = 0;
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Broadcasting CM of type %d to master pool ... ", type);
+        if (INSTANT_FFLUSH) fflush(stdout);
+    }
+    for (uint32_t i = 0; i < nb_hosts; ++i) {
+        target = &(overseer->hl->hosts[i]);
+
+        // TODO Extension Add conditional re-resolving of nodes that are of unknown or unreachable status
+
+        // Skip iterations based on flags or if it is the local host
+        if (((flags & FLAG_SKIP_CS) == FLAG_SKIP_CS && target->status == HOST_STATUS_CS) ||
+            ((flags & FLAG_SKIP_HS) == FLAG_SKIP_HS && target->status == HOST_STATUS_HS) ||
+            ((flags & FLAG_SKIP_P) == FLAG_SKIP_P && target->status == HOST_STATUS_P) ||
+            ((flags & FLAG_SKIP_S) == FLAG_SKIP_S && target->type == NODE_TYPE_S) ||
+            target->locality == HOST_LOCALITY_LOCAL)
+            continue;
+
+        if (DEBUG_LEVEL >= 4) {
+            printf("\n- CM target: %s\n", target->name);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
+
+        if (cm_sendto_with_rt_init(overseer,
+                                   target->addr,
+                                   target->socklen,
+                                   type,
+                                   CM_DEFAULT_RT_ATTEMPTS,
+                                   0,
+                                   0) != EXIT_SUCCESS) {
+            fprintf(stderr, "Failed to send and RT init heartbeat\n");
+        } else nb_cm++;
+    }
+
+    if (DEBUG_LEVEL >= 3) {
+        printf("Done (%d CMs sent).\n", nb_cm);
+        if (INSTANT_FFLUSH) fflush(stdout);
+    }
+    return EXIT_SUCCESS;
+}
+
 int cm_actions(overseer_s *overseer,
                struct sockaddr_in6 sender_addr,
                socklen_t socklen,

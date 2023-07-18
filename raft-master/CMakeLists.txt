@@ -4,4 +4,4 @@ project(raft_master C)
 set(CMAKE_C_STANDARD 17)
 
 add_compile_definitions(HOST_TYPE=0) # Node is a master node
-add_executable(raft_master main.c master-events.c master-events.h)
+add_executable(raft_master main.c)

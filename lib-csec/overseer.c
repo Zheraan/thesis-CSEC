@@ -135,7 +135,10 @@ int overseer_init(overseer_s *overseer) {
             return EXIT_FAILURE;
         }
         overseer->es->election_round_event = NULL;
-        election_state_reset(overseer);
+        overseer->es->candidacy = CANDIDACY_NONE;
+        overseer->es->vote_count = 0;
+        overseer->es->last_voted_bid = 0;
+        overseer->es->bid_number = 0;
         overseer->es = nes;
     }
 
@@ -210,6 +213,8 @@ void overseer_wipe(overseer_s *overseer) {
 
     if (overseer->es != NULL) {
         debug_log(3, stdout, "Done.\n- Election state ... ");
+        if (overseer->es->election_round_event != NULL)
+            event_free(overseer->es->election_round_event);
         free(overseer->es);
     }
 
