@@ -17,6 +17,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
     if (file == NULL) {
         perror("hosts_init fopen");
         errno = EPARSINGFAILURE;
+        fflush(stdout);
+        fflush(stderr);
         return 0;
     }
 
@@ -57,6 +59,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             freeaddrinfo(res);
             fclose(file);
             errno = EPARSINGFAILURE;
+            fflush(stdout);
+            fflush(stderr);
             return 0;
         }
 
@@ -67,7 +71,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         const char delim[] = ",";
         char *token = strtok(line, delim);
         if (DEBUG_LEVEL >= 2) {
-            fprintf(stdout, "Parsing host no.%d at line %d:\n"
+            fprintf(stdout, "Parsing host %d at line %d:\n"
                             "   -type: %s\n", parsed, nb_lines, token);
         }
         switch (token[0]) {
@@ -90,6 +94,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                 freeaddrinfo(res);
                 fclose(file);
                 errno = EPARSINGFAILURE;
+                fflush(stdout);
+                fflush(stderr);
                 return 0;
         }
 
@@ -116,6 +122,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                 freeaddrinfo(res);
                 fclose(file);
                 errno = EPARSINGFAILURE;
+                fflush(stdout);
+                fflush(stderr);
                 return 0;
             }
             localhost_init = 1;
@@ -126,6 +134,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             freeaddrinfo(res);
             fclose(file);
             errno = EPARSINGFAILURE;
+            fflush(stdout);
+            fflush(stderr);
             return 0;
         }
 
@@ -140,6 +150,8 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             freeaddrinfo(res);
             fclose(file);
             errno = EPARSINGFAILURE;
+            fflush(stdout);
+            fflush(stderr);
             return 0;
         }
 
@@ -173,6 +185,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         parsed++;
         freeaddrinfo(res);
         res = NULL;
+        fflush(stdout);
     }
 
     fclose(file);
@@ -183,18 +196,25 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
     if (localhost_init == 0) {
         debug_log(0, stderr, "Fatal error: no local host parsed.\n");
         errno = ENOLOCALHOST;
+        fflush(stdout);
+        fflush(stderr);
         return 0;
     }
     if (list->nb_servers == 0) {
         debug_log(0, stderr, "Fatal error: no server hosts parsed.\n");
         errno = ENOSERVER;
+        fflush(stdout);
+        fflush(stderr);
         return 0;
     }
     if (list->nb_masters == 0) {
         debug_log(0, stderr, "Fatal error: no master hosts parsed.\n");
         errno = ENOMASTER;
+        fflush(stdout);
+        fflush(stderr);
         return 0;
     }
+    fflush(stdout);
     return parsed;
 }
 
@@ -212,6 +232,7 @@ int host_re_resolve(hosts_list_s *list, uint32_t host_id) {
                 "Failure to parse host '%s': %s (%d)\n",
                 list->hosts[host_id].addr_string,
                 gai_strerror(rc), rc);
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -220,6 +241,7 @@ int host_re_resolve(hosts_list_s *list, uint32_t host_id) {
         fprintf(stderr, "No host found for '%s'\n", list->hosts[host_id].addr_string);
         list->hosts[host_id].status = HOST_STATUS_UNRESOLVED;
         freeaddrinfo(res);
+        fflush(stderr);
         return EXIT_FAILURE;
     }
 
@@ -266,7 +288,8 @@ uint32_t hl_whois(hosts_list_s *list, enum host_status status) {
             return i;
     }
     errno = ENONE;
-    fprintf(stderr, "Error: no host of status %d was found in the hosts-list.\n", status);
+    fprintf(stdout, "HL_whois: no host of status %d was found in the hosts-list.\n", status);
+    fflush(stderr);
     return EXIT_FAILURE;
 }
 

@@ -20,7 +20,7 @@ void election_state_reset(overseer_s *overseer);
 // Starts a round of HS candidacy by increasing bid number, resets votes, broadcasting a bid to master nodes, then
 // resetting the timeout for the next round.
 // Note: vote count is set at one since the local host votes for itself.
-int start_hs_candidacy_round(overseer_s *overseer);
+int start_hs_candidacy_bid(overseer_s *overseer);
 
 // Difference with election_state_reset is that the bid number and last voted round are left unchanged here.
 // Calls election_set_timeout to set the next round.

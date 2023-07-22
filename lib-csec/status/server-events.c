@@ -5,7 +5,7 @@
 #include "server-events.h"
 
 int server_random_ops_init(overseer_s *overseer) {
-    debug_log(3, stdout, "- Initializing random ops generation events ... ");
+    debug_log(3, stdout, "- Initializing next random op generation event ... ");
     // Create a non-persistent event only triggered by timeout
     struct event *nevent = evtimer_new(overseer->eb,
                                        server_random_ops_cb,

@@ -53,7 +53,7 @@ int log_repair_ongoing(overseer_s *overseer);
 int log_replay_ongoing(overseer_s *overseer);
 
 // Not implemented yet, only logs an error message and returns EXIT_SUCCESS
-int log_repair_override(overseer_s *overseer); // TODO Extension implement log_repair_override
+int log_repair_override(overseer_s *overseer, control_message_s *cm); // TODO Extension implement log_repair_override
 
 // Marks all non-empty entries from given index included as invalid, and sets the log's next index as the
 // given index if it was greater than it.

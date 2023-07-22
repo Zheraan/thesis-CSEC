@@ -5,6 +5,7 @@
 #include "elections.h"
 
 void election_state_reset(overseer_s *overseer) {
+    debug_log(4, stdout, "Resetting election state.\n");
     overseer->es->candidacy = CANDIDACY_NONE;
     overseer->es->vote_count = 0;
     overseer->es->last_voted_bid = 0;
@@ -17,7 +18,7 @@ void election_state_reset(overseer_s *overseer) {
     return;
 }
 
-int start_hs_candidacy_round(overseer_s *overseer) {
+int start_hs_candidacy_bid(overseer_s *overseer) {
     debug_log(4,
               stdout,
               "Start of HS Candidacy Bid ----------------------------------------------------------\n");
@@ -163,7 +164,10 @@ int promote_to_p(overseer_s *overseer) {
 }
 
 int election_set_timeout(overseer_s *overseer) {
-    debug_log(4, stdout, "- Initializing next election timeout event ... ");
+    if (overseer->es->election_round_event != NULL)
+        debug_log(4, stdout, "- Re-initializing next election timeout event ... ");
+    else debug_log(4, stdout, "- Initializing next election timeout event ... ");
+
     struct event *election_event = evtimer_new(overseer->eb,
                                                election_timeout_cb,
                                                (void *) overseer);
@@ -197,7 +201,7 @@ int election_set_timeout(overseer_s *overseer) {
 void election_timeout_cb(evutil_socket_t fd, short event, void *arg) {
     if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status == HOST_STATUS_CS) {
         debug_log(2, stdout, "Election timeout: starting new HS bid.\n");
-        start_hs_candidacy_round((overseer_s *) arg);
+        start_hs_candidacy_bid((overseer_s *) arg);
     }
     return;
 }

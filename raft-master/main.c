@@ -21,7 +21,7 @@ int main() {
     if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize control message reception events
         etr_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the entry transmission event
         stepdown_to_cs(&overseer) != EXIT_SUCCESS) { // Sets the status and necessary events
-        fprintf(stderr, "Failed to initialized the event loop\n");
+        fprintf(stderr, "Failed to initialize the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
     }

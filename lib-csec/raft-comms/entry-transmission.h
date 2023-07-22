@@ -107,7 +107,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                            entry_transmission_s *etr);
 
 // Sends the first element in the proposition queue (added the earliest) and sets its retransmission through
-// the retransmission cache.
+// the retransmission cache. If the queue is empty, has no effect.
 // Returns EXIT_FAILURE and wipes the proposition queue in case of failure, returns EXIT_SUCCESS otherwise
 // FIXME If a proposition isn't accepted after all retransmission attempts, the queue needs to be wiped to
 //  prevent incoherences because of subsequent entries that may depend on the first and succeed

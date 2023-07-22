@@ -30,7 +30,7 @@ retransmission_cache_s *rtc_find_by_id(overseer_s *overseer, uint32_t id);
 
 // Removes and frees the element in the cache list with the given ID
 // Returns EXIT_SUCCESS, or EXIT_FAILURE if cache was empty or did not contain any entry with the given ID.
-// If the flag parameter is FLAG_SILENT, does not throw an error for empty cache or if no entry with the
+// If the flag parameter is FLAG_SILENT, does not log an error for empty cache or if no entry with the
 // given ID is found. If the id was the same as the local fix_conversation value, sets it back to 0 and
 // the fix_type to FIX_TYPE_NONE.
 // TODO Improvement: store and check sender in cache to avoid disruption

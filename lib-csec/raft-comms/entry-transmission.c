@@ -60,15 +60,17 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
 }
 
 void etr_print(const entry_transmission_s *etr, FILE *stream) {
+    fprintf(stream, "- CM metadata:\n");
     cm_print(&(etr->cm), stream);
     fprintf(stream,
-            "state:         %d\n"
-            "index:         %d\n"
-            "P-term:          %d\n"
-            "data_op:\n"
-            " - row:        %d\n"
-            " - column:     %d\n"
-            " - newval:     %c\n",
+            "- Entry Metadata:\n"
+            "   > state:         %d\n"
+            "   > index:         %d\n"
+            "   > P-term:        %d\n"
+            "- Data Op Metadata:\n"
+            "   > row:           %d\n"
+            "   > column:        %d\n"
+            "   > newval:        %c\n",
             etr->state,
             etr->index,
             etr->term,
@@ -198,7 +200,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 1) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf("Received from %s an ETR:\n", buf);
+        printf("Received from %s (aka. %s)  an ETR:\n", buf, ((overseer_s *) arg)->hl->hosts[etr.cm.host_id].name);
         if (DEBUG_LEVEL >= 3)
             etr_print(&etr, stdout);
     }
@@ -210,7 +212,11 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                   "-> Ack back value is non-zero, removing corresponding RT cache entry ... ");
         if (rtc_remove_by_id((overseer_s *) arg, etr.cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
-        else debug_log(4, stderr, "Failure.\n");
+        else
+            debug_log(4,
+                      stdout,
+                      "Failure. The entry may have been removed earlier due to timeout.\n");
+        // TODO Improvement: Log an error in case time was lower than timeout somehow or figure a way
     }
 
     if (DEBUG_LEVEL >= 2)
@@ -448,11 +454,19 @@ int etr_actions(overseer_s *overseer,
     }
 
     // If message has superior or equal P-term and comes from P and local is not already P
-    if (etr->cm.P_term >= overseer->log->P_term && etr->cm.status == HOST_STATUS_P && local_status != HOST_STATUS_P)
+    if (etr->cm.P_term >= overseer->log->P_term &&
+        etr->cm.status == HOST_STATUS_P &&
+        local_status != HOST_STATUS_P) {
+        debug_log(3, stdout, "Message is from active P:\n");
         p_liveness_set_timeout(overseer); // Reset P liveness timer
+    }
     // If message has superior or equal HS-term and comes from HS and local is not already HS
-    if (etr->cm.HS_term >= overseer->log->HS_term && etr->cm.status == HOST_STATUS_HS && local_status != HOST_STATUS_HS)
+    if (etr->cm.HS_term >= overseer->log->HS_term &&
+        etr->cm.status == HOST_STATUS_HS &&
+        local_status != HOST_STATUS_HS) {
+        debug_log(3, stdout, "Message is from active HS:\n");
         election_set_timeout(overseer); // Reset HS election timer
+    }
 
     if (local_status == HOST_STATUS_P)
         return etr_actions_as_p(overseer, sender_addr, socklen, etr);
@@ -542,12 +556,20 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
 
     // If dist P-term is greater than local
     if (etr->cm.P_term > overseer->log->P_term) {
+        if (DEBUG_LEVEL >= 4) {
+            printf("Dist P-term (%d) is greater than local (%d).\n", etr->cm.P_term, overseer->log->P_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
         return log_repair(overseer, &etr->cm);
     }
 
     // If local P-term is greater than dist
     if (etr->cm.P_term < overseer->log->P_term) {
+        if (DEBUG_LEVEL >= 4) {
+            printf("Local P-term (%d) is greater than dist (%d).\n", overseer->log->P_term, etr->cm.P_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (cm_sendto_with_ack_back(overseer,
                                     sender_addr,
                                     socklen,
@@ -561,14 +583,24 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
 
     // Else if P-terms are equal
 
-    // If local is CS and dist HS-term is greater than local
-    if (local_status == HOST_STATUS_CS && etr->cm.HS_term > overseer->log->HS_term) {
+    // If local not S and dist HS-term is greater than local
+    if (local_status != HOST_STATUS_S && etr->cm.HS_term > overseer->log->HS_term) {
+        if (DEBUG_LEVEL >= 4) {
+            printf("Dist HS-term (%d) is greater than local (%d).\n", etr->cm.HS_term, overseer->log->HS_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         overseer->log->HS_term = etr->cm.HS_term;
         hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
+        if (local_status == HOST_STATUS_HS)
+            stepdown_to_cs(overseer);
     }
 
-    // If local is CS and local HS-term is greater than dist
-    if (local_status == HOST_STATUS_CS && etr->cm.HS_term < overseer->log->HS_term) {
+    // If local is not S and local HS-term is greater than dist
+    if (local_status != HOST_STATUS_S && etr->cm.HS_term < overseer->log->HS_term) {
+        if (DEBUG_LEVEL >= 4) {
+            printf("Local HS-term (%d) is greater than dist (%d).\n", overseer->log->HS_term, etr->cm.HS_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (etr->cm.status == HOST_STATUS_HS) {
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
@@ -587,8 +619,10 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             debug_log(0, stderr, "Failed to reply with an INDICATE HS.\n");
     }
 
-    // Else local is not CS or HS-terms are equal
-    int next_check = 1;
+    // Else local is S or HS-terms are equal
+
+    // Variable to hold if log is up-to-date and the new entry can be added. If not, it will be cached.
+    int utd_check = 1;
 
     // If dist next index is greater than local and !(message type is new entry and dist next index equals local + 1)
     // and there isn't any log repair or replay ongoing already
@@ -596,24 +630,35 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
         !(etr->cm.next_index == overseer->log->next_index + 1 &&
           (etr->cm.type == MSG_TYPE_ETR_NEW || etr->cm.type == MSG_TYPE_ETR_NEW_AND_ACK)) &&
         (log_repair_ongoing(overseer) == 0 || log_replay_ongoing(overseer) == 0)) {
+        if (DEBUG_LEVEL >= 4) {
+            printf("Dist next index (%ld) is greater than local (%ld), and no log fix is ongoing.\n",
+                   etr->cm.next_index,
+                   overseer->log->next_index);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         // If latest entry in the log is in a committed state or if the latest pending entry in the log has the same
         // term as dist
         if ((overseer->log->next_index > 1 &&
              overseer->log->entries[overseer->log->next_index - 1].state == ENTRY_STATE_COMMITTED) ||
             overseer->log->entries[overseer->log->next_index - 1].term == etr->cm.P_term)
             log_replay(overseer, &etr->cm);
-        else {
-            log_repair(overseer, &etr->cm);
-        }
-        next_check = 0;
+        else log_repair(overseer, &etr->cm);
+
+        utd_check = 0;
     }
 
     // If local next index is greater than dist
     if (etr->cm.next_index < overseer->log->next_index) {
+        if (DEBUG_LEVEL >= 4) {
+            printf("Local next index (%ld) is greater than dist (%ld).\n",
+                   overseer->log->next_index,
+                   etr->cm.next_index);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (log_repair_ongoing(overseer) == 1)
-            log_repair_override(overseer);
+            log_repair_override(overseer, &etr->cm);
         else log_repair(overseer, &etr->cm);
-        next_check = 0;
+        utd_check = 0;
     }
 
     // Else next indexes are equal or message type is new entry and dist next index equals local + 1
@@ -629,31 +674,31 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             }
                     __attribute__ ((fallthrough));
         case MSG_TYPE_ETR_NEW:
-            if (next_check == 0)
+            if (utd_check == 0)
                 log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
             else log_add_entry(overseer, etr, etr->state);
-            if (local_status == HOST_STATUS_S & next_check == 1) {
+            if (local_status == HOST_STATUS_S & utd_check == 1) {
                 if (server_send_first_prop(overseer, etr->cm.ack_reference) != EXIT_SUCCESS) {
                     debug_log(0, stderr, "Failed to Ack back New Entry and send Proposition.\n");
                     return EXIT_FAILURE;
                 }
-            }
-            if (cm_sendto_with_rt_init(overseer,
-                                       sender_addr,
-                                       socklen,
-                                       MSG_TYPE_ACK_ENTRY,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0,
-                                       etr->cm.ack_reference) != EXIT_SUCCESS) {
+            } else if (cm_sendto_with_rt_init(overseer,
+                                              sender_addr,
+                                              socklen,
+                                              MSG_TYPE_ACK_ENTRY,
+                                              CM_DEFAULT_RT_ATTEMPTS,
+                                              0,
+                                              etr->cm.ack_reference) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to Ack back New Entry.\n");
                 return EXIT_FAILURE;
             }
             break;
 
         case MSG_TYPE_ETR_COMMIT:
-            if (next_check == 0)
+            if (utd_check == 0) {
+                debug_log(2, stdout, "Log check was not validated, caching received entry.\n");
                 log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
-            else log_add_entry(overseer, etr, ENTRY_STATE_COMMITTED);
+            } else log_add_entry(overseer, etr, ENTRY_STATE_COMMITTED);
             if (cm_sendto_with_rt_init(overseer,
                                        sender_addr,
                                        socklen,
@@ -670,12 +715,16 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             // If the local version of the received entry has a different term or if the entry is marked invalid
             if (overseer->log->entries[etr->index].state == ENTRY_STATE_INVALID ||
                 overseer->log->entries[etr->index].term != etr->term) {
+                debug_log(2, stdout, "Local version of the entry is invalid.\n");
                 // If the local version of the previous entry than the one received has a different term
                 if (overseer->log->next_index > 1 && overseer->log->entries[etr->index - 1].term != etr->prev_term) {
+                    debug_log(2,
+                              stdout,
+                              "Local version of the previous entry is also invalid, caching the received one.\n");
                     log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
                     overseer->log->entries[etr->index - 1].state = ENTRY_STATE_INVALID;
-                    log_repair(overseer, &etr->cm);
                     errno = 0;
+                    log_repair(overseer, &etr->cm);
                     if (errno != ENONE && cm_sendto_with_rt_init(overseer,
                                                                  overseer->hl->hosts[p_id].addr,
                                                                  overseer->hl->hosts[p_id].socklen,
@@ -690,19 +739,22 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                     return EXIT_SUCCESS;
                 }
 
-                if (overseer->log->next_index <= 1 && etr->index != 1) // If local next index is 1 and received
-                    // entry does not have index 1, or if the local version of the previous entry than the one received
-                    // has the same term
+                // If local next index is 1 and received entry does not have index 1, or if the local version of the
+                // previous entry than the one received has the same term
+                if (overseer->log->next_index <= 1 && etr->index != 1)
                     log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
                 else log_add_entry(overseer, etr, etr->state);
             }
 
-            // Local log is now fixed up until the last added entry
+            // If the program reaches this point, the local log is (now) fixed up until the last added entry
+            debug_log(3, stdout, "Log coherency verified, proceeding to replay.\n");
+
+            uint64_t cached_set = 0;
 
             // While local next index is smaller than dist
             while (overseer->log->next_index < etr->cm.next_index) {
                 log_entry_s *e = &overseer->log->entries[overseer->log->next_index];
-                // If entry in the next index is cached and has the same term as dist
+                // If entry in the next index is cached and has the same term as dist host (not the received entry)
                 if (e->state == ENTRY_STATE_CACHED && e->term == etr->cm.P_term) {
                     // Set it in the right state
                     if (etr->cm.commit_index >= overseer->log->next_index)
@@ -711,7 +763,13 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                         e->state = ENTRY_STATE_PENDING;
                         overseer->log->next_index++;
                     }
+                    cached_set++;
                 } else {
+                    if (DEBUG_LEVEL >= 3 && cached_set > 0) {
+                        printf("%ld cached entries set to their correct state.\n",
+                               cached_set);
+                        if (INSTANT_FFLUSH) fflush(stdout);
+                    }
                     log_replay(overseer, &etr->cm);
                     if (etr->cm.status == HOST_STATUS_HS) {
                         if (cm_sendto_with_rt_init(overseer,
@@ -729,9 +787,15 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                     return EXIT_SUCCESS;
                 }
             }
+            if (DEBUG_LEVEL >= 3 && cached_set > 0) {
+                printf("%ld cached entries set to their correct state.\n",
+                       cached_set);
+                if (INSTANT_FFLUSH) fflush(stdout);
+            }
 
             // At this point the log is in a valid and up-to-date state as far as the current logfix is concerned
             log_fix_end(overseer);
+            debug_log(3, stdout, "Acknowledging end of fix:\n");
             if (etr->cm.status == HOST_STATUS_HS) {
                 // Ack entry to P
                 if (cm_sendto_with_rt_init(overseer,
@@ -790,6 +854,11 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
 
 int server_send_first_prop(overseer_s *overseer, uint32_t ack_back) {
     ops_queue_s *opq = ops_queue_pop(overseer->mfs);
+    if (opq == NULL)
+        return EXIT_SUCCESS;
+
+    debug_log(2, stdout, "Sending the first Op in the queue.\n");
+
     entry_transmission_s *netr = etr_new(overseer,
                                          MSG_TYPE_ETR_PROPOSITION,
                                          opq->op,

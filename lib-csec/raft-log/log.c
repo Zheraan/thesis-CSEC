@@ -7,10 +7,8 @@ log_s *log_init(log_s *log) {
     log->HS_term = 0;
     log->fix_conversation = 0;
     log->fix_type = FIX_TYPE_NONE;
+    // Empty entry state value is 0 so this sets it correctly, as well as the other fields
     memset(log->entries, 0, LOG_LENGTH * sizeof(log_entry_s));
-    for (int i = 0; i < LOG_LENGTH; ++i) {
-        log->entries[i].state = ENTRY_STATE_EMPTY;
-    }
 
     return log;
 }
@@ -29,13 +27,12 @@ void log_print(log_s *log, FILE *stream) {
             log->HS_term,
             log->server_majority,
             log->master_majority);
-
     return;
 }
 
 int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum entry_state state) {
     if (overseer->log->next_index == LOG_LENGTH) {
-        fprintf(stderr, "Log full\n");
+        debug_log(0, stderr, "Log full\n");
         return EXIT_FAILURE;
     }
 
@@ -52,7 +49,7 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
     if (DEBUG_LEVEL >= 1) {
         printf("Added to the log the following entry:\n"
                "- entry number: %ld\n"
-               "- P-term:         %d\n"
+               "- P-term:       %d\n"
                "- state:        %d\n"
                "- row:          %d\n"
                "- column:       %d\n"
@@ -66,14 +63,17 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
     }
 
     if (state == ENTRY_STATE_COMMITTED) {
+        debug_log(3, stdout, "Entry state is COMMITTED, committing entries up to this point.\n");
         if (log_commit_upto(overseer, etr->index) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failure committing all necessary entries.\n");
             return EXIT_FAILURE;
         }
     }
 
-    if (state == ENTRY_STATE_PENDING && etr->index == overseer->log->next_index)
+    if (state == ENTRY_STATE_PENDING && etr->index == overseer->log->next_index) {
+        debug_log(4, stdout, "Incrementing next index.\n");
         overseer->log->next_index++;
+    }
     return EXIT_SUCCESS;
 }
 
@@ -120,7 +120,9 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
     errno = 0;
     uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
     if (p_id == EXIT_FAILURE && errno == ENONE) {
-        debug_log(0, stderr, "Log repair failed consequently.\n");
+        debug_log(0,
+                  stderr,
+                  "No active P is known, log repair failed consequently as no fix conversation can be started.\n");
         return EXIT_FAILURE;
     }
 
@@ -225,6 +227,7 @@ int log_replay(overseer_s *overseer, control_message_s *cm) {
 }
 
 void log_fix_end(overseer_s *overseer) {
+    debug_log(2, stdout, "Log fix complete.\n");
     rtc_remove_by_id(overseer, overseer->log->fix_conversation, FLAG_SILENT);
     overseer->log->fix_conversation = 0;
     overseer->log->fix_type = FIX_TYPE_NONE;
@@ -242,9 +245,10 @@ int log_replay_ongoing(overseer_s *overseer) {
     return 0;
 }
 
-int log_repair_override(overseer_s *overseer) {
+int log_repair_override(overseer_s *overseer, control_message_s *cm) {
     debug_log(0, stderr, "Log Repair Override not implemented. This is an optimization for future work.\n");
-    return EXIT_SUCCESS;
+    // TODO Extension implement log repair Override
+    return log_repair(overseer, cm);
 }
 
 void log_invalidate_from(log_s *log, uint64_t index) {

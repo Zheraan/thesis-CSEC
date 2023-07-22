@@ -134,11 +134,11 @@ int overseer_init(overseer_s *overseer) {
             overseer_wipe(overseer);
             return EXIT_FAILURE;
         }
-        overseer->es->election_round_event = NULL;
-        overseer->es->candidacy = CANDIDACY_NONE;
-        overseer->es->vote_count = 0;
-        overseer->es->last_voted_bid = 0;
-        overseer->es->bid_number = 0;
+        nes->election_round_event = NULL;
+        nes->candidacy = CANDIDACY_NONE;
+        nes->vote_count = 0;
+        nes->last_voted_bid = 0;
+        nes->bid_number = 0;
         overseer->es = nes;
     }
 

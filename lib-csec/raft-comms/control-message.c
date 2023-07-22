@@ -52,15 +52,15 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
 
 void cm_print(const control_message_s *hb, FILE *stream) {
     fprintf(stream,
-            "host_id:       %d\n"
-            "status:        %d\n"
-            "type:          %d\n"
-            "ack_reference: %d\n"
-            "ack_back:      %d\n"
-            "next_index:    %ld\n"
-            "commit_index:  %ld\n"
-            "P_term:          %d\n"
-            "HS_term:         %d\n",
+            "   > host_id:       %d\n"
+            "   > status:        %d\n"
+            "   > type:          %d\n"
+            "   > ack_reference: %d\n"
+            "   > ack_back:      %d\n"
+            "   > next_index:    %ld\n"
+            "   > commit_index:  %ld\n"
+            "   > P_term:        %d\n"
+            "   > HS_term:       %d\n",
             hb->host_id,
             hb->status,
             hb->type,
@@ -197,14 +197,14 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
             return EXIT_FAILURE;
         }
         cm->ack_reference = rv;
-        debug_log(4, stdout, " - CM RT init OK\n");
+        debug_log(4, stdout, "CM RT init OK\n");
     } else cm->ack_reference = ack_reference;
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
 
     if (DEBUG_LEVEL >= 3) {
-        printf(" - Sending to %s the following CM:\n", buf);
+        printf("Sending to %s the following CM:\n", buf);
         cm_print(cm, stdout);
     }
 
@@ -292,7 +292,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 2) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf("Received from %s a CM:\n", buf);
+        printf("Received from %s (aka. %s) a CM:\n", buf, ((overseer_s *) arg)->hl->hosts[cm.host_id].name);
         if (DEBUG_LEVEL >= 3)
             cm_print(&cm, stdout);
     }
@@ -305,7 +305,11 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
         }
         if (rtc_remove_by_id((overseer_s *) arg, cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
-        else debug_log(4, stderr, "Failure.\n");
+        else
+            debug_log(4,
+                      stdout,
+                      "Failure. The entry may have been removed earlier due to timeout.\n");
+        // TODO Improvement: Log an error in case time was lower than timeout somehow or figure a way
     }
 
     if (DEBUG_LEVEL >= 2)
@@ -476,16 +480,16 @@ int hb_actions_as_master(overseer_s *overseer,
             else debug_log(4, stdout, "Done.\n");
         }
 
-        // Acknowledge CM with ack
-        debug_log(4, stdout, "Answering with ACK HB ... ");
+        // Acknowledge CM by HB back
+        debug_log(4, stdout, "Answering with HB DEFAULT ... ");
         if (cm_sendto_with_rt_init(overseer,
                                    sender_addr,
                                    socklen,
-                                   MSG_TYPE_GENERIC_ACK,
+                                   MSG_TYPE_HB_DEFAULT,
                                    CM_DEFAULT_RT_ATTEMPTS,
                                    0,
                                    cm->ack_reference) != EXIT_SUCCESS) {
-            debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+            debug_log(0, stderr, "Failed to send and RT init an HB DEFAULT\n");
             rv = EXIT_FAILURE;
         } else debug_log(4, stdout, "Done.\n");
 
@@ -586,15 +590,13 @@ int hb_actions_as_master(overseer_s *overseer,
         // If the log is being repaired or replayed
         if (log_replay_ongoing(overseer) == 1 || log_repair_ongoing(overseer) == 1) {
             // Ack back with ack
-            debug_log(4, stdout, "Log is already being repaired or replayed, replying with HB ACK ... ");
-            if (cm_sendto_with_rt_init(overseer,
-                                       sender_addr,
-                                       socklen,
-                                       MSG_TYPE_GENERIC_ACK,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0,
-                                       cm->ack_reference) != EXIT_SUCCESS)
-                debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+            debug_log(4, stdout, "Log is already being repaired or replayed, replying with GENERIC ACK ... ");
+            if (cm_sendto_with_ack_back(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        MSG_TYPE_GENERIC_ACK,
+                                        cm->ack_reference) != EXIT_SUCCESS)
+                debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             else debug_log(4, stdout, "Done.\n");
         } else {
             // If the latest entry in the log committed or if the latest entry in the log has the same term as dist
@@ -737,15 +739,13 @@ int hb_actions_as_server(overseer_s *overseer,
             debug_log(4, stdout, "Local next index p_outdated.\n");
 
         if (log_repair_ongoing(overseer) || log_replay_ongoing(overseer)) {
-            debug_log(4, stdout, "Log repair/replay already ongoing, replying with HB Ack.\n");
-            if (cm_sendto_with_rt_init(overseer,
-                                       sender_addr,
-                                       socklen,
-                                       MSG_TYPE_GENERIC_ACK,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0,
-                                       cm->ack_reference) != EXIT_SUCCESS)
-                debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+            debug_log(4, stdout, "Log repair/replay already ongoing, replying with GENERIC ACK.\n");
+            if (cm_sendto_with_ack_back(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        MSG_TYPE_GENERIC_ACK,
+                                        cm->ack_reference) != EXIT_SUCCESS)
+                debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
         }
 
         // If the log is empty or if its latest entry has the same term as dist
@@ -770,15 +770,13 @@ int hb_actions_as_server(overseer_s *overseer,
     }
 
     // Else if local and dist commit index are equal
-    debug_log(4, stdout, "Everything is in order, replying with HB ACK.\n");
-    if (cm_sendto_with_rt_init(overseer,
-                               sender_addr,
-                               socklen,
-                               MSG_TYPE_GENERIC_ACK,
-                               CM_DEFAULT_RT_ATTEMPTS,
-                               0,
-                               cm->ack_reference) != EXIT_SUCCESS)
-        debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+    debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
+    if (cm_sendto_with_ack_back(overseer,
+                                sender_addr,
+                                socklen,
+                                MSG_TYPE_GENERIC_ACK,
+                                cm->ack_reference) != EXIT_SUCCESS)
+        debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
 
     return EXIT_SUCCESS;
 }

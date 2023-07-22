@@ -39,12 +39,14 @@ int p_liveness_set_timeout(overseer_s *overseer) {
 }
 
 void p_liveness_timeout_cb(evutil_socket_t fd, short event, void *arg) {
+    debug_log(1, stdout, "P liveness timed out ... ");
+    // TODO Improvement Don't monitor liveness when there is no P and local node is not HS
 
     // Set P's status as Unreachable
     errno = 0;
     uint32_t p_id = hl_whois(((overseer_s *) arg)->hl, HOST_STATUS_P);
-    if (errno != ENONE) {
-        debug_log(1, stdout, "P liveness timed out.\n");
+    if (errno != ENONE) { // If there was an active P node
+        debug_log(1, stdout, "P liveness timed out: setting its status as UNREACHABLE.\n");
         hl_update_status((overseer_s *) arg, HOST_STATUS_UNREACHABLE, p_id);
     }
 
