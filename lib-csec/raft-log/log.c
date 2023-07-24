@@ -248,7 +248,7 @@ int log_replay_ongoing(overseer_s *overseer) {
 int log_repair_override(overseer_s *overseer, control_message_s *cm) {
     debug_log(0, stderr, "Log Repair Override not implemented. This is an optimization for future work.\n");
     // TODO Extension implement log repair Override
-    return log_repair(overseer, cm);
+    return EXIT_SUCCESS;
 }
 
 void log_invalidate_from(log_s *log, uint64_t index) {

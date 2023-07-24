@@ -37,7 +37,8 @@ int server_random_ops_init(overseer_s *overseer) {
 }
 
 void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
-    debug_log(4, stdout, "Start of random op callback -------------------------------------------------------\n");
+    debug_log(4, stdout,
+              "Start of random op callback --------------------------------------------------------------------\n");
 
     if (log_replay_ongoing((overseer_s *) arg) == 1 || log_repair_ongoing((overseer_s *) arg) == 1) {
         debug_log(2, stdout, "Log repair or replay ongoing, random op generation cancelled.");
@@ -53,6 +54,8 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         if (nop == NULL) {
             fprintf(stderr, "Failed to generate a new data op\n");
             if (INSTANT_FFLUSH) fflush(stderr);
+            debug_log(4, stdout,
+                      "End of random op callback ----------------------------------------------------------------------\n\n");
             return; // Abort in case of failure
         }
 
@@ -67,6 +70,8 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
             free(nop); // Cleanup and abort in case of failure
             fprintf(stderr, "Failed to add a new op in the queue\n");
             if (INSTANT_FFLUSH) fflush(stderr);
+            debug_log(4, stdout,
+                      "End of random op callback ----------------------------------------------------------------------\n\n");
             return;
         }
 
@@ -88,6 +93,8 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
                     "Clear queue from element: %d element(s) freed.\n",
                     ops_queue_free_all((overseer_s *) arg, nqelem));
             if (INSTANT_FFLUSH) fflush(stderr);
+            debug_log(4, stdout,
+                      "End of random op callback ----------------------------------------------------------------------\n\n");
             return;
         }
 
@@ -110,7 +117,8 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         exit(EXIT_FAILURE);
     }
 
-    debug_log(4, stdout, "End of random op callback -------------------------------------------------------\n\n");
+    debug_log(4, stdout,
+              "End of random op callback ----------------------------------------------------------------------\n\n");
     return;
 }
 

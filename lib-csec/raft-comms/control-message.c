@@ -50,26 +50,29 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
     return ncm;
 }
 
-void cm_print(const control_message_s *hb, FILE *stream) {
+void cm_print(const control_message_s *cm, FILE *stream) {
     fprintf(stream,
             "   > host_id:       %d\n"
-            "   > status:        %d\n"
-            "   > type:          %d\n"
+            "   > status:        %d"
+            "   > type:          %d (",
+            cm->host_id,
+            cm->status,
+            cm->type);
+    cm_print_type(cm, stream);
+    fprintf(stream,
+            ")\n"
             "   > ack_reference: %d\n"
             "   > ack_back:      %d\n"
             "   > next_index:    %ld\n"
             "   > commit_index:  %ld\n"
             "   > P_term:        %d\n"
             "   > HS_term:       %d\n",
-            hb->host_id,
-            hb->status,
-            hb->type,
-            hb->ack_reference,
-            hb->ack_back,
-            hb->next_index,
-            hb->commit_index,
-            hb->P_term,
-            hb->HS_term);
+            cm->ack_reference,
+            cm->ack_back,
+            cm->next_index,
+            cm->commit_index,
+            cm->P_term,
+            cm->HS_term);
     if (INSTANT_FFLUSH) fflush(stream);
     return;
 }
@@ -78,71 +81,71 @@ void cm_print_type(const control_message_s *cm, FILE *stream) {
     // Responses depending on the type of control message
     switch (cm->type) {
         case MSG_TYPE_HB_DEFAULT:
-            debug_log(0, stream, "-> is HB DEFAULT\n");
+            debug_log(0, stream, "HB DEFAULT");
             break;
 
         case MSG_TYPE_GENERIC_ACK:
-            debug_log(0, stream, "-> is GENERIC ACK\n");
+            debug_log(0, stream, "GENERIC ACK");
             break;
 
         case MSG_TYPE_P_TAKEOVER:
-            debug_log(0, stream, "-> is P TAKEOVER\n");
+            debug_log(0, stream, "P TAKEOVER");
             break;
 
         case MSG_TYPE_HS_TAKEOVER:
-            debug_log(0, stream, "-> is HS TAKEOVER\n");
+            debug_log(0, stream, "HS TAKEOVER");
             break;
 
         case MSG_TYPE_LOG_REPAIR:
-            debug_log(0, stream, "-> is LOG REPAIR\n");
+            debug_log(0, stream, "LOG REPAIR");
             break;
 
         case MSG_TYPE_LOG_REPLAY:
-            debug_log(0, stream, "-> is LOG REPLAY\n");
+            debug_log(0, stream, "LOG REPLAY");
             break;
 
         case MSG_TYPE_ACK_ENTRY:
-            debug_log(0, stream, "-> is ACK ENTRY\n");
+            debug_log(0, stream, "ACK ENTRY");
             break;
 
         case MSG_TYPE_ACK_COMMIT:
-            debug_log(0, stream, "-> is ACK COMMIT\n");
+            debug_log(0, stream, "ACK COMMIT");
             break;
 
         case MSG_TYPE_INDICATE_P:
-            debug_log(0, stream, "-> is INDICATE P\n");
+            debug_log(0, stream, "INDICATE P");
             break;
 
         case MSG_TYPE_INDICATE_HS:
-            debug_log(0, stream, "-> is INDICATE HS\n");
+            debug_log(0, stream, "INDICATE HS");
             break;
 
         case MSG_TYPE_NETWORK_PROBE:
-            debug_log(0, stream, "-> is NETWORK PROBE\n");
+            debug_log(0, stream, "NETWORK PROBE");
             break;
 
         case MSG_TYPE_ETR_COMMIT:
-            debug_log(0, stream, "-> is ETR COMMIT\n");
+            debug_log(0, stream, "ETR COMMIT");
             break;
 
         case MSG_TYPE_ETR_NEW:
-            debug_log(0, stream, "-> is ETR NEW\n");
+            debug_log(0, stream, "ETR NEW");
             break;
 
         case MSG_TYPE_ETR_PROPOSITION:
-            debug_log(0, stream, "-> is ETR PROPOSITION\n");
+            debug_log(0, stream, "ETR PROPOSITION");
             break;
 
         case MSG_TYPE_ETR_LOGFIX:
-            debug_log(0, stream, "-> is ETR LOGFIX\n");
+            debug_log(0, stream, "ETR LOGFIX");
             break;
 
         case MSG_TYPE_ETR_NEW_AND_ACK:
-            debug_log(0, stream, "-> is ETR NEW AND ACK\n");
+            debug_log(0, stream, "ETR NEW AND ACK");
             break;
 
         default:
-            fprintf(stderr, "Invalid control message type %d\n", cm->type);
+            fprintf(stderr, "\nInvalid control message type %d\n", cm->type);
             if (INSTANT_FFLUSH) fflush(stderr);
     }
 
@@ -268,7 +271,8 @@ int cm_reception_init(overseer_s *overseer) {
 }
 
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
-    debug_log(4, stdout, "Start of CM reception callback ----------------------------------------------------\n");
+    debug_log(4, stdout,
+              "Start of CM reception callback -----------------------------------------------------------------\n");
 
     control_message_s cm;
     struct sockaddr_in6 sender_addr;
@@ -288,7 +292,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
                 debug_log(1, stdout, "Failure receiving CM.\n");
                 cm_reception_init((overseer_s *) arg);
                 debug_log(4, stdout,
-                          "End of CM reception callback ------------------------------------------------------\n\n");
+                          "End of CM reception callback -------------------------------------------------------------------\n\n");
                 return; // Failure
             }
         }
@@ -317,9 +321,6 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
         // TODO Improvement: Log an error in case time was lower than timeout somehow or figure a way
     }
 
-    if (DEBUG_LEVEL >= 2)
-        cm_print_type(&cm, stdout);
-
     // Take any actions that need be
     if (cm_actions((overseer_s *) arg, sender_addr, socklen, &cm) != EXIT_SUCCESS)
         debug_log(1, stderr, "CM action failure.\n");
@@ -327,42 +328,47 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     // Init next event
     cm_reception_init((overseer_s *) arg); // Fatal error in case of failure anyway, so no need for a check
 
-    debug_log(4, stdout, "End of CM reception callback ------------------------------------------------------\n\n");
+    debug_log(4, stdout,
+              "End of CM reception callback -------------------------------------------------------------------\n\n");
     return;
 }
 
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
+    debug_log(4, stdout,
+              "Start of CM retransmission callback ------------------------------------------------------------\n");
+
+    retransmission_cache_s *rtc = arg;
     if (DEBUG_LEVEL >= 3) {
-        printf("CM retransmission timed out, reattempting transmission (attempt %d) ... ",
-               ((retransmission_cache_s *) arg)->cur_attempts + 1);
+        printf("CM retransmission timed out, reattempting transmission (attempt %d of %d) ... ",
+               rtc->cur_attempts + 1,
+               rtc->max_attempts);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     int success = 1;
 
     // Send message to P
-    if (cm_sendto_with_rt_init(((retransmission_cache_s *) arg)->overseer,
-                               ((retransmission_cache_s *) arg)->addr,
-                               ((retransmission_cache_s *) arg)->socklen,
-                               ((retransmission_cache_s *) arg)->type,
+    if (cm_sendto_with_rt_init(rtc->overseer,
+                               rtc->addr,
+                               rtc->socklen,
+                               rtc->type,
                                0,
-                               ((retransmission_cache_s *) arg)->id,
-                               ((retransmission_cache_s *) arg)->ack_back)) {
+                               rtc->id,
+                               rtc->ack_back)) {
         fprintf(stderr, "Failed retransmitting the control message\n");
         success = 0;
     }
 
     // Increase attempts number
-    ((retransmission_cache_s *) arg)->cur_attempts += 1;
+    rtc->cur_attempts += 1;
 
     // If attempts max reached, remove cache entry
-    if (((retransmission_cache_s *) arg)->cur_attempts >= ((retransmission_cache_s *) arg)->max_attempts) {
-        rtc_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id,
-                         FLAG_DEFAULT);
+    if (rtc->cur_attempts >= rtc->max_attempts) {
+        rtc_remove_by_id(rtc->overseer, rtc->id, FLAG_DEFAULT);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
         if (errno == EUNKNOWN_TIMEOUT_TYPE ||
-            event_add(((retransmission_cache_s *) arg)->ev, &ops_timeout) != 0) {
+            event_add(rtc->ev, &ops_timeout) != 0) {
             fprintf(stderr, "Failed to add the CM retransmission event\n");
             if (INSTANT_FFLUSH) fflush(stderr);
             success = 0;
@@ -371,6 +377,8 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     if (success == 1)
         debug_log(3, stdout, "Done.\n");
+    debug_log(4, stdout,
+              "End of CM retransmission callback --------------------------------------------------------------\n\n");
     return;
 }
 
@@ -379,7 +387,7 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
     uint32_t nb_hosts = overseer->hl->nb_hosts;
     uint32_t nb_cm = 0;
 
-    if (DEBUG_LEVEL >= 3) {
+    if (DEBUG_LEVEL >= 2) {
         printf("Broadcasting CM of type %d to master pool ... ", type);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
@@ -412,7 +420,7 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
         } else nb_cm++;
     }
 
-    if (DEBUG_LEVEL >= 3) {
+    if (DEBUG_LEVEL >= 2) {
         printf("Done (%d CMs sent).\n", nb_cm);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
@@ -437,11 +445,15 @@ int cm_actions(overseer_s *overseer,
     }
 
     // If message has superior or equal P-term and comes from P and local is not already P
-    if (cm->P_term >= overseer->log->P_term && cm->status == HOST_STATUS_P && local_status != HOST_STATUS_P)
+    if (cm->P_term >= overseer->log->P_term && cm->status == HOST_STATUS_P && local_status != HOST_STATUS_P) {
+        debug_log(3, stdout, "Message is from P, resetting Liveness timeout.\n");
         p_liveness_set_timeout(overseer); // Reset P liveness timer
+    }
     // If message has superior or equal HS-term and comes from HS and local is not already HS
-    if (cm->HS_term >= overseer->log->HS_term && cm->status == HOST_STATUS_HS && local_status != HOST_STATUS_HS)
+    if (cm->HS_term >= overseer->log->HS_term && cm->status == HOST_STATUS_HS && local_status != HOST_STATUS_HS) {
+        debug_log(3, stdout, "Message is from HS, resetting election timeout.\n");
         election_set_timeout(overseer); // Reset HS election timer
+    }
 
     // If CM is a default HB, takeover message or network probe message
     if (cm->type == MSG_TYPE_HB_DEFAULT ||
@@ -475,14 +487,17 @@ int hb_actions_as_master(overseer_s *overseer,
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
     if (cm->P_term > overseer->log->P_term) { // If dist P-term is greater
-        debug_log(4, stdout, "Dist P-term is greater than local\n");
+        if (DEBUG_LEVEL >= 3) {
+            printf("Dist P-term (%d) is greater than local (%d).\n",
+                   cm->P_term,
+                   overseer->log->P_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         int rv = hl_update_status(overseer, cm->status, cm->host_id);
 
         if (local_status != HOST_STATUS_CS) { // If local host is P or HS
-            debug_log(4, stdout, "Stepping down to CS ... ");
             if (stepdown_to_cs(overseer) != EXIT_SUCCESS)
                 rv = EXIT_FAILURE;
-            else debug_log(4, stdout, "Done.\n");
         }
 
         // Acknowledge CM by HB back
@@ -508,10 +523,15 @@ int hb_actions_as_master(overseer_s *overseer,
     }
 
     if (cm->P_term < overseer->log->P_term) { // If local P_term is greater
-        debug_log(4, stdout, "Local P-term is greater than dist\n");
+        if (DEBUG_LEVEL >= 3) {
+            printf("Local P-term (%d) greater than dist's (%d).\n",
+                   overseer->log->P_term,
+                   cm->P_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (local_status == HOST_STATUS_P) {
             // Heartbeat back without ack
-            debug_log(4, stdout, "Sending back a heartbeat ... ");
+            debug_log(4, stdout, "Sending back a HB DEFAULT ... ");
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
                                         socklen,
@@ -522,7 +542,7 @@ int hb_actions_as_master(overseer_s *overseer,
             } else debug_log(4, stdout, "Done.\n");
         } else { // Local status is HS or CS
             // Indicate P back without ack
-            debug_log(4, stdout, "Sending back an Indicate P message ... ");
+            debug_log(4, stdout, "Sending back an INDICATE P ... ");
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
                                         socklen,
@@ -539,6 +559,12 @@ int hb_actions_as_master(overseer_s *overseer,
     // Else if local and dist P-terms are equal
 
     if (cm->HS_term > overseer->log->HS_term) { // If dist HS-term is greater
+        if (DEBUG_LEVEL >= 3) {
+            printf("Dist HS-term (%d) is greater than local (%d).\n",
+                   cm->HS_term,
+                   overseer->log->HS_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (cm->status == HOST_STATUS_HS)
             hl_update_status(overseer, HOST_STATUS_HS, cm->host_id); // Auto steps down if necessary
         election_state_reset(overseer); // Reset election state
@@ -546,6 +572,12 @@ int hb_actions_as_master(overseer_s *overseer,
     }
 
     if (cm->HS_term < overseer->log->HS_term) { // If local HS-term is greater
+        if (DEBUG_LEVEL >= 3) {
+            printf("Local HS-term (%d) is greater than dist (%d).\n",
+                   overseer->log->HS_term,
+                   cm->HS_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (local_status == HOST_STATUS_CS || local_status == HOST_STATUS_P) {
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
@@ -574,6 +606,7 @@ int hb_actions_as_master(overseer_s *overseer,
     debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
     if (hl_update_status(overseer, cm->status, cm->host_id) == EXIT_SUCCESS)
         debug_log(4, stdout, "Done.\n");
+    else debug_log(0, stderr, "Failure.\n");
 
     if (cm->next_index > overseer->log->next_index) { // If dist next_index is greater than local
         debug_log(4, stdout, "Dist next index is greater than local\n");
@@ -629,7 +662,7 @@ int hb_actions_as_master(overseer_s *overseer,
 
         if (log_repair_ongoing(overseer) == 1) {
             debug_log(4, stdout, "Overriding outdated Log Repair process.\n");
-            // TODO Improvement implement log repair override
+            log_repair_override(overseer, cm);
         }
 
         log_invalidate_from(overseer->log, cm->next_index);
@@ -668,7 +701,12 @@ int hb_actions_as_master(overseer_s *overseer,
     }
 
     if (cm->commit_index > overseer->log->commit_index) { // If dist commit index is greater
-        debug_log(4, stdout, "Dist commit index is greater than local.\n");
+        if (DEBUG_LEVEL >= 3) {
+            printf("Dist commit index (%ld) is greater than local (%ld).\n",
+                   cm->commit_index,
+                   overseer->log->commit_index);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (local_status == HOST_STATUS_P) {
             debug_log(0,
                       stderr,
@@ -687,15 +725,15 @@ int hb_actions_as_master(overseer_s *overseer,
 
     // If dist is CS or if dist is HS and local is P, reply with HB Ack
     if (cm->status == HOST_STATUS_CS || (cm->status == HOST_STATUS_HS && local_status == HOST_STATUS_P)) {
-        debug_log(4, stdout, "Everything is in order, replying with HB Ack.\n");
+        debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
         if (cm_sendto_with_ack_back(overseer,
                                     sender_addr,
                                     socklen,
                                     MSG_TYPE_GENERIC_ACK,
                                     cm->ack_reference) != EXIT_SUCCESS)
-            debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+            debug_log(0, stderr, "Failed to send a GENERIC ACK.\n");
     } else {
-        debug_log(4, stdout, "Everything is in order, replying back with HB.\n");
+        debug_log(4, stdout, "Everything is in order, replying back with HB DEFAULT.\n");
         if (cm_sendto_with_rt_init(overseer,
                                    sender_addr,
                                    socklen,
@@ -703,7 +741,7 @@ int hb_actions_as_master(overseer_s *overseer,
                                    CM_DEFAULT_RT_ATTEMPTS,
                                    0,
                                    cm->ack_reference) != EXIT_SUCCESS)
-            debug_log(0, stderr, "Failed to send and RT init an ACK HB\n");
+            debug_log(0, stderr, "Failed to send and RT init an HB DEFAULT.\n");
     }
 
     return EXIT_SUCCESS;
@@ -715,6 +753,12 @@ int hb_actions_as_server(overseer_s *overseer,
                          control_message_s *cm) {
 
     if (cm->P_term < overseer->log->P_term) { // If local P_term is greater
+        if (DEBUG_LEVEL >= 3) {
+            printf("Local P-term (%d) is greater than dist (%d).\n",
+                   overseer->log->P_term,
+                   cm->P_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         int rv = cm_sendto_with_ack_back(overseer,
                                          sender_addr,
                                          socklen,
@@ -738,10 +782,21 @@ int hb_actions_as_server(overseer_s *overseer,
     // If dist P_term or Next index is greater
     int p_outdated = cm->P_term > overseer->log->P_term;
     if (p_outdated || cm->next_index > overseer->log->next_index) {
-        if (p_outdated)
-            debug_log(4, stdout, "Local P-term p_outdated.\n");
-        else
-            debug_log(4, stdout, "Local next index p_outdated.\n");
+        if (p_outdated) {
+            if (DEBUG_LEVEL >= 2) {
+                printf("Local P-term (%d) is outdated (dist is %d).\n",
+                       overseer->log->P_term,
+                       cm->P_term);
+                if (INSTANT_FFLUSH) fflush(stdout);
+            }
+        } else {
+            if (DEBUG_LEVEL >= 2) {
+                printf("Local next index (%ld) is outdated (dist is %ld).\n",
+                       overseer->log->next_index,
+                       cm->next_index);
+                if (INSTANT_FFLUSH) fflush(stdout);
+            }
+        }
 
         if (log_repair_ongoing(overseer) || log_replay_ongoing(overseer)) {
             debug_log(4, stdout, "Log repair/replay already ongoing, replying with GENERIC ACK.\n");
@@ -765,12 +820,17 @@ int hb_actions_as_server(overseer_s *overseer,
     if (cm->commit_index < overseer->log->commit_index) { // If local commit index is greater
         debug_log(0,
                   stderr,
-                  "Fatal error: an S host cannot have greater commit index if P-terms are equal.\n");
+                  "Fatal error: an S node cannot have greater commit index if P-terms are equal.\n");
         exit(EXIT_FAILURE);
     }
 
     if (cm->commit_index > overseer->log->commit_index) { // If dist commit index is greater
-        debug_log(4, stdout, "Dist commit index is greater.\n");
+        if (DEBUG_LEVEL >= 3) {
+            printf("Dist commit index (%ld) is greater than local (%ld).\n",
+                   cm->commit_index,
+                   overseer->log->commit_index);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         log_commit_upto(overseer, cm->commit_index);
     }
 
@@ -780,8 +840,10 @@ int hb_actions_as_server(overseer_s *overseer,
                                 sender_addr,
                                 socklen,
                                 MSG_TYPE_GENERIC_ACK,
-                                cm->ack_reference) != EXIT_SUCCESS)
+                                cm->ack_reference) != EXIT_SUCCESS) {
         debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
@@ -806,8 +868,10 @@ int cm_election_actions(overseer_s *overseer,
         case MSG_TYPE_HS_VOTE:
             if (cm->HS_term != overseer->log->HS_term || // If HS-terms don't match
                 overseer->es->candidacy != CANDIDACY_HS || // If the local node is not a candidate
-                cm->commit_index != overseer->es->bid_number) // If vote does not concern the right bid
+                cm->commit_index != overseer->es->bid_number) { // If vote does not concern the right bid
+                debug_log(3, stdout, "Invalid vote ignored.\n");
                 break; // Ignore vote
+            }
 
             overseer->es->vote_count++;
             // Ack back CM
@@ -827,10 +891,17 @@ int cm_election_actions(overseer_s *overseer,
             if (cm->HS_term < overseer->log->HS_term || // If dist HS-term is inferior to local
                 cm->P_term < overseer->log->P_term || // If dist P-term is inferior to local
                 cm->next_index < overseer->log->next_index || // If dist next index is inferior to local
-                cm->commit_index < overseer->es->bid_number || // If dist bid number is inferior to local
-                cm->commit_index <=
-                overseer->es->last_voted_bid) // If local node has already voted for this bid or a higher one
+                cm->commit_index < overseer->es->bid_number) { // If dist bid number is inferior to local
+                debug_log(3, stdout, "Invalid vote ignored.\n");
                 break; // Ignore bid
+            }
+            // If local node has already voted for this bid or a higher one
+            if (cm->commit_index <= overseer->es->last_voted_bid) {
+                debug_log(3,
+                          stdout,
+                          "Bid ignored due to the local host already having given its vote this round or higher.\n");
+                break; // Ignore bid
+            }
 
             overseer->log->HS_term = cm->HS_term; // Set the HS-term if dist was higher
             overseer->es->bid_number = cm->commit_index; // Set the local bid if dist was higher
@@ -852,15 +923,17 @@ int cm_election_actions(overseer_s *overseer,
             exit(EXIT_FAILURE);
     }
 
-    // send a generic ack back
+// send a generic ack back
     int rv = cm_sendto_with_ack_back(overseer,
                                      sender_addr,
                                      socklen,
                                      MSG_TYPE_GENERIC_ACK,
                                      cm->ack_reference);
     if (rv != EXIT_SUCCESS)
-        fprintf(stderr, "Failed to ack back election CM of type %d.\n", cm->type);
-    return rv;
+        fprintf(stderr,
+                "Failed to ack back election CM of type %d.\n", cm->type);
+    return
+            rv;
 }
 
 int cm_other_actions_as_s_cs(overseer_s *overseer,
@@ -872,12 +945,15 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
 
     switch (cm->type) {
         case MSG_TYPE_GENERIC_ACK:
-            debug_log(3, stdout, "-> CM is of type GENERIC ACK\n");
                     __attribute__ ((fallthrough));
         case MSG_TYPE_INDICATE_P:
-            debug_log(3, stdout, "-> CM is of type INDICATE P\n");
             if (cm->P_term < overseer->log->P_term) { // If local P-term is greater
-                debug_log(4, stdout, "Local P-term is greater.\n");
+                if (DEBUG_LEVEL >= 3) {
+                    printf("Local P-term (%d) is greater than dist (%d).\n",
+                           overseer->log->P_term,
+                           cm->P_term);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
                 if (cm_sendto(overseer,
                               sender_addr,
                               socklen,
@@ -890,21 +966,30 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
                 return EXIT_SUCCESS;
             }
 
-            if (cm->P_term > overseer->log->P_term) // If dist P-term is greater
-                debug_log(4, stdout, "Dist P-term is greater.\n");
-            else // Else if P-terms are the same
+            if (cm->P_term > overseer->log->P_term) {// If dist P-term is greater
+                if (DEBUG_LEVEL >= 3) {
+                    printf("Dist P-term (%d) is greater than local (%d).\n",
+                           cm->P_term,
+                           overseer->log->P_term);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
+            } else // Else if P-terms are the same
                 debug_log(4, stdout, "P-terms are equal.\n");
             break;
 
         case MSG_TYPE_INDICATE_HS:
-            debug_log(3, stdout, "-> CM is of type INDICATE HS\n");
             if (local_status != HOST_STATUS_CS) {
                 debug_log(0, stderr, "Fatal error: should not receive INDICATE HS as a S host\n");
                 exit(EXIT_FAILURE);
             }
 
             if (cm->HS_term < overseer->log->HS_term) { // If local HS-term is greater
-                debug_log(4, stdout, "Local HS-term is greater.\n");
+                if (DEBUG_LEVEL >= 3) {
+                    printf("Local HS-term (%d) is greater than dist (%d).\n",
+                           overseer->log->HS_term,
+                           cm->HS_term);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
                 if (cm_sendto(overseer,
                               sender_addr,
                               socklen,
@@ -917,9 +1002,14 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
                 return EXIT_SUCCESS;
             }
 
-            if (cm->HS_term > overseer->log->HS_term) // If dist HS-term is greater
-                debug_log(4, stdout, "Dist HS-term is greater.\n");
-            else // Else if HS-terms are the same
+            if (cm->HS_term > overseer->log->HS_term) { // If dist HS-term is greater
+                if (DEBUG_LEVEL >= 3) {
+                    printf("Dist HS-term (%d) is greater than local (%d).\n",
+                           cm->HS_term,
+                           overseer->log->HS_term);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
+            } else // Else if HS-terms are the same
                 debug_log(4, stdout, "HS-terms are equal.\n");
             break;
 
@@ -941,25 +1031,20 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
 
     switch (cm->type) {
         case MSG_TYPE_LOG_REPLAY:
-            debug_log(3, stdout, "-> CM is of type LOG REPLAY\n");
                     __attribute__ ((fallthrough));
         case MSG_TYPE_LOG_REPAIR:
-            debug_log(3, stdout, "-> CM is of type LOG REPAIR\n");
             debug_log(4, stdout, "Replying with Logfix ... ");
             if (etr_reply_logfix(overseer, cm) == EXIT_SUCCESS)
                 debug_log(4, stdout, "Done.\n");
             break;
 
         case MSG_TYPE_GENERIC_ACK:
-            debug_log(3, stdout, "-> CM is of type GENERIC ACK\n");
             // Do nothing
             break;
 
         case MSG_TYPE_ACK_COMMIT:
-            debug_log(3, stdout, "-> CM is of type ACK COMMIT\n");
                     __attribute__ ((fallthrough));
         case MSG_TYPE_ACK_ENTRY:
-            debug_log(3, stdout, "-> CM is of type ACK ENTRY\n");
             if (local_status == HOST_STATUS_HS) {
                 errno = 0;
                 uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
@@ -982,8 +1067,13 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
             break;
 
         case MSG_TYPE_INDICATE_P:
-            debug_log(3, stdout, "-> CM is of type INDICATE P\n");
             if (overseer->log->P_term > cm->P_term) {
+                if (DEBUG_LEVEL >= 3) {
+                    printf("Local P-term (%d) is greater than dist (%d).\n",
+                           overseer->log->P_term,
+                           cm->P_term);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
                 if (local_status == HOST_STATUS_P) {
                     if (cm_sendto_with_rt_init(overseer,
                                                sender_addr,
@@ -1006,6 +1096,12 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                                   "Failed to send CM of type INDICATE P.\n");
                 }
             } else if (overseer->log->P_term < cm->P_term) {
+                if (DEBUG_LEVEL >= 3) {
+                    printf("Dist P-term (%d) is greater than local (%d).\n",
+                           cm->P_term,
+                           overseer->log->P_term);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
                 if (local_status == HOST_STATUS_P)
                     stepdown_to_cs(overseer);
                 if (overseer->log->next_index > 1 &&
@@ -1016,8 +1112,13 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
             break;
 
         case MSG_TYPE_INDICATE_HS:
-            debug_log(3, stdout, "-> CM is of type INDICATE HS\n");
             if (overseer->log->HS_term > cm->HS_term) {
+                if (DEBUG_LEVEL >= 3) {
+                    printf("Local HS-term (%d) is greater than dist (%d).\n",
+                           overseer->log->HS_term,
+                           cm->HS_term);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
                 if (local_status == HOST_STATUS_HS) {
                     if (cm_sendto_with_rt_init(overseer,
                                                sender_addr,
@@ -1039,8 +1140,15 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                                   stderr,
                                   "Failed to send CM of type INDICATE HS.\n");
                 }
-            } else if (overseer->log->HS_term < cm->HS_term && local_status == HOST_STATUS_HS)
+            } else if (overseer->log->HS_term < cm->HS_term && local_status == HOST_STATUS_HS) {
+                if (DEBUG_LEVEL >= 3) {
+                    printf("Dist HS-term (%d) is greater than local (%d).\n",
+                           cm->HS_term,
+                           overseer->log->HS_term);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
                 stepdown_to_cs(overseer);
+            }
             break;
 
         default:

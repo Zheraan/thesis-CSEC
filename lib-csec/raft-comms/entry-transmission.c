@@ -187,7 +187,8 @@ int etr_reception_init(overseer_s *overseer) {
 }
 
 void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
-    debug_log(4, stdout, "Start of ETR reception callback ---------------------------------------------------\n");
+    debug_log(4, stdout,
+              "Start of ETR reception callback --------------------------------------------------------------------------\n");
 
     overseer_s *overseer = arg;
     entry_transmission_s etr;
@@ -230,20 +231,20 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         // TODO Improvement: Log an error in case time was lower than timeout somehow or figure a way
     }
 
-    if (DEBUG_LEVEL >= 2)
-        cm_print_type(&(etr.cm), stdout);
-
     if (etr_actions(overseer, sender_addr, socklen, &etr) != EXIT_SUCCESS)
         debug_log(1, stderr, "ETR action failure.\n");
 
     // Init next event so it can keep receiving messages
     etr_reception_init(overseer);
 
-    debug_log(4, stdout, "End of ETR reception callback ------------------------------------------------------\n\n");
+    debug_log(4, stdout,
+              "End of ETR reception callback -----------------------------------------------------------------------------\n\n");
     return;
 }
 
 void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
+    debug_log(4, stdout,
+              "Start of ETR Retransmission callback -----------------------------------------------------------\n");
     retransmission_cache_s *rc = arg;
 
     if (DEBUG_LEVEL >= 3) {
@@ -283,6 +284,8 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     if (success == 1)
         debug_log(3, stdout, "Done.\n");
+    debug_log(4, stdout,
+              "End of ETR Retransmission callback -------------------------------------------------------------\n\n");
     return;
 }
 
@@ -304,14 +307,12 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
 }
 
 int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
+    debug_log(2, stdout, "Broadcasting Commit Order ... ");
+
     if (overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_P) {
         debug_log(0, stderr, "Error: only P can send a Commit Order.\n");
         return EXIT_FAILURE;
     }
-
-    debug_log(4,
-              stdout,
-              "Start of Commit Order broadcast ----------------------------------------------------\n");
 
     entry_transmission_s *netr_blueprint = etr_new_from_local_entry(overseer,
                                                                     MSG_TYPE_ETR_COMMIT,
@@ -325,8 +326,6 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
     host_s *target;
     struct sockaddr_in6 receiver;
     socklen_t receiver_len;
-
-    debug_log(3, stdout, "Broadcasting Commit Order ... ");
     int nb_orders = 0;
     for (uint32_t i = 0; i < overseer->hl->nb_hosts; i++) {
         target = &(overseer->hl->hosts[i]);
@@ -353,10 +352,6 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
         }
         *netr = *netr_blueprint;
 
-        if (DEBUG_LEVEL >= 3) {
-            printf("- Commit order: ");
-        }
-
         if (etr_sendto_with_rt_init(overseer,
                                     receiver,
                                     receiver_len,
@@ -371,14 +366,12 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     free(netr_blueprint);
-    debug_log(4,
-              stdout,
-              "End of Commit Order broadcast ------------------------------------------------------\n\n");
+    debug_log(2, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sender_id, uint32_t ack_back) {
-    debug_log(4, stdout, "Start of New Entry broadcast ----------------------------------------------------\n");
+    debug_log(2, stdout, "Broadcasting New Entry ... ");
 
     entry_transmission_s *netr_noack = etr_new_from_local_entry(overseer,
                                                                 MSG_TYPE_ETR_NEW,
@@ -401,7 +394,6 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
 
     host_s *target;
 
-    debug_log(3, stdout, "Broadcasting New Entry ... ");
     int nb_etr = 0;
     for (uint32_t i = 0; i < overseer->hl->nb_hosts; i++) {
         target = &(overseer->hl->hosts[i]);
@@ -424,10 +416,6 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
         }
         *netr = i == sender_id ? *netr_ack : *netr_noack; // Copy data from the "blueprint" ETR
 
-        if (DEBUG_LEVEL >= 3) {
-            printf("- New Entry: ");
-        }
-
         if (etr_sendto_with_rt_init(overseer,
                                     target->addr,
                                     target->socklen,
@@ -436,14 +424,13 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
             fprintf(stderr, "Failed to send and RT init New Entry.\n");
         } else nb_etr++;
     }
+    free(netr_noack);
+    free(netr_ack);
 
-    if (DEBUG_LEVEL >= 3) {
+    if (DEBUG_LEVEL >= 2) {
         printf("Done (%d ETR sent).\n", nb_etr);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
-    free(netr_noack);
-    free(netr_ack);
-    debug_log(4, stdout, "End of New Entry broadcast ------------------------------------------------------\n\n");
     return EXIT_SUCCESS;
 }
 
@@ -488,6 +475,10 @@ int etr_actions_as_p(overseer_s *overseer,
 
     // If dist P-term is greater than local
     if (etr->cm.P_term > overseer->log->P_term) {
+        if (DEBUG_LEVEL >= 2) {
+            printf("Dist's P-term (%d) is greater than local (%d).\n", etr->cm.P_term, overseer->log->P_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
         stepdown_to_cs(overseer);
         if (cm_sendto_with_rt_init(overseer,
@@ -503,6 +494,10 @@ int etr_actions_as_p(overseer_s *overseer,
 
     // If local P-term is greater than dist
     if (etr->cm.P_term < overseer->log->P_term) {
+        if (DEBUG_LEVEL >= 2) {
+            printf("Local P-term (%d) is greater than dist's (%d).\n", overseer->log->P_term, etr->cm.P_term);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (cm_sendto_with_rt_init(overseer,
                                    sender_addr,
                                    socklen,
@@ -517,7 +512,15 @@ int etr_actions_as_p(overseer_s *overseer,
     // Else if P-terms are equal
 
     if (etr->cm.type == MSG_TYPE_ETR_PROPOSITION) {
-        if (etr->cm.next_index > overseer->log->next_index) {
+        // If dist next index is inferior
+        if (etr->cm.next_index < overseer->log->next_index) {
+            if (DEBUG_LEVEL >= 3) {
+                printf("Local next index (%ld) is greater than dist's (%ld).\n",
+                       overseer->log->next_index,
+                       etr->cm.next_index);
+                if (INSTANT_FFLUSH) fflush(stdout);
+            }
+            // Reply with HB DEFAULT
             if (cm_sendto_with_rt_init(overseer,
                                        sender_addr,
                                        socklen,
@@ -529,10 +532,13 @@ int etr_actions_as_p(overseer_s *overseer,
             return EXIT_SUCCESS;
         }
 
-        if (etr->cm.next_index < overseer->log->next_index) {
-            debug_log(0,
-                      stderr,
-                      "Fatal error: P cannot have a lower next index if P-terms are equal.\n");
+        if (etr->cm.next_index > overseer->log->next_index) {
+            fflush(stdout);
+            fprintf(stderr,
+                    "Fatal error: P cannot have a lower next index (%ld) than dist (%ld) if P-terms are equal.\n",
+                    overseer->log->next_index,
+                    etr->cm.next_index);
+            fflush(stderr);
             exit(EXIT_FAILURE);
         }
 

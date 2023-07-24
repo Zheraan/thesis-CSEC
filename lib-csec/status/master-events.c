@@ -5,7 +5,8 @@
 #include "master-events.h"
 
 void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *arg) {
-    debug_log(4, stdout, "Start of HB broadcast callback ----------------------------------------------------\n");
+    debug_log(4, stdout,
+              "Start of HB broadcast callback -----------------------------------------------------------------\n");
 
     enum host_status local_status = (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]).status;
     uint8_t flags = FLAG_NOSKIP;
@@ -27,12 +28,13 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
         exit(EXIT_FAILURE); // TODO Extension Crash handler
     }
 
-    debug_log(4, stdout, "End of HB broadcast callback ------------------------------------------------------\n\n");
+    debug_log(4, stdout,
+              "End of HB broadcast callback -------------------------------------------------------------------\n\n");
     return;
 }
 
 int master_heartbeat_init(overseer_s *overseer) {
-    debug_log(3, stdout, "\n- Initializing next heartbeat event ... ");
+    debug_log(3, stdout, "- Initializing next heartbeat event ... ");
 
     // Create the event related to the socket
     struct event *hb_event = event_new(overseer->eb,

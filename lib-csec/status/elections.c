@@ -21,7 +21,7 @@ void election_state_reset(overseer_s *overseer) {
 int start_hs_candidacy_bid(overseer_s *overseer) {
     debug_log(4,
               stdout,
-              "Start of HS Candidacy Bid ----------------------------------------------------------\n");
+              "Start of HS Candidacy Bid ---------------------------------------------------------------------------------\n");
 
     overseer->es->candidacy = CANDIDACY_HS;
     overseer->es->bid_number++;
@@ -61,14 +61,17 @@ int start_hs_candidacy_bid(overseer_s *overseer) {
 
     debug_log(4,
               stdout,
-              "End of HS Candidacy Bid ------------------------------------------------------------\n");
+              "End of HS Candidacy Bid -----------------------------------------------------------------------------------\n");
     return EXIT_SUCCESS;
 }
 
 void end_hs_candidacy_round(overseer_s *overseer) {
+    debug_log(4, stdout, "Resetting vote count and ");
     overseer->es->vote_count = 0; // Reset local vote count
     if (overseer->es->candidacy == CANDIDACY_NONE)
         return;
+    debug_log(2, stdout, "Ending candidacy round.\n");
+
     overseer->es->candidacy = CANDIDACY_NONE; // Reset candidacy
 
     if (overseer->es->election_round_event != NULL)
@@ -81,10 +84,24 @@ void end_hs_candidacy_round(overseer_s *overseer) {
 }
 
 int stepdown_to_cs(overseer_s *overseer) {
-    debug_log(1, stdout, "Stepping down to CS ... ");
+    enum host_status starting_status = overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_CS;
+    if (starting_status == HOST_STATUS_CS) {
+        if (DEBUG_LEVEL >= 4)
+            debug_log(4, stdout,
+                      "Setting CS state ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+        else debug_log(1, stdout, "Setting CS state ... ");
+    } else {
+        if (DEBUG_LEVEL >= 4)
+            debug_log(4, stdout,
+                      "Stepping down to CS +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+        else debug_log(1, stdout, "Stepping down to CS ... ");
+    }
 
     if (overseer->hl->nb_masters == 1) {
-        debug_log(1, stdout, "Local host is only master, aborting.\n");
+        debug_log(1, stdout, "Local host is the only master, aborting.\n");
+        if (DEBUG_LEVEL >= 4)
+            debug_log(4, stdout,
+                      "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         return EXIT_SUCCESS;
     }
 
@@ -107,12 +124,25 @@ int stepdown_to_cs(overseer_s *overseer) {
 
     // TODO Improvement Reset replication array to avoid having stale data impact future promotions ?
 
-    debug_log(1, stdout, "Done.\n");
+    if (starting_status == HOST_STATUS_CS) {
+        if (DEBUG_LEVEL >= 4)
+            debug_log(4, stdout,
+                      "End of CS setup +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+        else debug_log(1, stdout, "End of CS setup.\n");
+    } else {
+        if (DEBUG_LEVEL >= 4)
+            debug_log(4, stdout,
+                      "End of step-down ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+        else debug_log(1, stdout, "Done.\n");
+    }
     return EXIT_SUCCESS;
 }
 
 int promote_to_hs(overseer_s *overseer) {
-    debug_log(1, stdout, "Promoting local node to HS ... ");
+    if (DEBUG_LEVEL >= 4)
+        debug_log(4, stdout,
+                  "Promoting local node to HS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    else debug_log(1, stdout, "Promoting local node to HS ... ");
 
     if (overseer->hl->nb_masters == 1) {
         debug_log(1, stdout, "Local host is only master, promoting to P instead.\n");
@@ -131,12 +161,18 @@ int promote_to_hs(overseer_s *overseer) {
 
     cm_broadcast(overseer, MSG_TYPE_HS_TAKEOVER, CM_DEFAULT_RT_ATTEMPTS, FLAG_SKIP_S);
 
-    debug_log(1, stdout, "Done.\n");
+    if (DEBUG_LEVEL >= 4)
+        debug_log(4, stdout,
+                  "End of HS promotion +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    else debug_log(1, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
 int promote_to_p(overseer_s *overseer) {
-    debug_log(1, stdout, "Promoting local node to P ... ");
+    if (DEBUG_LEVEL >= 4)
+        debug_log(4, stdout,
+                  "Promoting local node to P ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    else debug_log(1, stdout, "Promoting local node to P ... ");
     // TODO Improvement query for P's liveness before taking over
     hl_update_status(overseer, HOST_STATUS_P, overseer->hl->localhost_id);
 
@@ -159,7 +195,10 @@ int promote_to_p(overseer_s *overseer) {
 
     cm_broadcast(overseer, MSG_TYPE_P_TAKEOVER, CM_DEFAULT_RT_ATTEMPTS, FLAG_NOSKIP);
 
-    debug_log(1, stdout, "Done.\n");
+    if (DEBUG_LEVEL >= 4)
+        debug_log(4, stdout,
+                  "End of P promotion +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+    else debug_log(1, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
@@ -202,6 +241,9 @@ void election_timeout_cb(evutil_socket_t fd, short event, void *arg) {
     if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status == HOST_STATUS_CS) {
         debug_log(2, stdout, "Election timeout: starting new HS bid.\n");
         start_hs_candidacy_bid((overseer_s *) arg);
+    } else {
+        debug_log(0, stderr, "Error: an election should not timeout if the local host is not CS.\n");
+        exit(EXIT_FAILURE);
     }
     return;
 }

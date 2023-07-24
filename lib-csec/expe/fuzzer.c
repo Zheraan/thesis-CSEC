@@ -12,9 +12,9 @@ int fuzzer_entry_init(overseer_s *overseer, enum packet_type t, union packet p, 
         evutil_secure_rng_get_bytes(&buf, sizeof(uint8_t));
         buf %= 100; // Set the value inside the range
 
-        if (buf <= FUZZER_DROP_RATE) {
+        if (buf < FUZZER_DROP_RATE) {
             if (DEBUG_LEVEL >= 3) {
-                printf("Message dropped by the fuzzer (%d result / %d%% chances)\n", buf, FUZZER_DROP_RATE);
+                printf("Message dropped by the fuzzer (result %d / %d%% chances).\n", buf, FUZZER_DROP_RATE);
                 if (INSTANT_FFLUSH) fflush(stdout);
             }
             return EXIT_SUCCESS;
@@ -50,6 +50,7 @@ int fuzzer_entry_init(overseer_s *overseer, enum packet_type t, union packet p, 
     struct timeval timeout = timeout_gen(TIMEOUT_TYPE_FUZZER);
     if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &timeout) != 0) {
         fprintf(stderr, "Failed to add a fuzzer timeout event\n");
+        event_free(nevent);
         free(nfc);
         return EXIT_FAILURE;
     }
@@ -58,14 +59,16 @@ int fuzzer_entry_init(overseer_s *overseer, enum packet_type t, union packet p, 
         nfc->id = 0;
         overseer->fc = nfc;
     } else {
-        for (fuzzer_cache_s *target = overseer->fc; target->next != NULL; target = target->next) {
-            // Otherwise add it at the end
+        // Otherwise add it at the end
+        fuzzer_cache_s *target = overseer->fc;
+        do {
             if (target->next == NULL) {
                 target->next = nfc;
                 nfc->id = target->id + 1;
                 break;
             }
-        }
+            target = target->next;
+        } while (target != NULL);
     }
 
     if (DEBUG_LEVEL >= 3) {
@@ -76,20 +79,29 @@ int fuzzer_entry_init(overseer_s *overseer, enum packet_type t, union packet p, 
     return EXIT_SUCCESS;
 }
 
+void fuzzer_cache_free_all_aux(fuzzer_cache_s *fc) {
+    if (fc == NULL)
+        return;
+    fuzzer_cache_free_all_aux(fc->next);
+    event_free(fc->ev);
+    free(fc);
+    return;
+}
+
 void fuzzer_cache_free_all(overseer_s *overseer) {
-    fuzzer_cache_s *tmp;
-    for (fuzzer_cache_s *ptr = overseer->fc; ptr != NULL; ptr = tmp) {
-        tmp = ptr->next;
-        event_free(ptr->ev);
-        free(ptr);
-    }
+    fuzzer_cache_free_all_aux(overseer->fc);
+    overseer->fc = NULL;
     return;
 }
 
 int fuzzer_entry_free(overseer_s *overseer, uint32_t id) {
+//    if (DEBUG_LEVEL >= 4) {
+//        printf("Removing fuzzer cache entry #%d ... ", id);
+//        if (INSTANT_FFLUSH) fflush(stdout);
+//    }
     fuzzer_cache_s *ptr = overseer->fc;
     if (ptr == NULL) {
-        fprintf(stderr, "Error: no entry with id %d in the fuzzer's cache.\n", id);
+        fprintf(stderr, "Error freeing cache entry: no entry with id %d in the fuzzer's cache.\n", id);
         if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
@@ -97,6 +109,7 @@ int fuzzer_entry_free(overseer_s *overseer, uint32_t id) {
         overseer->fc = ptr->next;
         event_free(ptr->ev);
         free(ptr);
+//        debug_log(0, stdout, "Done.\n");
         return EXIT_SUCCESS;
     }
 
@@ -106,23 +119,28 @@ int fuzzer_entry_free(overseer_s *overseer, uint32_t id) {
             ptr->next = tmp->next;
             event_free(tmp->ev);
             free(tmp);
+//            debug_log(0, stdout, "Done.\n");
             return EXIT_SUCCESS;
         }
     }
 
-    fprintf(stderr, "Error: no entry with id %d in the fuzzer's cache.\n", id);
+    fprintf(stderr, "Error freeing cache entry: no entry with id %d in the fuzzer's cache.\n", id);
     if (INSTANT_FFLUSH) fflush(stderr);
     return EXIT_FAILURE;
 }
 
 void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
+    debug_log(4, stdout,
+              "Start of Fuzzer transmission callback ----------------------------------------------------------\n");
     fuzzer_cache_s *fc = arg;
 
     if (DEBUG_LEVEL >= 2) {
-        printf("Fuzzer timeout: transmitting entry %d, a %s of type %d ... ",
+        printf("Fuzzer timeout: transmitting entry %d, a %s of type %d (",
                fc->id,
                fc->type == PACKET_TYPE_CM ? "CM" : "ETR",
                fc->type == PACKET_TYPE_CM ? fc->p.cm.type : fc->p.etr.cm.type);
+        cm_print_type(fc->type == PACKET_TYPE_CM ? &fc->p.cm : &fc->p.etr.cm, stdout);
+        printf(") ... ");
         if (INSTANT_FFLUSH) fflush(stdout);
     }
 
@@ -137,7 +155,7 @@ void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
                        fc->socklen) == -1) {
                 perror("Fuzzer ETR sendto");
                 if (errno != EAGAIN)
-                    return;
+                    break;
             }
         } while (errno == EAGAIN);
     } else if (fc->type == PACKET_TYPE_CM) {
@@ -151,11 +169,16 @@ void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
                        fc->socklen) == -1) {
                 perror("Fuzzer CM sendto");
                 if (errno != EAGAIN)
-                    return;
+                    break;
             }
         } while (errno == EAGAIN);
     }
 
+    // Cleaning up the memory
+    fuzzer_entry_free(fc->overseer, fc->id);
+
     debug_log(2, stdout, "Done.\n");
+    debug_log(4, stdout,
+              "End of Fuzzer transmission callback ------------------------------------------------------------\n\n");
     return;
 }

@@ -102,7 +102,7 @@ struct timeval timeout_gen(enum timeout_type type) {
     ntv.tv_usec += TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_USEC;
 
     if (DEBUG_LEVEL >= 4)
-        printf("\n  - Created a timeout of type %d and a duration of %ldsec %ldusec\n",
+        printf("[Created a timeout of type %d and a duration of %ld.%lds] ",
                type,
                ntv.tv_sec,
                ntv.tv_usec);

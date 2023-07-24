@@ -29,7 +29,7 @@
 
 // Offset for all timeouts to slow down the program without having to fine tune it, for debug purposes
 #ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_SEC
-#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_SEC 1
+#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_SEC 0
 #endif
 #ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_USEC
 #define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_USEC 0
@@ -42,20 +42,20 @@
 #ifndef TIMEOUT_RANGE_ELECTION_USEC
 #define TIMEOUT_RANGE_ELECTION_USEC 500000
 #endif
-// Timeout duration offset for elections. Default value of 150ms
+// Timeout duration offset for elections. Default value of 300ms
 #ifndef TIMEOUT_OFFSET_ELECTION_SEC
 #define TIMEOUT_OFFSET_ELECTION_SEC 0
 #endif
 #ifndef TIMEOUT_OFFSET_ELECTION_USEC
-#define TIMEOUT_OFFSET_ELECTION_USEC 150000
+#define TIMEOUT_OFFSET_ELECTION_USEC 300000
 #endif
 
-// Timeout duration range for the fuzzer. Default value of 2s
+// Timeout duration range for the fuzzer. Default value of 0.5s
 #ifndef TIMEOUT_RANGE_FUZZER_SEC
-#define TIMEOUT_RANGE_FUZZER_SEC 1
+#define TIMEOUT_RANGE_FUZZER_SEC 0
 #endif
 #ifndef TIMEOUT_RANGE_FUZZER_USEC
-#define TIMEOUT_RANGE_FUZZER_USEC 999999
+#define TIMEOUT_RANGE_FUZZER_USEC 500000
 #endif
 // Timeout duration offset for the fuzzer. Default value of 10ms
 #ifndef TIMEOUT_OFFSET_FUZZER_SEC
@@ -80,12 +80,12 @@
 #define TIMEOUT_OFFSET_RANDOM_OPS_USEC 0
 #endif
 
-// Timeout duration for propositions. Default value of 500ms
+// Timeout duration for propositions. Default value of 1s
 #ifndef TIMEOUT_VALUE_PROPOSITION_SEC
 #define TIMEOUT_VALUE_PROPOSITION_SEC 0
 #endif
 #ifndef TIMEOUT_VALUE_PROPOSITION_USEC
-#define TIMEOUT_VALUE_PROPOSITION_USEC 500000
+#define TIMEOUT_VALUE_PROPOSITION_USEC 999999
 #endif
 
 // Timeout duration for Acks. Default value of 170ms
@@ -120,12 +120,12 @@
 #define TIMEOUT_VALUE_HS_HB_USEC 500000
 #endif
 
-// Timeout duration for P's liveness. Default value of 3s
+// Timeout duration for P's liveness. Default value of 3.5s
 #ifndef TIMEOUT_VALUE_P_LIVENESS_SEC
 #define TIMEOUT_VALUE_P_LIVENESS_SEC 3
 #endif
 #ifndef TIMEOUT_VALUE_P_LIVENESS_USEC
-#define TIMEOUT_VALUE_P_LIVENESS_USEC 0
+#define TIMEOUT_VALUE_P_LIVENESS_USEC 500000
 #endif
 
 

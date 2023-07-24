@@ -26,8 +26,8 @@
 // host's hosts list. If no node has P status in this case, NULL is returned.
 control_message_s *cm_new(const overseer_s *overseer, enum message_type type, uint32_t ack_back);
 
-// Outputs the state of the structure to the specified stream
-void cm_print(const control_message_s *hb, FILE *stream);
+// Outputs the contents of the cm struct to the specified stream
+void cm_print(const control_message_s *cm, FILE *stream);
 
 // Prints a line of text indicating the CM's type
 void cm_print_type(const control_message_s *cm, FILE *stream);
