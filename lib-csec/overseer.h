@@ -12,24 +12,12 @@
 #include <event2/event.h>
 #include <event2/util.h>
 
-#ifndef ENTRY_STATE_
-#define ENTRY_STATE_
-// Defines the entry's state
-enum entry_state {
-    ENTRY_STATE_INVALID = -1,
-    ENTRY_STATE_EMPTY = 0,
-    ENTRY_STATE_PROPOSAL = 1,
-    ENTRY_STATE_PENDING = 2,
-    ENTRY_STATE_COMMITTED = 3,
-    ENTRY_STATE_CACHED = 4,
-};
-#endif
-
 #include "datatypes.h"
 #include "hosts-list/hosts-list.h"
 #include "raft-log/log.h"
 #include "mocked-fs/ops-queue.h"
 #include "raft-comms/retransmission-cache.h"
+#include "expe/fuzzer.h"
 
 #ifndef ECFG_MAX_DISPATCH_USEC
 #define ECFG_MAX_DISPATCH_USEC 2000

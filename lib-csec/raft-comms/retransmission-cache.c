@@ -68,11 +68,9 @@ uint32_t rtc_add_new(overseer_s *overseer,
         callback = etr_retransmission_cb;
 
     // Create a non-persistent event triggered only by timeout
-    struct event *nevent = event_new(overseer->eb,
-                                     -1,
-                                     EV_TIMEOUT,
-                                     callback,
-                                     (void *) nrtc);
+    struct event *nevent = evtimer_new(overseer->eb,
+                                       callback,
+                                       (void *) nrtc);
     if (nevent == NULL) {
         fprintf(stderr, "Failed to create a retransmission event\n");
         rtc_free(nrtc);
@@ -95,6 +93,8 @@ uint32_t rtc_add_new(overseer_s *overseer,
     }
 
     // If there are no other cached elements, just insert it in first place with ID 1
+    // ID 0 is forbidden as a value of 0 is used in the ack_reference field of messages to signify that it does not
+    // require acknowledgement.
     if (overseer->rtc == NULL) {
         overseer->rtc = nrtc;
         nrtc->id = 1;

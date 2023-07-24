@@ -10,6 +10,7 @@
 #include "rc-datatypes.h"
 #include "../raft-log/log.h"
 #include "control-message.h"
+#include "../expe/fuzzer.h"
 
 #ifndef PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS
 // Defines how many times should the server attempt to retransmit a proposition before ditching it

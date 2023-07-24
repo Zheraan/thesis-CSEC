@@ -10,7 +10,10 @@
 #include <string.h>
 #include <event2/event.h>
 #include "mfs-datatypes.h"
-#include "../overseer.h"
+
+#ifndef INSTANT_FFLUSH
+#define INSTANT_FFLUSH 1
+#endif
 
 // Prints the contents of the mocked filesystem to the specified stream
 void mfs_array_print(mocked_fs_s *mfs, FILE *stream);

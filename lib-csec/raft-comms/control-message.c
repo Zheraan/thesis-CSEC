@@ -208,22 +208,27 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         cm_print(cm, stdout);
     }
 
-    do {
-        errno = 0;
-        if (sendto(overseer->socket_cm,
-                   cm,
-                   sizeof(control_message_s),
-                   0,
-                   (const struct sockaddr *) &sockaddr,
-                   socklen) == -1) {
-            perror("CM sendto");
-            if (INSTANT_FFLUSH) fflush(stderr);
-            if (errno != EAGAIN) {
-                free(cm);
-                return EXIT_FAILURE;
+    if (FUZZER_ENABLED) {
+        fuzzer_entry_init(overseer, PACKET_TYPE_CM, (union packet) *cm, sockaddr, socklen);
+    } else {
+        do {
+            // If the fuzzer is disabled, send it normally
+            errno = 0;
+            if (sendto(overseer->socket_cm,
+                       cm,
+                       sizeof(control_message_s),
+                       0,
+                       (const struct sockaddr *) &sockaddr,
+                       socklen) == -1) {
+                perror("CM sendto");
+                if (INSTANT_FFLUSH) fflush(stderr);
+                if (errno != EAGAIN) {
+                    free(cm);
+                    return EXIT_FAILURE;
+                }
             }
-        }
-    } while (errno == EAGAIN);
+        } while (errno == EAGAIN);
+    }
 
     free(cm);
 
@@ -1055,7 +1060,7 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
 }
 
 
-int cm_forward(const overseer_s *overseer,
+int cm_forward(overseer_s *overseer,
                struct sockaddr_in6 sockaddr,
                socklen_t socklen,
                const control_message_s *cm) {
@@ -1067,20 +1072,25 @@ int cm_forward(const overseer_s *overseer,
         cm_print(cm, stdout);
     }
 
-    do {
-        errno = 0;
-        if (sendto(overseer->socket_cm,
-                   cm,
-                   sizeof(control_message_s),
-                   0,
-                   (const struct sockaddr *) &sockaddr,
-                   socklen) == -1) {
-            perror("CM sendto");
-            if (INSTANT_FFLUSH) fflush(stderr);
-            if (errno != EAGAIN)
-                return EXIT_FAILURE;
-        }
-    } while (errno == EAGAIN);
+    if (FUZZER_ENABLED) {
+        fuzzer_entry_init(overseer, PACKET_TYPE_CM, (union packet) *cm, sockaddr, socklen);
+    } else {
+        // If the fuzzer is disabled, send it normally
+        do {
+            errno = 0;
+            if (sendto(overseer->socket_cm,
+                       cm,
+                       sizeof(control_message_s),
+                       0,
+                       (const struct sockaddr *) &sockaddr,
+                       socklen) == -1) {
+                perror("CM sendto");
+                if (INSTANT_FFLUSH) fflush(stderr);
+                if (errno != EAGAIN)
+                    return EXIT_FAILURE;
+            }
+        } while (errno == EAGAIN);
+    }
 
     debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;

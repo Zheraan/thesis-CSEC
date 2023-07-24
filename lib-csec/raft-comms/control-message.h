@@ -140,7 +140,7 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
 
 // Sends the given CM to target host as is, without altering its contents using local metadata.
 // Returns EXIT_SUCCESS or EXIT_FAILURE
-int cm_forward(const overseer_s *overseer,
+int cm_forward(overseer_s *overseer,
                struct sockaddr_in6 sockaddr,
                socklen_t socklen,
                const control_message_s *cm);

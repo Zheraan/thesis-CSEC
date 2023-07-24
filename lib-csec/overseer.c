@@ -15,6 +15,7 @@ int overseer_init(overseer_s *overseer) {
     overseer->etr_reception_event = NULL;
     overseer->p_liveness_event = NULL;
     overseer->es = NULL;
+    overseer->fc = NULL;
 
     // Malloc the hosts list
     hosts_list_s *hl = malloc(sizeof(hosts_list_s));
@@ -216,6 +217,11 @@ void overseer_wipe(overseer_s *overseer) {
         if (overseer->es->election_round_event != NULL)
             event_free(overseer->es->election_round_event);
         free(overseer->es);
+    }
+
+    if (overseer->fc != NULL) {
+        debug_log(3, stdout, "Done.\n- Fuzzer cache ... ");
+        fuzzer_cache_free_all(overseer);
     }
 
     debug_log(3, stdout, "Done.\n- Closing sockets ... ");

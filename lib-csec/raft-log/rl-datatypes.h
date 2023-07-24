@@ -6,16 +6,6 @@
 #define THESIS_CSEC_RL_DATATYPES_H
 
 #include <stdint.h>
-#include "../raft-comms/rc-datatypes.h"
-#include "../mocked-fs/mfs-datatypes.h"
-
-#ifndef LOG_LENGTH
-#define LOG_LENGTH 2048 // Log length, in number of entries. May be redefined
-#endif
-
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 4
-#endif
 
 #ifndef ENTRY_STATE_
 #define ENTRY_STATE_
@@ -28,6 +18,17 @@ enum entry_state {
     ENTRY_STATE_COMMITTED = 3,
     ENTRY_STATE_CACHED = 4,
 };
+#endif
+
+#include "../raft-comms/rc-datatypes.h"
+#include "../mocked-fs/mfs-datatypes.h"
+
+#ifndef LOG_LENGTH
+#define LOG_LENGTH 2048 // Log length, in number of entries. May be redefined
+#endif
+
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 4
 #endif
 
 enum fix_type {

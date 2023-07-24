@@ -11,6 +11,9 @@ add_library(
         mocked-fs/mfs-datatypes.h
         raft-comms/rc-datatypes.h
         raft-log/rl-datatypes.h
+        expe/fuzzer.c
+        expe/fuzzer.h
+        expe/expe-datatypes.h
         mocked-fs/data-op.c
         mocked-fs/data-op.h
         hosts-list/hosts-list.c

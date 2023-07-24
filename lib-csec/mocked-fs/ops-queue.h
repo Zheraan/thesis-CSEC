@@ -11,6 +11,7 @@ typedef struct ops_queue_s ops_queue_s;
 #include "mfs-datatypes.h"
 #include "data-op.h"
 #include "mocked-fs.h"
+#include "../overseer.h"
 
 // Frees the memory of a queue element, its data op, and its timeout event
 void ops_queue_element_free(ops_queue_s *element);

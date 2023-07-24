@@ -75,8 +75,7 @@ struct timeval timeout_gen(enum timeout_type type) {
             break;
 
         default:
-            fprintf(stderr, "Unknown timeout type\n");
-            if (INSTANT_FFLUSH) fflush(stderr);
+            debug_log(0, stderr, "Unknown timeout type\n");
             errno = EUNKNOWN_TIMEOUT_TYPE;
             return ntv;
     }

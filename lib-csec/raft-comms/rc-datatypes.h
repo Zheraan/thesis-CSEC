@@ -6,9 +6,9 @@
 #define THESIS_CSEC_RC_DATATYPES_H
 
 #include <stdint.h>
-#include "../hosts-list/hl-datatypes.h"
 #include "../raft-log/rl-datatypes.h"
-#include "../mocked-fs/data-op.h"
+#include "../hosts-list/hl-datatypes.h"
+#include "../mocked-fs/mfs-datatypes.h"
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 4
@@ -250,6 +250,8 @@ typedef struct entry_transmission_s {
     // Transmitted entry's state
     enum entry_state state;
 } entry_transmission_s;
+
+#include "../overseer.h"
 
 // Struct to hold a message or transmission that needs to be retransmitted and freed later, in a linked list
 // fashion

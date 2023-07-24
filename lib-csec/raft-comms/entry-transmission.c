@@ -132,19 +132,24 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
     // address but with the Control Message port (35007)
     sockaddr.sin6_port = htons(35008);
 
-    do {
-        errno = 0;
-        if (sendto(overseer->socket_etr,
-                   etr,
-                   sizeof(entry_transmission_s),
-                   0,
-                   (const struct sockaddr *) &sockaddr,
-                   socklen) == -1) {
-            perror("ETR sendto");
-            if (errno != EAGAIN)
-                return EXIT_FAILURE;
-        }
-    } while (errno == EAGAIN);
+    if (FUZZER_ENABLED) {
+        fuzzer_entry_init(overseer, PACKET_TYPE_ETR, (union packet) *etr, sockaddr, socklen);
+    } else {
+        // If the fuzzer is disabled, send it normally
+        do {
+            errno = 0;
+            if (sendto(overseer->socket_etr,
+                       etr,
+                       sizeof(entry_transmission_s),
+                       0,
+                       (const struct sockaddr *) &sockaddr,
+                       socklen) == -1) {
+                perror("ETR sendto");
+                if (errno != EAGAIN)
+                    return EXIT_FAILURE;
+            }
+        } while (errno == EAGAIN);
+    }
 
     debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
@@ -184,13 +189,19 @@ int etr_reception_init(overseer_s *overseer) {
 void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout, "Start of ETR reception callback ---------------------------------------------------\n");
 
+    overseer_s *overseer = arg;
     entry_transmission_s etr;
     struct sockaddr_in6 sender_addr;
     socklen_t socklen = sizeof(sender_addr);
 
     do {
         errno = 0;
-        if (recvfrom(fd, &etr, sizeof(entry_transmission_s), 0, (struct sockaddr *) &sender_addr, &socklen) == -1) {
+        if (recvfrom(fd,
+                     &etr,
+                     sizeof(entry_transmission_s),
+                     0,
+                     (struct sockaddr *) &sender_addr,
+                     &socklen) == -1) {
             perror("recvfrom ETR");
             if (errno != EAGAIN)
                 return; // Failure
@@ -200,7 +211,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 1) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf("Received from %s (aka. %s)  an ETR:\n", buf, ((overseer_s *) arg)->hl->hosts[etr.cm.host_id].name);
+        printf("Received from %s (aka. %s)  an ETR:\n", buf, overseer->hl->hosts[etr.cm.host_id].name);
         if (DEBUG_LEVEL >= 3)
             etr_print(&etr, stdout);
     }
@@ -210,7 +221,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         debug_log(4,
                   stdout,
                   "-> Ack back value is non-zero, removing corresponding RT cache entry ... ");
-        if (rtc_remove_by_id((overseer_s *) arg, etr.cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
+        if (rtc_remove_by_id(overseer, etr.cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else
             debug_log(4,
@@ -222,52 +233,48 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 2)
         cm_print_type(&(etr.cm), stdout);
 
-    if (etr_actions((overseer_s *) arg, sender_addr, socklen, &etr) != EXIT_SUCCESS)
+    if (etr_actions(overseer, sender_addr, socklen, &etr) != EXIT_SUCCESS)
         debug_log(1, stderr, "ETR action failure.\n");
 
     // Init next event so it can keep receiving messages
-    etr_reception_init((overseer_s *) arg);
+    etr_reception_init(overseer);
 
     debug_log(4, stdout, "End of ETR reception callback ------------------------------------------------------\n\n");
     return;
 }
 
 void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
+    retransmission_cache_s *rc = arg;
+
     if (DEBUG_LEVEL >= 3) {
         printf("ETR retransmission timed out, reattempting transmission (attempt %d) ... ",
-               ((retransmission_cache_s *) arg)->cur_attempts + 1);
+               rc->cur_attempts + 1);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     int success = 1;
 
     // Update the control message in the transmission, as program status can change between transmissions attempts.
-    control_message_s *ncm = cm_new(((retransmission_cache_s *) arg)->overseer,
-                                    ((retransmission_cache_s *) arg)->etr->cm.type,
-                                    ((retransmission_cache_s *) arg)->ack_back);
-    ((retransmission_cache_s *) arg)->etr->cm = *ncm;
+    control_message_s *ncm = cm_new(rc->overseer, rc->etr->cm.type, rc->ack_back);
+    rc->etr->cm = *ncm;
     free(ncm);
 
     // Send proposition to P
-    if (etr_sendto(((retransmission_cache_s *) arg)->overseer,
-                   ((retransmission_cache_s *) arg)->addr,
-                   ((retransmission_cache_s *) arg)->socklen,
-                   ((retransmission_cache_s *) arg)->etr)) {
+    if (etr_sendto(rc->overseer, rc->addr, rc->socklen, rc->etr)) {
         fprintf(stderr, "Failed retransmitting ETR.\n");
         success = 0;
     }
 
     // Increase attempts number
-    ((retransmission_cache_s *) arg)->cur_attempts++;
+    rc->cur_attempts++;
 
     // If attempts max reached, remove cache entry
-    if (((retransmission_cache_s *) arg)->cur_attempts >= ((retransmission_cache_s *) arg)->max_attempts) {
-        rtc_remove_by_id(((retransmission_cache_s *) arg)->overseer, ((retransmission_cache_s *) arg)->id,
-                         FLAG_DEFAULT);
+    if (rc->cur_attempts >= rc->max_attempts) {
+        rtc_remove_by_id(rc->overseer, rc->id, FLAG_DEFAULT);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
         if (errno == EUNKNOWN_TIMEOUT_TYPE ||
-            event_add(((retransmission_cache_s *) arg)->ev, &ops_timeout) != 0) {
+            event_add(rc->ev, &ops_timeout) != 0) {
             fprintf(stderr, "Failed to add the ETR retransmission event.\n");
             if (INSTANT_FFLUSH) fflush(stderr);
             success = 0;
