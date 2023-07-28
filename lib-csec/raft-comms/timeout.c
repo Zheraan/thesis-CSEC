@@ -7,71 +7,75 @@
 struct timeval timeout_gen(enum timeout_type type) {
     struct timeval ntv;
 
-    uint32_t buf, modulo_sec = 0, modulo_usec = 0, offset_sec = 0, offset_usec = 0, randomize = 1;
+    uint32_t buf, modulo = 0, offset = 0, randomize = 1;
 
     // Define the timeout range depending on the defined parameters
     switch (type) {
         case TIMEOUT_TYPE_P_HB:
-            ntv.tv_usec = TIMEOUT_VALUE_P_HB_USEC;
-            ntv.tv_sec = TIMEOUT_VALUE_P_HB_SEC;
+            ntv.tv_usec = MODULO(TIMEOUT_VALUE_P_HB, 1000000);
+            ntv.tv_sec = DIVIDE(TIMEOUT_VALUE_P_HB, 1000000);
             randomize = 0;
             break;
 
         case TIMEOUT_TYPE_HS_HB:
-            ntv.tv_usec = TIMEOUT_VALUE_HS_HB_USEC;
-            ntv.tv_sec = TIMEOUT_VALUE_HS_HB_SEC;
+            ntv.tv_usec = MODULO(TIMEOUT_VALUE_HS_HB, 1000000);
+            ntv.tv_sec = DIVIDE(TIMEOUT_VALUE_HS_HB, 1000000);
             randomize = 0;
             break;
 
         case TIMEOUT_TYPE_PROPOSITION:
-            ntv.tv_usec = TIMEOUT_VALUE_PROPOSITION_USEC;
-            ntv.tv_sec = TIMEOUT_VALUE_PROPOSITION_SEC;
+            ntv.tv_usec = MODULO(TIMEOUT_VALUE_PROPOSITION, 1000000);
+            ntv.tv_sec = DIVIDE(TIMEOUT_VALUE_PROPOSITION, 1000000);
             randomize = 0;
             break;
 
         case TIMEOUT_TYPE_ACK:
-            ntv.tv_usec = TIMEOUT_VALUE_ACK_USEC;
-            ntv.tv_sec = TIMEOUT_VALUE_ACK_SEC;
+            ntv.tv_usec = MODULO(TIMEOUT_VALUE_ACK, 1000000);
+            ntv.tv_sec = DIVIDE(TIMEOUT_VALUE_ACK, 1000000);
             randomize = 0;
             break;
 
         case TIMEOUT_TYPE_PROP_RETRANSMISSION:
-            ntv.tv_usec = TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC;
-            ntv.tv_sec = TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC;
+            ntv.tv_usec = MODULO(TIMEOUT_VALUE_PROP_RETRANSMISSION, 1000000);
+            ntv.tv_sec = DIVIDE(TIMEOUT_VALUE_PROP_RETRANSMISSION, 1000000);
             randomize = 0;
             break;
 
         case TIMEOUT_TYPE_P_LIVENESS:
-            ntv.tv_usec = TIMEOUT_VALUE_P_LIVENESS_USEC;
-            ntv.tv_sec = TIMEOUT_VALUE_P_LIVENESS_SEC;
+            ntv.tv_usec = MODULO(TIMEOUT_VALUE_P_LIVENESS, 1000000);
+            ntv.tv_sec = DIVIDE(TIMEOUT_VALUE_P_LIVENESS, 1000000);
             randomize = 0;
             break;
 
         case TIMEOUT_TYPE_HS_ELECTION:
-            if (TIMEOUT_RANGE_ELECTION_USEC > 0)
-                modulo_usec = TIMEOUT_RANGE_ELECTION_USEC + 1;
-            if (TIMEOUT_RANGE_ELECTION_SEC > 0)
-                modulo_sec = TIMEOUT_RANGE_ELECTION_SEC + 1;
-            offset_sec = TIMEOUT_OFFSET_ELECTION_SEC;
-            offset_usec = TIMEOUT_OFFSET_ELECTION_USEC;
+            if (TIMEOUT_RANGE_ELECTION > 0)
+                modulo = TIMEOUT_RANGE_ELECTION + 1;
+            offset = TIMEOUT_OFFSET_ELECTION;
             break;
 
         case TIMEOUT_TYPE_FUZZER:
-            if (TIMEOUT_RANGE_FUZZER_USEC > 0)
-                modulo_usec = TIMEOUT_RANGE_FUZZER_USEC + 1;
-            if (TIMEOUT_RANGE_FUZZER_SEC > 0)
-                modulo_sec = TIMEOUT_RANGE_FUZZER_SEC + 1;
-            offset_sec = TIMEOUT_OFFSET_FUZZER_SEC;
-            offset_usec = TIMEOUT_OFFSET_FUZZER_USEC;
+            if (FUZZER_LATENCY_DISTRIBUTION_ENABLE) {
+                // To gain performance and clarity, here we emulate fixed-point arithmetics using 32 bits unsigned
+                // integers. As we are using timevals that have a 6 digits integers for the microsecond parameter, the
+                // fixed point is set at 1000000.
+                evutil_secure_rng_get_bytes(&buf, sizeof(float));
+                uint32_t a = FUZZER_LATENCY_DISTRIBUTION_MINIMUM,
+                        b = 100000000, // Maximum of the definition interval, minimum is 0
+                c = FUZZER_LATENCY_DISTRIBUTION_PROPORTION * 1000000;
+                buf = MODULO(buf, b);
+                buf = a * (1 + (buf * (b - c) * (b - c)) / (c * (b - buf) * (b - buf))); // Applying function
+                ntv.tv_usec = MODULO(buf, 1000000);
+                ntv.tv_sec = DIVIDE(buf, 1000000);
+            }
+            if (TIMEOUT_RANGE_FUZZER > 0)
+                modulo = TIMEOUT_RANGE_FUZZER + 1;
+            offset = TIMEOUT_OFFSET_FUZZER;
             break;
 
         case TIMEOUT_TYPE_RANDOM_OPS:
-            if (TIMEOUT_RANGE_RANDOM_OPS_USEC > 0)
-                modulo_usec = TIMEOUT_RANGE_RANDOM_OPS_USEC + 1;
-            if (TIMEOUT_RANGE_RANDOM_OPS_SEC > 0)
-                modulo_sec = TIMEOUT_RANGE_RANDOM_OPS_SEC + 1;
-            offset_sec = TIMEOUT_OFFSET_RANDOM_OPS_SEC;
-            offset_usec = TIMEOUT_OFFSET_RANDOM_OPS_USEC;
+            if (TIMEOUT_RANGE_RANDOM_OPS > 0)
+                modulo = TIMEOUT_RANGE_RANDOM_OPS + 1;
+            offset = TIMEOUT_OFFSET_RANDOM_OPS;
             break;
 
         default:
@@ -81,25 +85,19 @@ struct timeval timeout_gen(enum timeout_type type) {
     }
 
     if (randomize) {
-        if (modulo_usec > 0) {
+        if (modulo > 0) {
             evutil_secure_rng_get_bytes(&buf, sizeof(uint32_t));
-            buf %= modulo_usec; // Set the value inside the range
-            ntv.tv_usec = buf + offset_usec; // Add the offset
         } else {
-            ntv.tv_usec = 0 + offset_usec;
+            buf = 0;
         }
-
-        if (modulo_sec > 0) {
-            evutil_secure_rng_get_bytes(&buf, sizeof(uint32_t));
-            buf %= modulo_sec; // Set the value inside the range
-            ntv.tv_sec = buf + offset_sec; // Add the offset
-        } else {
-            ntv.tv_sec = 0 + offset_sec;
-        }
+        buf = MODULO(buf, modulo); // Set the value inside the range
+        ntv.tv_usec = MODULO(buf + offset + TIMEOUT_GLOBAL_SLOWDOWN_OFFSET, 1000000);
+        ntv.tv_sec = DIVIDE(buf + offset + TIMEOUT_GLOBAL_SLOWDOWN_OFFSET, 1000000);
+    } else {
+        ntv.tv_sec += DIVIDE(TIMEOUT_GLOBAL_SLOWDOWN_OFFSET, 1000000);
+        ntv.tv_usec += MODULO(TIMEOUT_GLOBAL_SLOWDOWN_OFFSET, 1000000);
     }
 
-    ntv.tv_sec += TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_SEC;
-    ntv.tv_usec += TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_USEC;
 
     if (DEBUG_LEVEL >= 4)
         printf("[Created a timeout of type %d and a duration of %ld.%lds] ",

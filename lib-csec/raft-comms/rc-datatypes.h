@@ -14,6 +14,11 @@
 #define DEBUG_LEVEL 4
 #endif
 
+// Slight optimisation on the modulo function in case X has a chance to be smaller than Y
+#define MODULO(X, Y)  ((X) < (Y) ? (X) : (X) % (Y))
+// Slight optimisation on the divide function in case X has a chance to be smaller than Y
+#define DIVIDE(X, Y)  ((X) < (Y) ? (0) : (X) / (Y))
+
 // Error code for unknown timeout type
 #define EUNKNOWN_TIMEOUT_TYPE (-1)
 
@@ -27,107 +32,91 @@
 #define ETR_DEFAULT_RT_ATTEMPTS 2
 #endif
 
-// Offset for all timeouts to slow down the program without having to fine tune it, for debug purposes
-#ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_SEC
-#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_SEC 0
-#endif
-#ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_USEC
-#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET_USEC 0
+#ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET
+// Offset for all timeouts to slow down the program without having to fine tune it, for debug purposes.
+// Unit in microseconds
+#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 0
 #endif
 
-// Timeout duration range for elections. Default value of 500ms
-#ifndef TIMEOUT_RANGE_ELECTION_SEC
-#define TIMEOUT_RANGE_ELECTION_SEC 0
-#endif
-#ifndef TIMEOUT_RANGE_ELECTION_USEC
-#define TIMEOUT_RANGE_ELECTION_USEC 500000
-#endif
-// Timeout duration offset for elections. Default value of 300ms
-#ifndef TIMEOUT_OFFSET_ELECTION_SEC
-#define TIMEOUT_OFFSET_ELECTION_SEC 0
-#endif
-#ifndef TIMEOUT_OFFSET_ELECTION_USEC
-#define TIMEOUT_OFFSET_ELECTION_USEC 300000
+#ifndef TIMEOUT_RANGE_ELECTION
+// Timeout duration range for elections. Default value of 500ms, in microseconds
+#define TIMEOUT_RANGE_ELECTION 500000
 #endif
 
-// Timeout duration range for the fuzzer. Default value of 0.5s
-#ifndef TIMEOUT_RANGE_FUZZER_SEC
-#define TIMEOUT_RANGE_FUZZER_SEC 0
-#endif
-#ifndef TIMEOUT_RANGE_FUZZER_USEC
-#define TIMEOUT_RANGE_FUZZER_USEC 500000
-#endif
-// Timeout duration offset for the fuzzer. Default value of 10ms
-#ifndef TIMEOUT_OFFSET_FUZZER_SEC
-#define TIMEOUT_OFFSET_FUZZER_SEC 0
-#endif
-#ifndef TIMEOUT_OFFSET_FUZZER_USEC
-#define TIMEOUT_OFFSET_FUZZER_USEC 10000
+#ifndef TIMEOUT_OFFSET_ELECTION
+// Timeout duration offset for elections. Default value of 300ms, in microseconds
+#define TIMEOUT_OFFSET_ELECTION 300000
 #endif
 
-// Timeout duration range for the random op generator. Default value of 8s
-#ifndef TIMEOUT_RANGE_RANDOM_OPS_SEC
-#define TIMEOUT_RANGE_RANDOM_OPS_SEC 7
+#ifndef TIMEOUT_RANGE_RANDOM_OPS
+// Timeout duration range for the random op generator. Default value of 8s, in microseconds
+#define TIMEOUT_RANGE_RANDOM_OPS 8000000
 #endif
-#ifndef TIMEOUT_RANGE_RANDOM_OPS_USEC
-#define TIMEOUT_RANGE_RANDOM_OPS_USEC 999999
-#endif
-// Timeout duration offset for the random op generator. Default value of 0ms
-#ifndef TIMEOUT_OFFSET_RANDOM_OPS_SEC
-#define TIMEOUT_OFFSET_RANDOM_OPS_SEC 0
-#endif
-#ifndef TIMEOUT_OFFSET_RANDOM_OPS_USEC
-#define TIMEOUT_OFFSET_RANDOM_OPS_USEC 0
+#ifndef TIMEOUT_OFFSET_RANDOM_OPS
+// Timeout duration offset for the random op generator. Default value of 0ms, in microseconds
+#define TIMEOUT_OFFSET_RANDOM_OPS 0
 #endif
 
-// Timeout duration for propositions. Default value of 1s
-#ifndef TIMEOUT_VALUE_PROPOSITION_SEC
-#define TIMEOUT_VALUE_PROPOSITION_SEC 0
-#endif
-#ifndef TIMEOUT_VALUE_PROPOSITION_USEC
-#define TIMEOUT_VALUE_PROPOSITION_USEC 999999
+#ifndef TIMEOUT_VALUE_PROPOSITION
+// Timeout duration for propositions. Default value of 1s, in microseconds
+#define TIMEOUT_VALUE_PROPOSITION 1000000
 #endif
 
-// Timeout duration for Acks. Default value of 170ms
-#ifndef TIMEOUT_VALUE_ACK_SEC
-#define TIMEOUT_VALUE_ACK_SEC 0
-#endif
-#ifndef TIMEOUT_VALUE_ACK_USEC
-#define TIMEOUT_VALUE_ACK_USEC 170000
+#ifndef TIMEOUT_VALUE_ACK
+// Timeout duration for Acks. Default value of 170ms, in microseconds
+#define TIMEOUT_VALUE_ACK 170000
 #endif
 
-// Timeout duration for the proposition retransmission. Default value of 300ms
-#ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC
-#define TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC 0
-#endif
-#ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC
-#define TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC 300000
+#ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION
+// Timeout duration for the proposition retransmission. Default value of 300ms, in microseconds
+#define TIMEOUT_VALUE_PROP_RETRANSMISSION 300000
 #endif
 
-// Timeout duration for P's heartbeat. Default value of 1.5s
-#ifndef TIMEOUT_VALUE_P_HB_SEC
-#define TIMEOUT_VALUE_P_HB_SEC 1
-#endif
-#ifndef TIMEOUT_VALUE_P_HB_USEC
-#define TIMEOUT_VALUE_P_HB_USEC 500000
+#ifndef TIMEOUT_VALUE_P_HB
+// Timeout duration for P's heartbeat. Default value of 1.5s, in microseconds
+#define TIMEOUT_VALUE_P_HB 1500000
 #endif
 
-// Timeout duration for HS's heartbeat. Default value of 1.5s
-#ifndef TIMEOUT_VALUE_HS_HB_SEC
-#define TIMEOUT_VALUE_HS_HB_SEC 1
-#endif
-#ifndef TIMEOUT_VALUE_HS_HB_USEC
-#define TIMEOUT_VALUE_HS_HB_USEC 500000
+#ifndef TIMEOUT_VALUE_HS_HB
+// Timeout duration for HS's heartbeat. Default value of 1.5s, in microseconds
+#define TIMEOUT_VALUE_HS_HB 1500000
 #endif
 
-// Timeout duration for P's liveness. Default value of 3.5s
-#ifndef TIMEOUT_VALUE_P_LIVENESS_SEC
-#define TIMEOUT_VALUE_P_LIVENESS_SEC 3
-#endif
-#ifndef TIMEOUT_VALUE_P_LIVENESS_USEC
-#define TIMEOUT_VALUE_P_LIVENESS_USEC 500000
+#ifndef TIMEOUT_VALUE_P_LIVENESS
+// Timeout duration for P's liveness. Default value of 3.5s, in microseconds
+#define TIMEOUT_VALUE_P_LIVENESS 3500000
 #endif
 
+#ifndef TIMEOUT_RANGE_FUZZER
+// Timeout duration range for the fuzzer. Default value of 0.5s, in microseconds
+#define TIMEOUT_RANGE_FUZZER 500000
+#endif
+#ifndef TIMEOUT_OFFSET_FUZZER
+// Timeout duration offset for the fuzzer. Default value of 10ms, in microseconds
+#define TIMEOUT_OFFSET_FUZZER 10000
+#endif
+
+#ifndef FUZZER_LATENCY_DISTRIBUTION_ENABLE
+// Enables the use of a more realistic distribution of latencies for the fuzzer
+#define FUZZER_LATENCY_DISTRIBUTION_ENABLE 1
+#endif
+
+#ifndef FUZZER_LATENCY_DISTRIBUTION_PROPORTION
+// Enables the use of a more realistic distribution of latencies for the fuzzer. Must be strictly
+// comprised between 0 and 100. Is the percentage of packets with latency below 2*a.
+#define FUZZER_LATENCY_DISTRIBUTION_PROPORTION 90
+#endif
+
+#ifndef FUZZER_LATENCY_DISTRIBUTION_MAXIMUM
+// Maximum latency for the fuzzer latency distribution function, parameter in microseconds. Set 0 for
+// no maximum. Default is 255 seconds, commonly assumed to be the maximum segment lifetime for UDP
+#define FUZZER_LATENCY_DISTRIBUTION_MAXIMUM 255000000
+#endif
+
+#ifndef FUZZER_LATENCY_DISTRIBUTION_MINIMUM
+// Minimum latency for the fuzzer latency distribution function, parameter in microseconds
+#define FUZZER_LATENCY_DISTRIBUTION_MINIMUM TIMEOUT_OFFSET_FUZZER
+#endif
 
 // Control message type values, including those only used within the transmission struct.
 // Message types concerning CMs have values <=100, and those concerning ETRs have values >100

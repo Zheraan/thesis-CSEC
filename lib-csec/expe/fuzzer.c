@@ -10,7 +10,7 @@ int fuzzer_entry_init(overseer_s *overseer, enum packet_type t, union packet p, 
     if (FUZZER_MESSAGE_DROPPING == 1) {
         uint8_t buf;
         evutil_secure_rng_get_bytes(&buf, sizeof(uint8_t));
-        buf %= 100; // Set the value inside the range
+        buf = MODULO(buf, 100); // Set the value inside the range
 
         if (buf < FUZZER_DROP_RATE) {
             if (DEBUG_LEVEL >= 3) {
