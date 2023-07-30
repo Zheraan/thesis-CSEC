@@ -7,12 +7,15 @@
 #include "lib-csec.h"
 #include "status/server-events.h"
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        debug_log(0, stdout, "Usage: ./raft-server <hostfile>\n");
+        exit(EXIT_FAILURE);
+    }
     debug_log(1, stdout, "Starting program state initialization ...\n");
 
-    if ((TIMEOUT_VALUE_PROP_RETRANSMISSION_SEC * 1000000 + TIMEOUT_VALUE_PROP_RETRANSMISSION_USEC)
-        * PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS >
-        TIMEOUT_VALUE_PROPOSITION_SEC * 1000000 + TIMEOUT_VALUE_PROPOSITION_USEC) {
+    if (TIMEOUT_VALUE_PROP_RETRANSMISSION * PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS >
+        TIMEOUT_VALUE_PROPOSITION) {
         debug_log(0, stdout, "Warning: timeout for queued propositions is smaller than the timeout "
                              "for retransmissions multiplied by the number of retransmission attempts. This may cause "
                              "propositions to be sent in a different order than they are created. This will be guarded "
@@ -22,7 +25,7 @@ int main() {
 
     // Initialize program state
     overseer_s overseer;
-    if (overseer_init(&overseer) != EXIT_SUCCESS) {
+    if (overseer_init(&overseer, argv[1]) != EXIT_SUCCESS) {
         fprintf(stderr, "Failed to initialize the program state\n");
         if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
@@ -31,10 +34,11 @@ int main() {
 
     // Initialize event loop
     if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the message reception handler event
+                                                        etr_reception_init(&overseer) != EXIT_SUCCESS ||
+                                                        // Initialize the entry transmission event
         server_random_ops_init(&overseer) != EXIT_SUCCESS || // Initialize the random ops generator
-        p_liveness_set_timeout(&overseer) != EXIT_SUCCESS || // Initialize P liveness check
-        etr_reception_init(&overseer) != EXIT_SUCCESS) // Initialize the entry transmission event
-    {
+                                                        p_liveness_set_timeout(&overseer) !=
+                                                        EXIT_SUCCESS) { // Initialize P liveness check
         fprintf(stderr, "Failed to initialize the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);

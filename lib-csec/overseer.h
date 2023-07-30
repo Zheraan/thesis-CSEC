@@ -31,8 +31,9 @@
 // Allocates and fills its event base, hosts list, log and socket.
 // Binds the socket to the local address.
 // Self-cleans in case of failure and logs error source to stderr.
+// Hostfile is a string containing the path to the local node's hostfile.
 // Returns EXIT_SUCCESS on success and EXIT_FAILURE on failure.
-int overseer_init(overseer_s *overseer);
+int overseer_init(overseer_s *overseer, const char *hostfile);
 
 // Allocates and configures a new event base.
 // Returns a pointer to the newly allocated structure on success, NULL otherwise.

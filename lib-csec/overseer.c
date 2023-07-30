@@ -4,7 +4,7 @@
 
 #include "overseer.h"
 
-int overseer_init(overseer_s *overseer) {
+int overseer_init(overseer_s *overseer, const char *hostfile) {
     // To simplify cleanup in case of initialization failure
     overseer->mfs = NULL;
     overseer->log = NULL;
@@ -39,7 +39,7 @@ int overseer_init(overseer_s *overseer) {
     log->server_majority = hl->nb_servers / 2 + 1;
 
     // Init the hosts list
-    if (hosts_init("hostfile.txt", overseer->hl) < 1) {
+    if (hosts_init(hostfile, overseer->hl) < 1) {
         if (errno == 0)
             fprintf(stderr, "Fatal error: Failed to parse any hosts.\n");
         overseer_wipe(overseer);

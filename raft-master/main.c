@@ -7,11 +7,15 @@
 #include "lib-csec.h"
 #include "status/master-events.h"
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        debug_log(0, stdout, "Usage: ./raft-master <hostfile>\n");
+        exit(EXIT_FAILURE);
+    }
     debug_log(1, stdout, "Starting program state initialization ...\n");
     // Initialize program state
     overseer_s overseer;
-    if (overseer_init(&overseer) != EXIT_SUCCESS) {
+    if (overseer_init(&overseer, argv[1]) != EXIT_SUCCESS) {
         fprintf(stderr, "Failed to initialize the program state\n");
         exit(EXIT_FAILURE);
     }
