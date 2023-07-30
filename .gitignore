@@ -1,6 +1,5 @@
 cmake-build-debug
 .idea
-/rot13_server.c
-libevent-2.1.12-stable.tar.gz
 /raft-server/.idea/
 /raft-master/.idea/
+dockergen

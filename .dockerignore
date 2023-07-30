@@ -2,4 +2,4 @@
 .gitignore
 .git
 .clang-format
-rot13_server.c
+generate_dockerfiles.sh
