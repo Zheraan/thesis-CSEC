@@ -95,10 +95,6 @@ void fuzzer_cache_free_all(overseer_s *overseer) {
 }
 
 int fuzzer_entry_free(overseer_s *overseer, uint32_t id) {
-//    if (DEBUG_LEVEL >= 4) {
-//        printf("Removing fuzzer cache entry #%d ... ", id);
-//        if (INSTANT_FFLUSH) fflush(stdout);
-//    }
     fuzzer_cache_s *ptr = overseer->fc;
     if (ptr == NULL) {
         fprintf(stderr, "Error freeing cache entry: no entry with id %d in the fuzzer's cache.\n", id);
@@ -109,7 +105,6 @@ int fuzzer_entry_free(overseer_s *overseer, uint32_t id) {
         overseer->fc = ptr->next;
         event_free(ptr->ev);
         free(ptr);
-//        debug_log(0, stdout, "Done.\n");
         return EXIT_SUCCESS;
     }
 
@@ -119,7 +114,6 @@ int fuzzer_entry_free(overseer_s *overseer, uint32_t id) {
             ptr->next = tmp->next;
             event_free(tmp->ev);
             free(tmp);
-//            debug_log(0, stdout, "Done.\n");
             return EXIT_SUCCESS;
         }
     }
@@ -145,6 +139,7 @@ void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
     }
 
     if (fc->type == PACKET_TYPE_ETR) {
+        fc->addr.sin6_port = htons(PORT_ETR);
         do {
             errno = 0;
             if (sendto(fc->overseer->socket_etr,
@@ -159,6 +154,7 @@ void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
             }
         } while (errno == EAGAIN);
     } else if (fc->type == PACKET_TYPE_CM) {
+        fc->addr.sin6_port = htons(PORT_CM);
         do {
             errno = 0;
             if (sendto(fc->overseer->socket_cm,

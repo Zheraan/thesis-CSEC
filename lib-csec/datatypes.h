@@ -9,6 +9,14 @@
 #define DEBUG_LEVEL 4 // Defines the level of details in the logs
 #endif
 
+#ifndef PORT_CM
+#define PORT_CM 35007
+#endif
+
+#ifndef PORT_ETR
+#define PORT_ETR 35008
+#endif
+
 #ifndef INSTANT_FFLUSH
 #define INSTANT_FFLUSH 1
 #endif

@@ -71,18 +71,6 @@ int cm_reception_init(overseer_s *overseer);
 // Callback for receiving control messages, arg must be an overseer_s*
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg);
 
-// Checks the metadata in the control message and returns a value indicating if any action needs to be taken.
-// In case the message's P-term equals the local's, commits any uncommitted data that needs to be.
-// Also updates the sender's status in the hosts-list.
-enum cm_check_rv cm_check_metadata(overseer_s *overseer, const control_message_s *hb);
-
-// Depending on the return value of cm_check_metadata(), takes the appropriate action
-int cm_check_action(overseer_s *overseer,
-                    enum cm_check_rv check_rv,
-                    struct sockaddr_in6 addr,
-                    socklen_t socklen,
-                    control_message_s *cm);
-
 // Callback for retransmitting events, cleans up after the maximum number of attempts has been made.
 // Arg must be an overseer_s*
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);

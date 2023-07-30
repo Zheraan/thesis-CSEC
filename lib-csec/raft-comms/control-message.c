@@ -53,7 +53,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
 void cm_print(const control_message_s *cm, FILE *stream) {
     fprintf(stream,
             "   > host_id:       %d\n"
-            "   > status:        %d"
+            "   > status:        %d\n"
             "   > type:          %d (",
             cm->host_id,
             cm->status,
@@ -214,6 +214,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
     if (FUZZER_ENABLED) {
         fuzzer_entry_init(overseer, PACKET_TYPE_CM, (union packet) *cm, sockaddr, socklen);
     } else {
+        sockaddr.sin6_port = htons(PORT_CM);
         do {
             // If the fuzzer is disabled, send it normally
             errno = 0;
@@ -1183,6 +1184,7 @@ int cm_forward(overseer_s *overseer,
     if (FUZZER_ENABLED) {
         fuzzer_entry_init(overseer, PACKET_TYPE_CM, (union packet) *cm, sockaddr, socklen);
     } else {
+        sockaddr.sin6_port = htons(PORT_CM);
         // If the fuzzer is disabled, send it normally
         do {
             errno = 0;

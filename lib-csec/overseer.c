@@ -16,6 +16,8 @@ int overseer_init(overseer_s *overseer) {
     overseer->p_liveness_event = NULL;
     overseer->es = NULL;
     overseer->fc = NULL;
+    overseer->socket_cm = 0;
+    overseer->socket_etr = 0;
 
     // Malloc the hosts list
     hosts_list_s *hl = malloc(sizeof(hosts_list_s));
@@ -92,7 +94,7 @@ int overseer_init(overseer_s *overseer) {
 
     // Create a second address struct with same address but different port to be used for the second socket
     struct sockaddr_in6 naddr = overseer->hl->hosts[overseer->hl->localhost_id].addr;
-    naddr.sin6_port = htons(35008);
+    naddr.sin6_port = htons(PORT_ETR);
 
     // Set options
     if (setsockopt(overseer->socket_etr,

@@ -58,12 +58,14 @@ struct timeval timeout_gen(enum timeout_type type) {
                 // To gain performance and clarity, here we emulate fixed-point arithmetics using 32 bits unsigned
                 // integers. As we are using timevals that have a 6 digits integers for the microsecond parameter, the
                 // fixed point is set at 1000000.
-                evutil_secure_rng_get_bytes(&buf, sizeof(float));
+                evutil_secure_rng_get_bytes(&buf, sizeof(uint32_t));
                 uint32_t a = FUZZER_LATENCY_DISTRIBUTION_MINIMUM,
-                        b = 100000000, // Maximum of the definition interval, minimum is 0
+                        b = 100000000, // Maximum of the definition interval (minimum is 0)
                 c = FUZZER_LATENCY_DISTRIBUTION_PROPORTION * 1000000;
                 buf = MODULO(buf, b);
                 buf = a * (1 + (buf * (b - c) * (b - c)) / (c * (b - buf) * (b - buf))); // Applying function
+                if (buf > FUZZER_LATENCY_DISTRIBUTION_MAXIMUM)
+                    buf = FUZZER_LATENCY_DISTRIBUTION_MAXIMUM;
                 ntv.tv_usec = MODULO(buf, 1000000);
                 ntv.tv_sec = DIVIDE(buf, 1000000);
             }

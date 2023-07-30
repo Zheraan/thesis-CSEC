@@ -130,11 +130,12 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
     }
     // Ensuring we are sending to the transmission port, since the stored addresses in the hosts-list contain the right
     // address but with the Control Message port (35007)
-    sockaddr.sin6_port = htons(35008);
+    sockaddr.sin6_port = htons(PORT_ETR);
 
     if (FUZZER_ENABLED) {
         fuzzer_entry_init(overseer, PACKET_TYPE_ETR, (union packet) *etr, sockaddr, socklen);
     } else {
+        sockaddr.sin6_port = htons(PORT_ETR);
         // If the fuzzer is disabled, send it normally
         do {
             errno = 0;
@@ -290,9 +291,12 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 }
 
 int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
+    uint64_t target_index = cm->next_index;
+    if (cm->next_index >= overseer->log->next_index && cm->P_term >= overseer->log->P_term)
+        target_index = overseer->log->next_index - 1;
     entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                           MSG_TYPE_ETR_LOGFIX,
-                                                          cm->next_index,
+                                                          target_index,
                                                           cm->ack_reference);
     if (etr_sendto_with_rt_init(overseer,
                                 overseer->hl->hosts[cm->host_id].addr,
@@ -509,7 +513,7 @@ int etr_actions_as_p(overseer_s *overseer,
         return EXIT_SUCCESS;
     }
 
-    // Else if P-terms are equal
+    // Else P-terms are equal
 
     if (etr->cm.type == MSG_TYPE_ETR_PROPOSITION) {
         // If dist next index is inferior

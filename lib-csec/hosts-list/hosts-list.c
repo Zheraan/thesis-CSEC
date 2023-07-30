@@ -144,7 +144,9 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         if (DEBUG_LEVEL >= 2) {
             fprintf(stdout, "   -address string: %s", token);
         }
-        int rc = getaddrinfo(token, "35007", &hints, &res);
+        char port_number[10];
+        sprintf(port_number, "%d", PORT_CM);
+        int rc = getaddrinfo(token, port_number, &hints, &res);
         if (rc != 0) {
             fprintf(stderr, "Failure to parse host with address '%s': %s (%d)\n", token, gai_strerror(rc), rc);
             freeaddrinfo(res);
