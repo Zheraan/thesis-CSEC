@@ -148,7 +148,11 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
         sprintf(port_number, "%d", PORT_CM);
         int rc = getaddrinfo(token, port_number, &hints, &res);
         if (rc != 0) {
-            fprintf(stderr, "Failure to parse host with address '%s': %s (%d)\n", token, gai_strerror(rc), rc);
+            fprintf(stderr,
+                    "Failure to parse host with address '%s': %s (%d)\n",
+                    token,
+                    gai_strerror(rc),
+                    rc);
             freeaddrinfo(res);
             fclose(file);
             errno = EPARSINGFAILURE;
@@ -166,7 +170,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             if (list->hosts[parsed].locality != HOST_LOCALITY_LOCAL)
                 list->hosts[parsed].status = HOST_STATUS_UNKNOWN; // Host status will only be determined later
             // Only the first returned entry is used
-            memcpy(&(list->hosts[parsed].addr), res->ai_addr, res->ai_addrlen); // Only the first returned entry is used
+            memcpy(&(list->hosts[parsed].addr), res->ai_addr, res->ai_addrlen);
             list->hosts[parsed].socklen = res->ai_addrlen;
             if (DEBUG_LEVEL >= 2) {
                 char buf[256];
@@ -312,7 +316,7 @@ int hl_change_master(overseer_s *overseer, enum host_status status, uint32_t id)
         if (overseer->hl->hosts[i].status == status && overseer->hl->hosts[i].type == NODE_TYPE_M) {
             if (i == overseer->hl->localhost_id)
                 stepdown_to_cs(overseer); // Stepdown to CS if local host is changed from P or HS
-            else overseer->hl->hosts[i].status = HOST_STATUS_CS; // Or simply set the concerned node's status as CS in the HL
+            else overseer->hl->hosts[i].status = HOST_STATUS_CS; // Or simply set the node's status as CS in the HL
         }
         // Sets the status for the node with the given ID
         if (i == id)
@@ -326,17 +330,46 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
         fprintf(stderr, "HL change master error: host ID out of hosts list range\n");
         return EXIT_FAILURE;
     }
+
+    int rv = EXIT_SUCCESS;
+    if (DEBUG_LEVEL >= 4)
+        printf("Updating host %d status in the Hosts-list ... ", id);
+    if (DEBUG_LEVEL >= 3) {
+        if (status != overseer->hl->hosts[id].status) {
+            printf("[Updated status of %s from %d to %d] ",
+                   overseer->hl->hosts[id].name,
+                   overseer->hl->hosts[id].status,
+                   status);
+        } else {
+            printf("[Status of %s (%d) did not change] ",
+                   overseer->hl->hosts[id].name,
+                   overseer->hl->hosts[id].status);
+        }
+        if (INSTANT_FFLUSH) fflush(stdout);
+    }
+
     if (status == HOST_STATUS_P || status == HOST_STATUS_HS)
-        return hl_change_master(overseer, status, id);
+        rv = hl_change_master(overseer, status, id);
     else
         overseer->hl->hosts[id].status = status;
-    return EXIT_SUCCESS;
+
+    if (rv == EXIT_SUCCESS) debug_log(4, stdout, "Done.\n");
+    else debug_log(0, stderr, "Failure updating host status.\n");
+
+    return rv;
 }
 
-int hl_host_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_index, uint64_t commit_index) {
+int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_index, uint64_t commit_index) {
+    if (DEBUG_LEVEL >= 4) {
+        printf("Checking for replication index change for %s %s... ",
+               overseer->hl->hosts[host_id].name,
+               overseer->hl->localhost_id == host_id ? "(local host) " : "");
+        if (INSTANT_FFLUSH) fflush(stdout);
+    }
+
     if (host_id >= overseer->hl->nb_hosts) {
         fprintf(stderr,
-                "Given host id (%d) beyond host list boundary (%d)",
+                "Given host id (%d) beyond host list boundary (%d)\n",
                 host_id,
                 overseer->hl->nb_hosts - 1);
         if (INSTANT_FFLUSH) fflush(stderr);
@@ -349,47 +382,73 @@ int hl_host_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_i
     // require committing.
     uint64_t commit_order = 0;
 
-    // Duplicate code with type check outside of loop for performance
-    if (target_host->status == NODE_TYPE_M) {
-        // If new next index is higher, increment replication index on each of the concerned log entries
-        for (uint64_t i = target_host->next_index; i < next_index; ++i) {
-            log->entries[i].master_rep++;
-            // If local is P, both majorities are reached, and the entry is not already committed,
-            // send the commit order
-            if (local_status == HOST_STATUS_P &&
-                log->entries[i].state != ENTRY_STATE_COMMITTED &&
-                log->entries[i].master_rep >= log->master_majority &&
-                log->entries[i].server_rep >= log->server_majority) {
-                commit_order = i;
-            }
-        }
-        // Otherwise decrement it
-        for (uint64_t i = target_host->next_index; i > next_index; --i) {
-            log->entries[i - 1].master_rep--;
-        }
-    } else if (target_host->status == NODE_TYPE_S) {
-        // If new next index is higher, increment replication index on each of the concerned log entries
-        for (uint64_t i = target_host->next_index; i < next_index; ++i) {
-            log->entries[i].server_rep++;
-            // If local is P, both majorities are reached, and the entry is not already committed,
-            // send the commit order
-            if (local_status == HOST_STATUS_P &&
-                log->entries[i].state != ENTRY_STATE_COMMITTED &&
-                log->entries[i].master_rep >= log->master_majority &&
-                log->entries[i].server_rep >= log->server_majority) {
-                commit_order = i;
-            }
-        }
-        // Otherwise decrement it
-        for (uint64_t i = target_host->next_index; i > next_index; --i) {
-            log->entries[i - 1].server_rep--;
-        }
+    int change = 0;
+    if (DEBUG_LEVEL >= 3 && target_host->next_index < next_index) {
+        printf("[New replication index (%ld) is higher than its local replication array counterpart (%ld), "
+               "updating array] ",
+               next_index,
+               target_host->next_index);
+        change = 1;
+        if (INSTANT_FFLUSH) fflush(stdout);
+    } else if (DEBUG_LEVEL >= 3 && target_host->next_index > next_index) {
+        printf("[New replication index (%ld) is lower than its local replication array counterpart (%ld), "
+               "updating array] ",
+               next_index,
+               target_host->next_index);
+        change = 1;
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
 
+    if (DEBUG_LEVEL >= 3 && target_host->commit_index < commit_index) {
+        printf("[New commit index (%ld) is higher than its local replication array counterpart (%ld), updating "
+               "array] ",
+               commit_index,
+               target_host->commit_index);
+        change = 1;
+        if (INSTANT_FFLUSH) fflush(stdout);
+    } else if (DEBUG_LEVEL >= 3 && target_host->commit_index > commit_index) {
+        printf("[New commit index (%ld) is lower than its local replication array counterpart (%ld), updating "
+               "array] ",
+               commit_index,
+               target_host->commit_index);
+        change = 1;
+        if (INSTANT_FFLUSH) fflush(stdout);
+    }
+
+    if (change == 0)
+        debug_log(3, stdout, "[No changes] ");
+
+    // If new next index is higher, increment replication index on each of the concerned log entries
+    for (uint64_t i = target_host->next_index; i < next_index; ++i) {
+        target_host->status == NODE_TYPE_M ? log->entries[i].master_rep++ : log->entries[i].server_rep++;
+        printf("debug rep : %d ",
+               target_host->status == NODE_TYPE_M ?
+               log->entries[i].master_rep : log->entries[i].server_rep); // TODO Remove debug print
+        // If local is P, both majorities are reached, and the entry is not already committed,
+        // send the commit order
+        if (local_status == HOST_STATUS_P &&
+            log->entries[i].state != ENTRY_STATE_COMMITTED &&
+            log->entries[i].master_rep >= log->master_majority &&
+            log->entries[i].server_rep >= log->server_majority) {
+            commit_order = i;
+            printf("debug commit order : %d ", commit_order); // TODO Remove debug print
+        }
+    }
+    // Otherwise decrement it for concerned entries
+    for (uint64_t i = target_host->next_index; i > next_index; --i) {
+        target_host->status == NODE_TYPE_M ? log->entries[i - 1].master_rep-- : log->entries[i - 1].server_rep--;
+    }
+
+    // If the commit index changed, broadcast the commit order
     if (commit_order != 0) {
+        if (DEBUG_LEVEL >= 2) {
+            printf("Consensus reached for log entries up to entry #%ld, ", commit_order);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         etr_broadcast_commit_order(overseer, commit_order);
     }
     target_host->next_index = next_index;
     target_host->commit_index = commit_index;
+    debug_log(4, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }

@@ -35,7 +35,7 @@
 #ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET
 // Offset for all timeouts to slow down the program without having to fine tune it, for debug purposes.
 // Unit in microseconds
-#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 0
+#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 1000000
 #endif
 
 #ifndef TIMEOUT_RANGE_ELECTION
@@ -49,8 +49,8 @@
 #endif
 
 #ifndef TIMEOUT_RANGE_RANDOM_OPS
-// Timeout duration range for the random op generator. Default value of 8s, in microseconds
-#define TIMEOUT_RANGE_RANDOM_OPS 8000000
+// Timeout duration range for the random op generator. Default value of 12s, in microseconds
+#define TIMEOUT_RANGE_RANDOM_OPS 12000000
 #endif
 #ifndef TIMEOUT_OFFSET_RANDOM_OPS
 // Timeout duration offset for the random op generator. Default value of 0ms, in microseconds
@@ -58,13 +58,13 @@
 #endif
 
 #ifndef TIMEOUT_VALUE_PROPOSITION
-// Timeout duration for propositions. Default value of 1s, in microseconds
-#define TIMEOUT_VALUE_PROPOSITION 1000000
+// Timeout duration for propositions. Default value of 3s, in microseconds
+#define TIMEOUT_VALUE_PROPOSITION 3000000
 #endif
 
 #ifndef TIMEOUT_VALUE_ACK
-// Timeout duration for Acks. Default value of 170ms, in microseconds
-#define TIMEOUT_VALUE_ACK 170000
+// Timeout duration for Acks. Default value of 200ms, in microseconds
+#define TIMEOUT_VALUE_ACK 200000
 #endif
 
 #ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION
@@ -259,14 +259,16 @@ typedef struct retransmission_cache_s {
     // Max number of retransmissions
     uint8_t max_attempts;
     // FIXME If a message destined to HS/P needs to be resent but target role's change, the message is resent
-    //  to the wrong target anyway. Can cause unexpected issues, need to check if the role is still the same.
+    //  to the wrong target anyway. Could cause unexpected and rare issues, need to check if the role is
+    //  still the same.
+
     // Address of the target
     struct sockaddr_in6 addr;
     // Socklen of the target
     socklen_t socklen;
     // Type of message
     enum message_type type;
-    // Type of message
+    // ETR's or CM's ack_back value
     uint32_t ack_back;
     // Pointer to the program state
     overseer_s *overseer;

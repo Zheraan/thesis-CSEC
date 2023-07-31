@@ -16,6 +16,7 @@ void log_print(log_s *log, FILE *stream);
 // in a log that has missing entries, to not require them again when repairing the missing ones.
 // If the state parameter is ENTRY_STATE_CACHED, log indexes are not modified when adding the new entry.
 // If the state parameter is ENTRY_STATE_COMMITTED, first commits all entries up to the given entry.
+// If the local host is a master node, will update the replication array values for it.
 // Returns EXIT_FAILURE in case of failure (if log is full or if it was not possible to commit all entries
 // up to the new one) or EXIT_SUCCESS otherwise.
 int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum entry_state state);

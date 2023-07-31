@@ -46,17 +46,40 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
     nentry->op.row = etr->op.row;
     nentry->op.column = etr->op.column;
 
+    char state_string[10];
+    switch (state) {
+        case ENTRY_STATE_INVALID:
+            sprintf(state_string, "INVALID");
+            break;
+        case ENTRY_STATE_EMPTY:
+            sprintf(state_string, "EMPTY");
+            break;
+        case ENTRY_STATE_PROPOSAL:
+            sprintf(state_string, "PROPOSAL");
+            break;
+        case ENTRY_STATE_PENDING:
+            sprintf(state_string, "PENDING");
+            break;
+        case ENTRY_STATE_COMMITTED:
+            sprintf(state_string, "COMMITTED");
+            break;
+        case ENTRY_STATE_CACHED:
+            sprintf(state_string, "CACHED");
+            break;
+    }
+
     if (DEBUG_LEVEL >= 1) {
         printf("Added to the log the following entry:\n"
                "- entry number: %ld\n"
                "- P-term:       %d\n"
-               "- state:        %d\n"
+               "- state:        %d (%s)\n"
                "- row:          %d\n"
                "- column:       %d\n"
                "- newval:       %c\n",
                overseer->log->next_index,
                nentry->term,
                nentry->state,
+               state_string,
                nentry->op.row,
                nentry->op.column,
                nentry->op.newval);
@@ -74,6 +97,14 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
         debug_log(4, stdout, "Incrementing next index.\n");
         overseer->log->next_index++;
     }
+
+    // If local status is a master node, update the replication array
+    if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M)
+        hl_replication_index_change(overseer,
+                                    overseer->hl->localhost_id,
+                                    overseer->log->next_index,
+                                    overseer->log->commit_index);
+
     return EXIT_SUCCESS;
 }
 
@@ -297,13 +328,17 @@ int log_commit_upto(overseer_s *overseer, uint64_t index) {
     uint64_t i = 0;
     for (; i + overseer->log->commit_index <= index; i++) {
         if (log_entry_commit(overseer, i + overseer->log->commit_index) != EXIT_SUCCESS) {
-            if (DEBUG_LEVEL >= 4)
+            if (DEBUG_LEVEL >= 4) {
                 fprintf(stdout, "Failure (%ld entries successfully committed).\n", index);
+                mfs_array_print(overseer->mfs, stdout);
+            }
             return EXIT_FAILURE;
         }
     }
 
-    if (DEBUG_LEVEL >= 4)
+    if (DEBUG_LEVEL >= 4) {
         fprintf(stdout, "Done (%ld entries successfully committed).\n", index);
+        mfs_array_print(overseer->mfs, stdout);
+    }
     return EXIT_SUCCESS;
 }

@@ -200,7 +200,6 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
             return EXIT_FAILURE;
         }
         cm->ack_reference = rv;
-        debug_log(4, stdout, "CM RT init OK\n");
     } else cm->ack_reference = ack_reference;
 
     char buf[256];
@@ -241,7 +240,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
 }
 
 int cm_reception_init(overseer_s *overseer) {
-    debug_log(4, stdout, "- Initializing next control message reception event ... ");
+    debug_log(4, stdout, "Initializing next control message reception event ... ");
     struct event *reception_event = event_new(overseer->eb,
                                               overseer->socket_cm,
                                               EV_READ,
@@ -310,7 +309,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
     if (cm.ack_back != 0) {
         if (DEBUG_LEVEL >= 4) {
-            printf("-> Ack back value is non-zero (%d), removing corresponding RT cache entry ... ", cm.ack_back);
+            printf("Ack back value is non-zero (%d), removing corresponding RT cache entry ... ", cm.ack_back);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         if (rtc_remove_by_id((overseer_s *) arg, cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
@@ -442,7 +441,7 @@ int cm_actions(overseer_s *overseer,
         cm->type != MSG_TYPE_HS_VOTE &&
         cm->type != MSG_TYPE_HS_VOTING_BID) {
         // Update local version of next index
-        hl_host_index_change(overseer, cm->host_id, cm->next_index, cm->commit_index);
+        hl_replication_index_change(overseer, cm->host_id, cm->next_index, cm->commit_index);
     }
 
     // If message has superior or equal P-term and comes from P and local is not already P
@@ -604,10 +603,7 @@ int hb_actions_as_master(overseer_s *overseer,
     }
 
     // Else if local and dist HS-terms are equal
-    debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
-    if (hl_update_status(overseer, cm->status, cm->host_id) == EXIT_SUCCESS)
-        debug_log(4, stdout, "Done.\n");
-    else debug_log(0, stderr, "Failure.\n");
+    hl_update_status(overseer, cm->status, cm->host_id);
 
     if (cm->next_index > overseer->log->next_index) { // If dist next_index is greater than local
         debug_log(4, stdout, "Dist next index is greater than local\n");
@@ -769,16 +765,12 @@ int hb_actions_as_server(overseer_s *overseer,
             debug_log(0, stderr, "Failed to Indicate P in response to HB with p_outdated P-Term.\n");
 
         // Outdated Master nodes return to CS status
-        debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
-        if (hl_update_status(overseer, HOST_STATUS_CS, cm->host_id) == EXIT_SUCCESS)
-            debug_log(4, stdout, "Done.\n");
+        hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
 
         return rv;
     }
 
-    debug_log(4, stdout, "Updating dist host status in the Hosts-list ... ");
-    if (hl_update_status(overseer, cm->status, cm->host_id) == EXIT_SUCCESS)
-        debug_log(4, stdout, "Done.\n");
+    hl_update_status(overseer, cm->status, cm->host_id);
 
     // If dist P_term or Next index is greater
     int p_outdated = cm->P_term > overseer->log->P_term;
@@ -1020,7 +1012,7 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
             exit(EXIT_FAILURE);
     }
 
-    return hl_update_status(overseer, cm->status, cm->host_id);
+    return hl_update_status(overseer, cm->status, cm->host_id);;
 }
 
 int cm_other_actions_as_p_hs(overseer_s *overseer,
@@ -1159,13 +1151,15 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
     }
 
     // If local and dist are P and dist has outdated P-term, set it to CS in local HL
-    if (local_status == HOST_STATUS_P && cm->status == HOST_STATUS_P && cm->P_term < overseer->log->P_term)
+    if (local_status == HOST_STATUS_P && cm->status == HOST_STATUS_P && cm->P_term < overseer->log->P_term) {
         return hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
+    }
     // If local and dist are HS and dist has outdated HS-term, set it to CS in local HL
-    if (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_HS && cm->HS_term < overseer->log->HS_term)
+    if (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_HS && cm->HS_term < overseer->log->HS_term) {
         return hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
+    }
     // Otherwise update normally
-    return hl_update_status(overseer, cm->status, cm->host_id);
+    return hl_update_status(overseer, cm->status, cm->host_id);;
 }
 
 

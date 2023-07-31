@@ -63,6 +63,6 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
 
 // Changes the local known indexes of target host, and adjust the replication indexes for each concerned log
 // entry.
-int hl_host_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_index, uint64_t commit_index);
+int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_index, uint64_t commit_index);
 
 #endif //THESIS_CSEC_HOSTS_LIST_H

@@ -220,9 +220,11 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
     if (etr.cm.ack_back != 0) {
-        debug_log(4,
-                  stdout,
-                  "-> Ack back value is non-zero, removing corresponding RT cache entry ... ");
+        if (DEBUG_LEVEL >= 4) {
+            printf("Ack back value is non-zero (%d), removing corresponding RT cache entry ... ",
+                   etr.cm.ack_back);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         if (rtc_remove_by_id(overseer, etr.cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else
@@ -448,7 +450,7 @@ int etr_actions(overseer_s *overseer,
         etr->cm.P_term == overseer->log->P_term &&
         etr->cm.type != MSG_TYPE_INDICATE_P &&
         etr->cm.type != MSG_TYPE_INDICATE_HS) {
-        hl_host_index_change(overseer, etr->cm.host_id, etr->cm.next_index, etr->cm.commit_index);
+        hl_replication_index_change(overseer, etr->cm.host_id, etr->cm.next_index, etr->cm.commit_index);
     }
 
     // If message has superior or equal P-term and comes from P and local is not already P
@@ -483,8 +485,14 @@ int etr_actions_as_p(overseer_s *overseer,
             printf("Dist's P-term (%d) is greater than local (%d).\n", etr->cm.P_term, overseer->log->P_term);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
+
+        // Update Hosts List
         hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
+
+        // Step down
         stepdown_to_cs(overseer);
+
+        // Reply with HB DEFAULT
         if (cm_sendto_with_rt_init(overseer,
                                    sender_addr,
                                    socklen,
@@ -607,8 +615,12 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         overseer->log->HS_term = etr->cm.HS_term;
+
         hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
-        if (local_status == HOST_STATUS_HS)
+
+        // If dist is HS, the status update will already have made the local node step down, so we don't need to redo it
+        // if local was also HS
+        if (local_status == HOST_STATUS_HS && etr->cm.status != HOST_STATUS_HS)
             stepdown_to_cs(overseer);
     }
 

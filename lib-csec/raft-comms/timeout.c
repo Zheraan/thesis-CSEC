@@ -63,7 +63,8 @@ struct timeval timeout_gen(enum timeout_type type) {
                         b = 100000000, // Maximum of the definition interval (minimum is 0)
                 c = FUZZER_LATENCY_DISTRIBUTION_PROPORTION * 1000000;
                 buf = MODULO(buf, b);
-                buf = a * (1 + (buf * (b - c) * (b - c)) / (c * (b - buf) * (b - buf))); // Applying function
+                // Applying distribution function
+                buf = (double) a * (double) (1 + (buf * (b - c) * (b - c)) / (double) (c * (b - buf) * (b - buf)));
                 if (buf > FUZZER_LATENCY_DISTRIBUTION_MAXIMUM)
                     buf = FUZZER_LATENCY_DISTRIBUTION_MAXIMUM;
                 ntv.tv_usec = MODULO(buf, 1000000);
