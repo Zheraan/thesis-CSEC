@@ -318,23 +318,28 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
     }
 
     overseer->log->entries[index].state = ENTRY_STATE_COMMITTED;
-    overseer->log->commit_index++;
-    if (index == overseer->log->next_index)
-        overseer->log->next_index++;
+    if (overseer->log->commit_index < index)
+        overseer->log->commit_index = index;
+    if (overseer->log->next_index <= overseer->log->commit_index)
+        overseer->log->next_index = overseer->log->commit_index + 1;
     return mfs_apply_op(overseer->mfs, &overseer->log->entries[index].op);
 }
 
 int log_commit_upto(overseer_s *overseer, uint64_t index) {
+    if (overseer->log->commit_index < 1)
+        overseer->log->commit_index = 1; // Index 0 means no entries
     if (DEBUG_LEVEL >= 4)
         fprintf(stdout,
-                "Committing entries from index %ld up to index %ld ... ",
+                "Committing entries from index %ld up to index %ld included ... ",
                 overseer->log->commit_index,
                 index);
     uint64_t i = 0;
     for (; i + overseer->log->commit_index <= index; i++) {
         if (log_entry_commit(overseer, i + overseer->log->commit_index) != EXIT_SUCCESS) {
+            if (overseer->log->commit_index == 1)
+                overseer->log->commit_index = 0; // Reset to 0 if it failed and it was the first committed entry
             if (DEBUG_LEVEL >= 4) {
-                fprintf(stdout, "Failure (%ld entries successfully committed).\n", index);
+                fprintf(stdout, "Failure (%ld entries successfully committed beforehand).\n", i);
                 mfs_array_print(overseer->mfs, stdout);
             }
             return EXIT_FAILURE;
@@ -345,5 +350,10 @@ int log_commit_upto(overseer_s *overseer, uint64_t index) {
         fprintf(stdout, "Done (%ld entries successfully committed).\n", index);
         mfs_array_print(overseer->mfs, stdout);
     }
+    if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M)
+        hl_replication_index_change(overseer,
+                                    overseer->hl->localhost_id,
+                                    overseer->log->next_index,
+                                    overseer->log->commit_index);
     return EXIT_SUCCESS;
 }
