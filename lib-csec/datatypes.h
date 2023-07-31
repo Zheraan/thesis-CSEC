@@ -22,16 +22,16 @@
 #endif
 
 #ifndef FUZZER_ENABLED
-#define FUZZER_ENABLED 1 // Boolean value determining if the fuzzer is used or not
+#define FUZZER_ENABLED 0 // Boolean value determining if the fuzzer is used or not
 #endif
 
-#ifndef FUZZER_MESSAGE_DROPPING
-// Boolean value determining if the fuzzer should drop messages using the set drop rate FUZZER_DROP_RATE
-#define FUZZER_MESSAGE_DROPPING 1
+#ifndef MESSAGE_DROPPING_ENABLED
+// Boolean value determining if messages should be dropped using the set drop rate MESSAGE_DROP_RATE
+#define MESSAGE_DROPPING_ENABLED 0
 #endif
 
-#ifndef FUZZER_DROP_RATE
-#define FUZZER_DROP_RATE 20 // Chances of the fuzzer dropping messages, in percentage
+#ifndef MESSAGE_DROP_RATE
+#define MESSAGE_DROP_RATE 20 // Chances of the fuzzer dropping messages, in percentage
 #endif
 
 enum entry_state;
@@ -74,6 +74,8 @@ struct overseer_s {
     hosts_list_s *hl;
     log_s *log;
     retransmission_cache_s *rtc;
+    uint32_t rtc_index; // Index of the next rtc entry
+    uint32_t rtc_number; // Number of rtc entries currently in the cache
     mocked_fs_s *mfs;
     election_state_s *es;
     fuzzer_cache_s *fc;

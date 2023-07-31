@@ -58,7 +58,7 @@ void cm_print(const control_message_s *cm, FILE *stream) {
             cm->host_id,
             cm->status,
             cm->type);
-    cm_print_type(cm, stream);
+    cm_print_type(cm->type, stream);
     fprintf(stream,
             ")\n"
             "   > ack_reference: %d\n"
@@ -77,9 +77,9 @@ void cm_print(const control_message_s *cm, FILE *stream) {
     return;
 }
 
-void cm_print_type(const control_message_s *cm, FILE *stream) {
+void cm_print_type(enum message_type type, FILE *stream) {
     // Responses depending on the type of control message
-    switch (cm->type) {
+    switch (type) {
         case MSG_TYPE_HB_DEFAULT:
             debug_log(0, stream, "HB DEFAULT");
             break;
@@ -145,7 +145,7 @@ void cm_print_type(const control_message_s *cm, FILE *stream) {
             break;
 
         default:
-            fprintf(stderr, "\nInvalid control message type %d\n", cm->type);
+            fprintf(stderr, "\nInvalid control message type %d\n", type);
             if (INSTANT_FFLUSH) fflush(stderr);
     }
 
@@ -565,8 +565,9 @@ int hb_actions_as_master(overseer_s *overseer,
                    overseer->log->HS_term);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
-        if (cm->status == HOST_STATUS_HS)
+        if (cm->status == HOST_STATUS_HS) {
             hl_update_status(overseer, HOST_STATUS_HS, cm->host_id); // Auto steps down if necessary
+        }
         election_state_reset(overseer); // Reset election state
         overseer->log->HS_term = cm->HS_term;
     }

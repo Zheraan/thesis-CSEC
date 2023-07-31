@@ -117,8 +117,6 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
             return EXIT_FAILURE;
         }
         etr->cm.ack_reference = rv;
-
-        debug_log(4, stdout, " - ETR RT init OK.\n");
     }
 
     char buf[256];
@@ -248,37 +246,39 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
 void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout,
               "Start of ETR Retransmission callback -----------------------------------------------------------\n");
-    retransmission_cache_s *rc = arg;
+    retransmission_cache_s *rtc = arg;
 
     if (DEBUG_LEVEL >= 3) {
         printf("ETR retransmission timed out, reattempting transmission (attempt %d) ... ",
-               rc->cur_attempts + 1);
+               rtc->cur_attempts + 1);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     int success = 1;
 
     // Update the control message in the transmission, as program status can change between transmissions attempts.
-    control_message_s *ncm = cm_new(rc->overseer, rc->etr->cm.type, rc->ack_back);
-    rc->etr->cm = *ncm;
+    control_message_s *ncm = cm_new(rtc->overseer, rtc->etr->cm.type, rtc->ack_back);
+    // Setting the retransmission cache entry's id as the ack reference to allow for acknowledgement
+    ncm->ack_reference = rtc->id;
+    rtc->etr->cm = *ncm;
     free(ncm);
 
     // Send proposition to P
-    if (etr_sendto(rc->overseer, rc->addr, rc->socklen, rc->etr)) {
+    if (etr_sendto(rtc->overseer, rtc->addr, rtc->socklen, rtc->etr)) {
         fprintf(stderr, "Failed retransmitting ETR.\n");
         success = 0;
     }
 
     // Increase attempts number
-    rc->cur_attempts++;
+    rtc->cur_attempts++;
 
     // If attempts max reached, remove cache entry
-    if (rc->cur_attempts >= rc->max_attempts) {
-        rtc_remove_by_id(rc->overseer, rc->id, FLAG_DEFAULT);
+    if (rtc->cur_attempts >= rtc->max_attempts) {
+        rtc_remove_by_id(rtc->overseer, rtc->id, FLAG_DEFAULT);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
         if (errno == EUNKNOWN_TIMEOUT_TYPE ||
-            event_add(rc->ev, &ops_timeout) != 0) {
+            event_add(rtc->ev, &ops_timeout) != 0) {
             fprintf(stderr, "Failed to add the ETR retransmission event.\n");
             if (INSTANT_FFLUSH) fflush(stderr);
             success = 0;
@@ -555,12 +555,16 @@ int etr_actions_as_p(overseer_s *overseer,
         }
 
         // Else if next indexes are equal
+
+        // Add entry to local
         log_add_entry(overseer, etr, ENTRY_STATE_PENDING);
+
         if (etr_broadcast_new_entry(overseer, etr->index, etr->cm.host_id, etr->cm.ack_reference)
             != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to broadcast new entry.\n");
             rv = EXIT_FAILURE;
         }
+
         hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
 
     } else {
@@ -586,6 +590,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
+
         return log_repair(overseer, &etr->cm);
     }
 
@@ -706,7 +711,9 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             if (utd_check == 0)
                 log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
             else log_add_entry(overseer, etr, etr->state);
-            if (local_status == HOST_STATUS_S & utd_check == 1) {
+            // If local host is an up-to-date server with a non-empty MFS queue
+            if (local_status == HOST_STATUS_S && utd_check == 1 && overseer->mfs->queue != NULL) {
+                // Send first prop in queue
                 if (server_send_first_prop(overseer, etr->cm.ack_reference) != EXIT_SUCCESS) {
                     debug_log(0, stderr, "Failed to Ack back New Entry and send Proposition.\n");
                     return EXIT_FAILURE;

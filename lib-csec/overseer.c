@@ -18,6 +18,8 @@ int overseer_init(overseer_s *overseer, const char *hostfile) {
     overseer->fc = NULL;
     overseer->socket_cm = 0;
     overseer->socket_etr = 0;
+    overseer->rtc_index = 1;
+    overseer->rtc_number = 0;
 
     // Malloc the hosts list
     hosts_list_s *hl = malloc(sizeof(hosts_list_s));

@@ -84,16 +84,16 @@ void end_hs_candidacy_round(overseer_s *overseer) {
 }
 
 int stepdown_to_cs(overseer_s *overseer) {
-    enum host_status starting_status = overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_CS;
+    enum host_status starting_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
     if (starting_status == HOST_STATUS_CS) {
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "Setting CS state ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "Setting CS state +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         else debug_log(1, stdout, "Setting CS state ... ");
     } else {
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "Stepping down to CS +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "Stepping down to CS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         else debug_log(1, stdout, "Stepping down to CS ... ");
     }
 
@@ -101,7 +101,7 @@ int stepdown_to_cs(overseer_s *overseer) {
         debug_log(1, stdout, "Local host is the only master, aborting.\n");
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         return EXIT_SUCCESS;
     }
 
@@ -127,12 +127,12 @@ int stepdown_to_cs(overseer_s *overseer) {
     if (starting_status == HOST_STATUS_CS) {
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "End of CS setup +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "End of CS setup ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         else debug_log(1, stdout, "End of CS setup.\n");
     } else {
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "End of step-down ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "End of step-down +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         else debug_log(1, stdout, "Done.\n");
     }
     return EXIT_SUCCESS;

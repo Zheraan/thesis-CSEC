@@ -15,6 +15,8 @@ void rtc_free(retransmission_cache_s *rtc) {
                   stderr,
                   "Attempting to free retransmission cache but retransmission event pointer is not set.\n");
     }
+    if (rtc->id != 0)
+        rtc->overseer->rtc_number--;
     free(rtc);
     return;
 }
@@ -30,6 +32,7 @@ void rtc_free_all(overseer_s *overseer) {
     }
     overseer->log->fix_conversation = 0;
     overseer->log->fix_type = FIX_TYPE_NONE;
+    overseer->rtc_number = 0;
     return;
 }
 
@@ -40,7 +43,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
                      enum message_type type,
                      entry_transmission_s *etr,
                      uint32_t ack_back) {
-    debug_log(4, stdout, "  - Creating a new retransmission cache element ... ");
+    debug_log(4, stdout, "- Creating a new retransmission cache element ... ");
 
     retransmission_cache_s *nrtc = malloc(sizeof(retransmission_cache_s));
     if (nrtc == NULL) {
@@ -60,6 +63,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
     nrtc->etr = etr;
     nrtc->ev = NULL;
     nrtc->ack_back = ack_back;
+    nrtc->id = 0; // To check if it's been added in the list when the free function is used
 
     event_callback_fn callback;
     if (etr == NULL)
@@ -92,31 +96,45 @@ uint32_t rtc_add_new(overseer_s *overseer,
         return 0;
     }
 
-    // If there are no other cached elements, just insert it in first place with ID 1
+    // Use strictly increasing cache entry indexes, apart from a reset to 1 after the maximum value has been hit. That
+    // way, chances of collision are low.
     // ID 0 is forbidden as a value of 0 is used in the ack_reference field of messages to signify that it does not
     // require acknowledgement.
     if (overseer->rtc == NULL) {
         overseer->rtc = nrtc;
-        nrtc->id = 1;
-        debug_log(4, stdout, "Done.\n");
+        nrtc->id = overseer->rtc_index;
+        overseer->rtc_index += 1;
+        overseer->rtc_number += 1;
+        if (overseer->rtc_index == 0xFFFFFFFF)
+            overseer->rtc_index = 1;
+        if (DEBUG_LEVEL >= 4) {
+            printf("Done (%d entries in the cache%s).\n",
+                   overseer->rtc_number,
+                   overseer->rtc_number == 1 ? "" : ", should be 1.");
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         return nrtc->id;
     }
 
-    // Otherwise insert the cache in the list with id equal to previous + 1, or resets to 1 when hitting the max value
-    // 0 is the value for CMs without retransmission
+    // Otherwise insert the cache at the end of the list
     retransmission_cache_s *iterator = overseer->rtc;
     do {
         if (iterator->next == NULL) {
             iterator->next = nrtc;
-            nrtc->id = iterator->id + 1;
-            if (nrtc->id == 0xFFFFFFFF)
-                nrtc->id = 1;
+            nrtc->id = overseer->rtc_index;
+            overseer->rtc_index += 1;
+            overseer->rtc_number += 1;
+            if (overseer->rtc_index == 0xFFFFFFFF)
+                overseer->rtc_index = 1;
             break;
         }
         iterator = iterator->next;
     } while (iterator != NULL);
 
-    debug_log(4, stdout, "Done.\n");
+    if (DEBUG_LEVEL >= 4) {
+        printf("Done (%d entries in the cache).\n", overseer->rtc_number);
+        if (INSTANT_FFLUSH) fflush(stdout);
+    }
     return nrtc->id;
 }
 
@@ -139,6 +157,12 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
 
     retransmission_cache_s *ptr = overseer->rtc;
     if (overseer->rtc->id == id) {
+        if (DEBUG_LEVEL >= 4) {
+            printf("[Entry is of type %d (", ptr->id);
+            cm_print_type(ptr->type, stdout);
+            printf(")] ");
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
         overseer->rtc = ptr->next;
         rtc_free(ptr);
         return EXIT_SUCCESS;
@@ -150,6 +174,12 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
         if (tmp->id == overseer->log->fix_conversation) {
             overseer->log->fix_conversation = 0;
             overseer->log->fix_type = FIX_TYPE_NONE;
+        }
+        if (DEBUG_LEVEL >= 4) {
+            printf("[Entry is of type %d (", tmp->id);
+            cm_print_type(tmp->type, stdout);
+            printf(")] ");
+            if (INSTANT_FFLUSH) fflush(stdout);
         }
         rtc_free(tmp);
         return EXIT_SUCCESS;

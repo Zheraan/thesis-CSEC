@@ -10,7 +10,7 @@
 
 // Creates and initializes a cache entry for the fuzzer storing the message's contents, which is sent later
 // after a timeout. Essentially, it delays a message's transmission.
-// If FUZZER_MESSAGE_DROPPING is true, uses the FUZZER_DROP_RATE as the rate at which messages are randomly
+// If MESSAGE_DROPPING_ENABLED is true, uses the MESSAGE_DROP_RATE as the rate at which messages are randomly
 // dropped. When a message ends up being dropped, this function does nothing else.
 // Returns EXIT_FAILURE if there was an issue with initialization, or EXIT_SUCCESS (even if a message is
 // dropped).

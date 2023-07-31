@@ -7,14 +7,14 @@
 int fuzzer_entry_init(overseer_s *overseer, enum packet_type t, union packet p, struct sockaddr_in6 addr,
                       socklen_t socklen) {
     debug_log(3, stdout, "Fuzzer start ... ");
-    if (FUZZER_MESSAGE_DROPPING == 1) {
+    if (MESSAGE_DROPPING_ENABLED == 1) {
         uint8_t buf;
         evutil_secure_rng_get_bytes(&buf, sizeof(uint8_t));
         buf = MODULO(buf, 100); // Set the value inside the range
 
-        if (buf < FUZZER_DROP_RATE) {
+        if (buf < MESSAGE_DROP_RATE) {
             if (DEBUG_LEVEL >= 3) {
-                printf("Message dropped by the fuzzer (result %d / %d%% chances).\n", buf, FUZZER_DROP_RATE);
+                printf("Message dropped by the fuzzer (result %d / %d%% chances).\n", buf, MESSAGE_DROP_RATE);
                 if (INSTANT_FFLUSH) fflush(stdout);
             }
             return EXIT_SUCCESS;
@@ -43,7 +43,8 @@ int fuzzer_entry_init(overseer_s *overseer, enum packet_type t, union packet p, 
         return EXIT_FAILURE;
     }
 
-    event_priority_set(nevent, 1);
+// Higher priority to prevent queue stacking
+    event_priority_set(nevent, 0);
     nfc->ev = nevent;
 
     // Add the transmission event with the randomized timer
@@ -133,7 +134,7 @@ void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
                fc->id,
                fc->type == PACKET_TYPE_CM ? "CM" : "ETR",
                fc->type == PACKET_TYPE_CM ? fc->p.cm.type : fc->p.etr.cm.type);
-        cm_print_type(fc->type == PACKET_TYPE_CM ? &fc->p.cm : &fc->p.etr.cm, stdout);
+        cm_print_type(fc->type == PACKET_TYPE_CM ? fc->p.cm.type : fc->p.etr.cm.type, stdout);
         printf(") ... ");
         if (INSTANT_FFLUSH) fflush(stdout);
     }
