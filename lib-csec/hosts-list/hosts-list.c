@@ -446,11 +446,19 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
         debug_log(3, stdout, "[No changes] ");
 
     // If new next index is higher, increment replication index on each of the concerned log entries
-    for (uint64_t i = target_host->next_index; i < next_index; ++i) {
-        target_host->status == NODE_TYPE_M ? log->entries[i].master_rep++ : log->entries[i].server_rep++;
-        printf("debug rep : %d ",
-               target_host->status == NODE_TYPE_M ?
-               log->entries[i].master_rep : log->entries[i].server_rep); // TODO Remove debug print
+    // Entry 0 represents uninitialized state, so it's skept if the index is 0
+    for (uint64_t i = target_host->next_index > 0 ? target_host->next_index : 1; i < next_index; ++i) {
+        if (target_host->type == NODE_TYPE_M)
+            log->entries[i].master_rep++;
+        else log->entries[i].server_rep++;
+
+        if (DEBUG_LEVEL >= 4) {
+            printf("[%s++ e%ld:M%d:S%d] ", // FIXME Figure why for master it sometimes displays rep 0
+                   target_host->type == NODE_TYPE_M ? "M" : "S",
+                   i,
+                   log->entries[i].master_rep,
+                   log->entries[i].server_rep);
+        }
         // If local is P, both majorities are reached, and the entry is not already committed,
         // send the commit order
         if (local_status == HOST_STATUS_P &&
@@ -458,20 +466,27 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
             log->entries[i].master_rep >= log->master_majority &&
             log->entries[i].server_rep >= log->server_majority) {
             commit_order = i;
-            printf("debug commit order : %d ", commit_order); // TODO Remove debug print
         }
     }
     // Otherwise decrement it for concerned entries
-    for (uint64_t i = target_host->next_index; i > next_index; --i) {
-        target_host->status == NODE_TYPE_M ? log->entries[i - 1].master_rep-- : log->entries[i - 1].server_rep--;
+    for (uint64_t i = target_host->next_index > 0 ? target_host->next_index : 1; i > next_index; --i) {
+        target_host->type == NODE_TYPE_M ? log->entries[i - 1].master_rep-- : log->entries[i - 1].server_rep--;
+        if (DEBUG_LEVEL >= 4) {
+            printf("[%s-- e%ld:M%d:S%d] ",
+                   target_host->type == NODE_TYPE_M ? "M" : "S",
+                   i - 1,
+                   log->entries[i].master_rep,
+                   log->entries[i].server_rep);
+        }
     }
 
     // If the commit index changed, broadcast the commit order
     if (commit_order != 0) {
         if (DEBUG_LEVEL >= 2) {
-            printf("Consensus reached for log entries up to entry #%ld, ", commit_order);
+            printf("\nConsensus reached for log entries up to entry #%ld, ", commit_order);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
+        log_commit_upto(overseer, commit_order);
         etr_broadcast_commit_order(overseer, commit_order);
     }
     target_host->next_index = next_index;
