@@ -224,6 +224,33 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
     return parsed;
 }
 
+void host_status_string(char *buf, enum host_status status) {
+    switch (status) {
+        case HOST_STATUS_UNKNOWN:
+            sprintf(buf, "UNKNOWN");
+            break;
+        case HOST_STATUS_P:
+            sprintf(buf, "PRINCIPAL MASTER");
+            break;
+        case HOST_STATUS_HS:
+            sprintf(buf, "HOT-STANDBY MASTER");
+            break;
+        case HOST_STATUS_CS:
+            sprintf(buf, "COLD-STANDBY MASTER");
+            break;
+        case HOST_STATUS_S:
+            sprintf(buf, "SERVER");
+            break;
+        case HOST_STATUS_UNREACHABLE:
+            sprintf(buf, "UNREACHABLE");
+            break;
+        case HOST_STATUS_UNRESOLVED:
+            sprintf(buf, "UNRESOLVED");
+            break;
+    }
+    return;
+}
+
 int host_re_resolve(hosts_list_s *list, uint32_t host_id) {
     struct addrinfo *res = NULL;
     struct addrinfo hints;

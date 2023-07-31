@@ -34,6 +34,10 @@
 // Returns the number of hosts parsed from the hostfile (one address per row) into the list.
 uint32_t hosts_init(char const *hostfile, hosts_list_s *list);
 
+// Sets buf to be a string containing the name of the given status number. Attention: buffer space must be at least 20
+// characters long.
+void host_status_string(char *buf, enum host_status status);
+
 // Attempts to re-resolve a host that was not successfully resolved at startup
 // Returns EXIT_SUCCESS on success, and EXIT_FAILURE on failure
 int host_re_resolve(hosts_list_s *list, uint32_t host_id);

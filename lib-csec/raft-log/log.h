@@ -11,6 +11,10 @@ log_s *log_init(log_s *log);
 // Prints the log state to the specified output
 void log_print(log_s *log, FILE *stream);
 
+// Sets buf to be a string containing the name of the given state number. Attention: buffer space must be at least 12
+// characters long
+void log_entry_state_string(char *buf, enum entry_state state);
+
 // Adds the entry contained in the transmission to the log as new entry with the given state.
 // State parameter is voluntarily redundant with transmission's state field to allow for caching new entries
 // in a log that has missing entries, to not require them again when repairing the missing ones.

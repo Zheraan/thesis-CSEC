@@ -60,11 +60,13 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
 }
 
 void etr_print(const entry_transmission_s *etr, FILE *stream) {
+    char buf[12];
+    log_entry_state_string(buf, etr->state);
     fprintf(stream, "- CM metadata:\n");
     cm_print(&(etr->cm), stream);
     fprintf(stream,
             "- Entry Metadata:\n"
-            "   > state:         %d\n"
+            "   > state:         %d (%s)\n"
             "   > index:         %d\n"
             "   > P-term:        %d\n"
             "- Data Op Metadata:\n"
@@ -72,6 +74,7 @@ void etr_print(const entry_transmission_s *etr, FILE *stream) {
             "   > column:        %d\n"
             "   > newval:        %c\n",
             etr->state,
+            buf,
             etr->index,
             etr->term,
             etr->op.row,

@@ -30,6 +30,30 @@ void log_print(log_s *log, FILE *stream) {
     return;
 }
 
+void log_entry_state_string(char *buf, enum entry_state state) {
+    switch (state) {
+        case ENTRY_STATE_INVALID:
+            sprintf(buf, "INVALID");
+            break;
+        case ENTRY_STATE_EMPTY:
+            sprintf(buf, "EMPTY");
+            break;
+        case ENTRY_STATE_PROPOSAL:
+            sprintf(buf, "PROPOSAL");
+            break;
+        case ENTRY_STATE_PENDING:
+            sprintf(buf, "PENDING");
+            break;
+        case ENTRY_STATE_COMMITTED:
+            sprintf(buf, "COMMITTED");
+            break;
+        case ENTRY_STATE_CACHED:
+            sprintf(buf, "CACHED");
+            break;
+    }
+    return;
+}
+
 int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum entry_state state) {
     if (overseer->log->next_index == LOG_LENGTH) {
         debug_log(0, stderr, "Log full\n");
@@ -46,27 +70,8 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
     nentry->op.row = etr->op.row;
     nentry->op.column = etr->op.column;
 
-    char state_string[10];
-    switch (state) {
-        case ENTRY_STATE_INVALID:
-            sprintf(state_string, "INVALID");
-            break;
-        case ENTRY_STATE_EMPTY:
-            sprintf(state_string, "EMPTY");
-            break;
-        case ENTRY_STATE_PROPOSAL:
-            sprintf(state_string, "PROPOSAL");
-            break;
-        case ENTRY_STATE_PENDING:
-            sprintf(state_string, "PENDING");
-            break;
-        case ENTRY_STATE_COMMITTED:
-            sprintf(state_string, "COMMITTED");
-            break;
-        case ENTRY_STATE_CACHED:
-            sprintf(state_string, "CACHED");
-            break;
-    }
+    char state_string[12];
+    log_entry_state_string(state_string, state);
 
     if (DEBUG_LEVEL >= 1) {
         printf("Added to the log the following entry:\n"

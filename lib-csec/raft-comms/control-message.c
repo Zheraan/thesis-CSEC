@@ -51,12 +51,15 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
 }
 
 void cm_print(const control_message_s *cm, FILE *stream) {
+    char buf[20];
+    host_status_string(buf, cm->status);
     fprintf(stream,
             "   > host_id:       %d\n"
-            "   > status:        %d\n"
+            "   > status:        %d (%s)\n"
             "   > type:          %d (",
             cm->host_id,
             cm->status,
+            buf,
             cm->type);
     cm_print_type(cm->type, stream);
     fprintf(stream,
