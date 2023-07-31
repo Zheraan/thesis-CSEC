@@ -37,8 +37,6 @@ int overseer_init(overseer_s *overseer, const char *hostfile) {
         return EXIT_FAILURE;
     }
     overseer->log = log_init(log);
-    log->master_majority = hl->nb_masters / 2 + 1;
-    log->server_majority = hl->nb_servers / 2 + 1;
 
     // Init the hosts list
     if (hosts_init(hostfile, overseer->hl) < 1) {
@@ -47,6 +45,8 @@ int overseer_init(overseer_s *overseer, const char *hostfile) {
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
+    log->master_majority = hl->nb_masters / 2 + 1;
+    log->server_majority = hl->nb_servers / 2 + 1;
 
     // Create a configured event base
     struct event_base *eb = eb_new();
@@ -125,7 +125,7 @@ int overseer_init(overseer_s *overseer, const char *hostfile) {
         overseer_wipe(overseer);
         return EXIT_FAILURE;
     }
-    memset(nmfs->array, 0, sizeof(int[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS]));
+    memset(nmfs->array, 0, sizeof(uint8_t[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS]));
     nmfs->nb_ops = 0;
     nmfs->queue = NULL;
     overseer->mfs = nmfs;

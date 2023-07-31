@@ -34,7 +34,7 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
 }
 
 int master_heartbeat_init(overseer_s *overseer) {
-    debug_log(3, stdout, "- Initializing next heartbeat event ... ");
+    debug_log(3, stdout, "Initializing next heartbeat event ... ");
 
     // Create the event related to the socket
     struct event *hb_event = event_new(overseer->eb,

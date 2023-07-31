@@ -24,8 +24,5 @@ int mfs_apply_op(mocked_fs_s *mfs, const data_op_s *op) {
     }
     mfs->array[op->row][op->column] = op->newval;
     mfs->nb_ops += 1;
-    if (DEBUG_LEVEL >= 4) {
-        mfs_array_print(mfs, stdout);
-    }
     return EXIT_SUCCESS;
 }

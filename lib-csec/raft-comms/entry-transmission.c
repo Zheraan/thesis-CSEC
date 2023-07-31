@@ -155,7 +155,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
 }
 
 int etr_reception_init(overseer_s *overseer) {
-    debug_log(4, stdout, "- Initializing next entry transmission reception event ... ");
+    debug_log(4, stdout, "Initializing next entry transmission reception event ... ");
     struct event *reception_event = event_new(overseer->eb,
                                               overseer->socket_etr,
                                               EV_READ,

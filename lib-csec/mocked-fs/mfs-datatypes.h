@@ -25,7 +25,7 @@ typedef struct data_op_s {
     // Horizontal position of the op in the mocked filesystem
     uint8_t column;
     // Character that replaces the previous one at the location indicated by the row and column values
-    char newval;
+    uint8_t newval;
 } data_op_s;
 
 // Queue for data ops on server side in case P is not available for treating proposition, which may happen if another
@@ -42,7 +42,7 @@ typedef struct ops_queue_s {
 
 typedef struct mocked_fs_s {
     // Array containing the synced data, initialized to all 0
-    int array[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS];
+    uint8_t array[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS];
     // Number of ops applied since initialization or last patch
     uint64_t nb_ops;
     ops_queue_s *queue;
