@@ -666,7 +666,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
     if (etr->cm.next_index > overseer->log->next_index &&
         !(etr->cm.next_index == overseer->log->next_index + 1 &&
           (etr->cm.type == MSG_TYPE_ETR_NEW || etr->cm.type == MSG_TYPE_ETR_NEW_AND_ACK)) &&
-        (log_repair_ongoing(overseer) == 0 || log_replay_ongoing(overseer) == 0)) {
+        (log_repair_ongoing(overseer) == false || log_replay_ongoing(overseer) == false)) {
         if (DEBUG_LEVEL >= 4) {
             printf("Dist next index (%ld) is greater than local (%ld), and no log fix is ongoing.\n",
                    etr->cm.next_index,
@@ -692,7 +692,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                    etr->cm.next_index);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
-        if (log_repair_ongoing(overseer) == 1)
+        if (log_repair_ongoing(overseer) == true)
             log_repair_override(overseer, &etr->cm);
         else log_repair(overseer, &etr->cm);
         utd_check = 0;

@@ -91,6 +91,9 @@ typedef struct hosts_list_s {
     host_s hosts[HOSTS_LIST_SIZE]; //TODO Extension Replace by a hashtable for masters and one for servers
     // ID of the localhost in the list
     uint32_t localhost_id;
+    // TODO Improvement save P and HS id (if any) to avoid searching for it if not necessary, and to remove
+    //  liveness events when there isn't any P
+
     // Number of hosts in the list
     uint32_t nb_hosts;
     // Number of hosts in the list

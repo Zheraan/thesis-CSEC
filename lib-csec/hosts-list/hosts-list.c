@@ -363,14 +363,20 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
         printf("Updating host %d status in the Hosts-list ... ", id);
     if (DEBUG_LEVEL >= 3) {
         if (status != overseer->hl->hosts[id].status) {
-            printf("[Updated status of %s from %d to %d] ",
+            char buf1[20], buf2[20];
+            host_status_string(buf1, overseer->hl->hosts[id].status);
+            host_status_string(buf2, status);
+            printf("[Updated status of %s from %s to %s] ",
                    overseer->hl->hosts[id].name,
-                   overseer->hl->hosts[id].status,
-                   status);
+                   buf1,
+                   buf2);
         } else {
-            printf("[Status of %s (%d) did not change] ",
+
+            char buf1[20];
+            host_status_string(buf1, status);
+            printf("[Status of %s (%s) did not change] ",
                    overseer->hl->hosts[id].name,
-                   overseer->hl->hosts[id].status);
+                   buf1);
         }
         if (INSTANT_FFLUSH) fflush(stdout);
     }
@@ -388,7 +394,7 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
 
 int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_index, uint64_t commit_index) {
     if (DEBUG_LEVEL >= 4) {
-        printf("Checking for replication index change for %s %s... ",
+        printf("Checking for replication index changes for %s %s... ",
                overseer->hl->hosts[host_id].name,
                overseer->hl->localhost_id == host_id ? "(local host) " : "");
         if (INSTANT_FFLUSH) fflush(stdout);
@@ -411,15 +417,13 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
 
     int change = 0;
     if (DEBUG_LEVEL >= 3 && target_host->next_index < next_index) {
-        printf("[New replication index (%ld) is higher than its local replication array counterpart (%ld), "
-               "updating array] ",
+        printf("[New replication index (%ld) is higher than local (%ld), updating array] ",
                next_index,
                target_host->next_index);
         change = 1;
         if (INSTANT_FFLUSH) fflush(stdout);
     } else if (DEBUG_LEVEL >= 3 && target_host->next_index > next_index) {
-        printf("[New replication index (%ld) is lower than its local replication array counterpart (%ld), "
-               "updating array] ",
+        printf("[New replication index (%ld) is lower than local (%ld), updating array] ",
                next_index,
                target_host->next_index);
         change = 1;
@@ -427,15 +431,13 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
     }
 
     if (DEBUG_LEVEL >= 3 && target_host->commit_index < commit_index) {
-        printf("[New commit index (%ld) is higher than its local replication array counterpart (%ld), updating "
-               "array] ",
+        printf("[New commit index (%ld) is higher than local (%ld), updating array] ",
                commit_index,
                target_host->commit_index);
         change = 1;
         if (INSTANT_FFLUSH) fflush(stdout);
     } else if (DEBUG_LEVEL >= 3 && target_host->commit_index > commit_index) {
-        printf("[New commit index (%ld) is lower than its local replication array counterpart (%ld), updating "
-               "array] ",
+        printf("[New commit index (%ld) is lower than local (%ld), updating array] ",
                commit_index,
                target_host->commit_index);
         change = 1;
@@ -453,9 +455,9 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
         else log->entries[i].server_rep++;
 
         if (DEBUG_LEVEL >= 4) {
-            printf("[%s++ e%ld:M%d:S%d] ", // FIXME Figure why for master it sometimes displays rep 0
-                   target_host->type == NODE_TYPE_M ? "M" : "S",
+            printf("[e%ld%s++ M%d:S%d] ",
                    i,
+                   target_host->type == NODE_TYPE_M ? "M" : "S",
                    log->entries[i].master_rep,
                    log->entries[i].server_rep);
         }
@@ -472,9 +474,9 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
     for (uint64_t i = target_host->next_index > 0 ? target_host->next_index : 1; i > next_index; --i) {
         target_host->type == NODE_TYPE_M ? log->entries[i - 1].master_rep-- : log->entries[i - 1].server_rep--;
         if (DEBUG_LEVEL >= 4) {
-            printf("[%s-- e%ld:M%d:S%d] ",
-                   target_host->type == NODE_TYPE_M ? "M" : "S",
+            printf("[e%ld%s-- M%d:S%d] ",
                    i - 1,
+                   target_host->type == NODE_TYPE_M ? "M" : "S",
                    log->entries[i].master_rep,
                    log->entries[i].server_rep);
         }

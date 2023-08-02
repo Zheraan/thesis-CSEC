@@ -627,7 +627,7 @@ int hb_actions_as_master(overseer_s *overseer,
         }
 
         // If the log is being repaired or replayed
-        if (log_replay_ongoing(overseer) == 1 || log_repair_ongoing(overseer) == 1) {
+        if (log_replay_ongoing(overseer) == true || log_repair_ongoing(overseer) == true) {
             // Ack back with ack
             debug_log(4, stdout, "Log is already being repaired or replayed, replying with GENERIC ACK ... ");
             if (cm_sendto_with_ack_back(overseer,
@@ -661,7 +661,7 @@ int hb_actions_as_master(overseer_s *overseer,
             return etr_reply_logfix(overseer, cm);
         }
 
-        if (log_repair_ongoing(overseer) == 1) {
+        if (log_repair_ongoing(overseer) == true) {
             debug_log(4, stdout, "Overriding outdated Log Repair process.\n");
             log_repair_override(overseer, cm);
         }
@@ -795,7 +795,7 @@ int hb_actions_as_server(overseer_s *overseer,
             }
         }
 
-        if (log_repair_ongoing(overseer) || log_replay_ongoing(overseer)) {
+        if (log_repair_ongoing(overseer) == true || log_replay_ongoing(overseer) == true) {
             debug_log(4, stdout, "Log repair/replay already ongoing, replying with GENERIC ACK.\n");
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
