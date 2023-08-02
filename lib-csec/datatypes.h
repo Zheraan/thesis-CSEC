@@ -17,6 +17,9 @@
 #define PORT_ETR 35008
 #endif
 
+#define true 1
+#define false 0
+
 #ifndef INSTANT_FFLUSH
 #define INSTANT_FFLUSH 1
 #endif

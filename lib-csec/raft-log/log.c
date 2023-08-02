@@ -271,14 +271,14 @@ void log_fix_end(overseer_s *overseer) {
 
 int log_repair_ongoing(overseer_s *overseer) {
     if (overseer->log->fix_type == FIX_TYPE_REPAIR)
-        return 1;
-    return 0;
+        return true;
+    return false;
 }
 
 int log_replay_ongoing(overseer_s *overseer) {
     if (overseer->log->fix_type == FIX_TYPE_REPLAY)
-        return 1;
-    return 0;
+        return true;
+    return false;
 }
 
 int log_repair_override(overseer_s *overseer, control_message_s *cm) {
@@ -326,20 +326,19 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
 }
 
 int log_commit_upto(overseer_s *overseer, uint64_t index) {
-    if (overseer->log->commit_index < 1)
-        overseer->log->commit_index = 1; // Index 0 means no entries
     if (DEBUG_LEVEL >= 4)
         fprintf(stdout,
-                "Committing entries from index %ld up to index %ld included ... ",
-                overseer->log->commit_index,
+                "Committing entries from index %ld up to %ld included ... ",
+                overseer->log->commit_index + 1,
                 index);
     uint64_t i = 0;
-    for (; i + overseer->log->commit_index <= index; i++) {
-        if (log_entry_commit(overseer, i + overseer->log->commit_index) != EXIT_SUCCESS) {
-            if (overseer->log->commit_index == 1)
-                overseer->log->commit_index = 0; // Reset to 0 if it failed and it was the first committed entry
+    for (; i + 1 + overseer->log->commit_index <= index; i++) {
+        if (log_entry_commit(overseer, i + 1 + overseer->log->commit_index) != EXIT_SUCCESS) {
             if (DEBUG_LEVEL >= 4) {
-                fprintf(stdout, "Failure (%ld entries successfully committed beforehand).\n", i);
+                fprintf(stdout,
+                        "Failure (%ld entr%s successfully committed beforehand).\n",
+                        i,
+                        i == 1 ? "y" : "ies");
                 mfs_array_print(overseer->mfs, stdout);
             }
             return EXIT_FAILURE;
@@ -347,7 +346,9 @@ int log_commit_upto(overseer_s *overseer, uint64_t index) {
     }
 
     if (DEBUG_LEVEL >= 4) {
-        fprintf(stdout, "Done (%ld entries successfully committed).\n", index);
+        fprintf(stdout, "Done (%ld entr%s successfully committed).\n",
+                i,
+                i == 1 ? "y" : "ies");
         mfs_array_print(overseer->mfs, stdout);
     }
     if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M)
