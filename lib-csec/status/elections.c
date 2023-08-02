@@ -5,16 +5,23 @@
 #include "elections.h"
 
 void election_state_reset(overseer_s *overseer) {
-    debug_log(4, stdout, "Resetting election state.\n");
+    debug_log(4, stdout, "Resetting election state ... ");
     overseer->es->candidacy = CANDIDACY_NONE;
     overseer->es->vote_count = 0;
     overseer->es->last_voted_bid = 0;
     overseer->es->bid_number = 0;
+    // Remove all RTC entries pertaining to elections
+    uint32_t rtc_removed = rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTING_BID) +
+                           rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTE);
+    if (DEBUG_LEVEL >= 4) {
+        printf("[%d RTC entries pertaining to elections removed] ", rtc_removed);
+    }
     if (overseer->es->election_round_event != NULL)
         event_free(overseer->es->election_round_event);
     if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_CS)
         election_set_timeout(overseer);
     else overseer->es->election_round_event = NULL;
+    debug_log(4, stdout, "Done.\n");
     return;
 }
 
@@ -73,6 +80,7 @@ void end_hs_candidacy_round(overseer_s *overseer) {
     debug_log(2, stdout, "Ending candidacy round.\n");
 
     overseer->es->candidacy = CANDIDACY_NONE; // Reset candidacy
+    rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTING_BID);
 
     if (overseer->es->election_round_event != NULL)
         event_free(overseer->es->election_round_event);

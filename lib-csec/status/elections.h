@@ -14,7 +14,7 @@
 #endif
 
 // Resets the election state values to default values and a new timeout for CS nodes, or removes it for other
-// types.
+// types. Also removes all voting bid and vote messages from the retransmission cache.
 void election_state_reset(overseer_s *overseer);
 
 // Starts a round of HS candidacy by increasing bid number, resets votes, broadcasting a bid to master nodes, then

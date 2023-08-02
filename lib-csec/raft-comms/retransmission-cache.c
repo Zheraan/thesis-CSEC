@@ -148,6 +148,32 @@ retransmission_cache_s *rtc_find_by_id(overseer_s *overseer, uint32_t id) {
     return target;
 }
 
+uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type) {
+    uint32_t nb_removed = 0;
+
+    retransmission_cache_s *ite = overseer->rtc, *tmp;
+    // Clearing all entries of said type that are at the beginning of the linked list
+    while (ite != NULL && ite->type == type) {
+        tmp = ite->next;
+        rtc_free(ite);
+        ite = tmp;
+        nb_removed++;
+    }
+    ite = overseer->rtc;
+    while (ite != NULL) {
+        // Remove any entry with said type without breaking the chain
+        if (ite->next->type == type) {
+            tmp = ite->next->next;
+            rtc_free(ite->next);
+            ite->next = tmp;
+            nb_removed++;
+        }
+        ite = ite->next;
+    }
+
+    return nb_removed;
+}
+
 int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
     if (overseer->rtc == NULL) {
         if (flag && FLAG_SILENT == FLAG_SILENT)

@@ -28,6 +28,10 @@ uint32_t rtc_add_new(overseer_s *overseer,
 // Returns a pointer to the cache element designated by the given ID, or NULL if none is found to match.
 retransmission_cache_s *rtc_find_by_id(overseer_s *overseer, uint32_t id);
 
+// Removes the retransmission of all entries of given type in the retransmission cache.
+// Returns the number of freed elements.
+uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type);
+
 // Removes and frees the element in the cache list with the given ID
 // Returns EXIT_SUCCESS, or EXIT_FAILURE if cache was empty or did not contain any entry with the given ID.
 // If the flag parameter is FLAG_SILENT, does not log an error for empty cache or if no entry with the
