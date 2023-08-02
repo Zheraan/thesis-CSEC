@@ -118,6 +118,8 @@
 #define FUZZER_LATENCY_DISTRIBUTION_MINIMUM TIMEOUT_OFFSET_FUZZER
 #endif
 
+// TODO Improvement enforce 0<A<C<B for the distribution function
+
 // Control message type values, including those only used within the transmission struct.
 // Message types concerning CMs have values <=100, and those concerning ETRs have values >100
 enum message_type {

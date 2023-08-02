@@ -6,8 +6,8 @@
 
 int p_liveness_set_timeout(overseer_s *overseer) {
     if (overseer->p_liveness_event != NULL)
-        debug_log(4, stdout, "- Re-initializing next P Liveness timeout event ... ");
-    else debug_log(4, stdout, "- Initializing next P Liveness timeout event ... ");
+        debug_log(4, stdout, "Re-initializing next P Liveness timeout event ... ");
+    else debug_log(4, stdout, "Initializing next P Liveness timeout event ... ");
 
     struct event *p_liveness_event = evtimer_new(overseer->eb,
                                                  p_liveness_timeout_cb,

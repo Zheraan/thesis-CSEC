@@ -47,6 +47,7 @@ int overseer_init(overseer_s *overseer, const char *hostfile) {
     }
     log->master_majority = hl->nb_masters / 2 + 1;
     log->server_majority = hl->nb_servers / 2 + 1;
+    log->fix_type = FIX_TYPE_NONE;
 
     // Create a configured event base
     struct event_base *eb = eb_new();

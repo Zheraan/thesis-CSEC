@@ -48,7 +48,7 @@ typedef struct log_entry_s {
     // Number of masters that have replicated this entry
     uint32_t master_rep;
 
-    // Pointer to the data operation the entry refers to
+    // Data operation the entry contains
     data_op_s op;
 } log_entry_s;
 

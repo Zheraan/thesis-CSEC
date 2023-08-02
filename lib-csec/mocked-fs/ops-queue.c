@@ -27,7 +27,7 @@ ops_queue_s *ops_queue_add(data_op_s *op, mocked_fs_s *mfs) {
     }
 
     ops_queue_s *i = mfs->queue;
-    for (; i->next == NULL; i = i->next); // Go to end of queue
+    for (; i->next != NULL; i = i->next); // Go to end of queue
     i->next = nqueue; // Append new element
     return nqueue;
 }
@@ -51,29 +51,46 @@ void ops_queue_element_free_first(mocked_fs_s *mfs) {
     return;
 }
 
-int ops_queue_free_all(overseer_s *overseer, ops_queue_s *queue) {
-    if (queue == NULL)
+int ops_queue_free_all(overseer_s *overseer, ops_queue_s *element) {
+    if (element == NULL)
         return 0;
+
     int nb_elem = 0;
-    for (ops_queue_s *ite = overseer->mfs->queue; ite != queue; ite = ite->next) {
+
+    ops_queue_s *ite = overseer->mfs->queue;
+
+    if (ite == NULL || ite == element) {
+        if (ite == element) // Clearing dangling pointer in case the given element was the first of the queue
+            overseer->mfs->queue = NULL;
+        ite = element->next;
+        ops_queue_element_free(element);
+        return 1 + ops_queue_free_all(overseer, ite);
+    }
+
+    // Getting to where the element is in the queue to clear the dangling pointer on the previous element if any, skip
+    // if it's the first one
+    while (true) {
         if (ite == NULL) {
             fprintf(stderr,
-                    "Error resetting queue: queue element in parameter was not part of the queue\n");
+                    "Error resetting queue: given element was not part of it\n");
             return -1;
         }
-        if (ite == queue)
+
+        if (ite->next == element) {
             ite->next = NULL; // Clearing dangling pointer in case the queue element was not the first
+            break;
+        }
+        ite = ite->next;
     }
-    ops_queue_s *ptr = queue;
+
+    ops_queue_s *ptr = element;
     ops_queue_s *next;
     do {
-        next = queue->next;
+        next = element->next;
         ops_queue_element_free(ptr);
         ptr = next;
         nb_elem++;
     } while (ptr != NULL);
 
-    if (overseer->mfs->queue == queue)
-        overseer->mfs->queue = NULL; // Clearing dangling pointer in case the queue element was the first
     return nb_elem;
 }

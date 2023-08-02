@@ -108,9 +108,9 @@ uint32_t rtc_add_new(overseer_s *overseer,
         if (overseer->rtc_index == 0xFFFFFFFF)
             overseer->rtc_index = 1;
         if (DEBUG_LEVEL >= 4) {
-            printf("Done (%d entries in the cache%s).\n",
+            printf("Done (%d entr%s in the cache).\n",
                    overseer->rtc_number,
-                   overseer->rtc_number == 1 ? "" : ", should be 1.");
+                   overseer->rtc_number == 1 ? "y" : "ies");
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         return nrtc->id;
@@ -132,7 +132,9 @@ uint32_t rtc_add_new(overseer_s *overseer,
     } while (iterator != NULL);
 
     if (DEBUG_LEVEL >= 4) {
-        printf("Done (%d entries in the cache).\n", overseer->rtc_number);
+        printf("Done (%d entr%s in the cache).\n",
+               overseer->rtc_number,
+               overseer->rtc_number == 1 ? "y" : "ies");
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     return nrtc->id;

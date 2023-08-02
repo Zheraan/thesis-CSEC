@@ -40,13 +40,15 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout,
               "Start of random op callback --------------------------------------------------------------------\n");
 
-    if (log_replay_ongoing((overseer_s *) arg) == 1 || log_repair_ongoing((overseer_s *) arg) == 1) {
+    overseer_s *overseer = (overseer_s *) arg;
+
+    if (log_replay_ongoing(overseer) == true || log_repair_ongoing(overseer) == true) {
         debug_log(2, stdout, "Log repair or replay ongoing, random op generation cancelled.");
     } else {
 
         // Check if queue is empty
         int queue_was_empty = 1;
-        if (((overseer_s *) arg)->mfs->queue != NULL)
+        if (overseer->mfs->queue != NULL)
             queue_was_empty = 0;
 
         // Create random op
@@ -65,7 +67,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         }
 
         // Add it to the queue
-        ops_queue_s *nqelem = ops_queue_add(nop, ((overseer_s *) arg)->mfs);
+        ops_queue_s *nqelem = ops_queue_add(nop, overseer->mfs);
         if (nqelem == NULL) {
             free(nop); // Cleanup and abort in case of failure
             fprintf(stderr, "Failed to add a new op in the queue\n");
@@ -76,11 +78,11 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
         }
 
         // Set timer for deletion
-        if (server_queue_element_deletion_init((overseer_s *) arg, nqelem) != EXIT_SUCCESS) {
+        if (server_queue_element_deletion_init(overseer, nqelem) != EXIT_SUCCESS) {
             // In case of failure and if the queue wasn't empty, we must clear possible dangling pointers before
             // cleaning up the list:
             if (!queue_was_empty) {
-                for (ops_queue_s *ptr = ((overseer_s *) arg)->mfs->queue; ptr == NULL; ptr = ptr->next) {
+                for (ops_queue_s *ptr = overseer->mfs->queue; ptr == NULL; ptr = ptr->next) {
                     if (ptr->next == nqelem) {
                         ptr->next = NULL; // Clear pointer
                         break;
@@ -91,14 +93,14 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
             fprintf(stderr,
                     "Failed to initialize queue element deletion timeout.\n"
                     "Clear queue from element: %d element(s) freed.\n",
-                    ops_queue_free_all((overseer_s *) arg, nqelem));
+                    ops_queue_free_all(overseer, nqelem));
             if (INSTANT_FFLUSH) fflush(stderr);
             debug_log(4, stdout,
                       "End of random op callback ----------------------------------------------------------------------\n\n");
             return;
         }
 
-        int p_available = is_p_available(((overseer_s *) arg)->hl);
+        int p_available = is_p_available(overseer->hl);
 
         if (!queue_was_empty) {
             debug_log(3, stdout, "Queue is not empty: holding new proposition.\n");
@@ -106,12 +108,12 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
             debug_log(3, stdout, "Queue is empty, however P is not available: holding new proposition.\n");
         } else { // If queue was empty when checked before adding the new element and if there is an available P
             // Then transmit the proposition
-            server_send_first_prop((overseer_s *) arg, 0);
+            server_send_first_prop(overseer, 0);
         }
     }
 
     // Set next generator event
-    if (server_random_ops_init((overseer_s *) arg) != EXIT_SUCCESS) {
+    if (server_random_ops_init(overseer) != EXIT_SUCCESS) {
         fprintf(stderr, "Fatal Error: random ops generator event couldn't be set\n");
         if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
