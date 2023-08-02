@@ -241,6 +241,8 @@ void overseer_wipe(overseer_s *overseer) {
 
 void debug_log(uint8_t level, FILE *stream, const char *string) {
     if (DEBUG_LEVEL >= level) {
+        if (INSTANT_FFLUSH && stream == stderr) fflush(stdout);
+        if (INSTANT_FFLUSH && stream == stdout) fflush(stderr);
         fprintf(stream, "%s", string);
         if (INSTANT_FFLUSH) fflush(stream);
     }

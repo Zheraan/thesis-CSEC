@@ -360,8 +360,10 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
 
     int rv = EXIT_SUCCESS;
     if (DEBUG_LEVEL >= 4)
-        printf("Updating host %d status in the Hosts-list ... ", id);
-    if (DEBUG_LEVEL >= 3) {
+        printf("Updating host %d status in the Hosts-list %s... ",
+               id,
+               overseer->hl->localhost_id == id ? "(local host) " : "");
+    if (DEBUG_LEVEL >= 2) {
         if (status != overseer->hl->hosts[id].status) {
             char buf1[20], buf2[20];
             host_status_string(buf1, overseer->hl->hosts[id].status);
@@ -370,13 +372,15 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
                    overseer->hl->hosts[id].name,
                    buf1,
                    buf2);
-        } else {
-
+            if (DEBUG_LEVEL <= 3)
+                printf("\n");
+        } else if (DEBUG_LEVEL >= 3) {
             char buf1[20];
             host_status_string(buf1, status);
             printf("[Status of %s (%s) did not change] ",
                    overseer->hl->hosts[id].name,
                    buf1);
+            printf("\n");
         }
         if (INSTANT_FFLUSH) fflush(stdout);
     }
