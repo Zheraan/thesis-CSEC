@@ -499,6 +499,26 @@ int hb_actions_as_master(overseer_s *overseer,
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
     if (cm->P_term > overseer->log->P_term) { // If dist P-term is greater
+        // If P-term is only outdated because of a takeover but all other parameters indicate coherence
+        if (cm->type == MSG_TYPE_P_TAKEOVER &&
+            log_repair_ongoing(overseer) == false &&
+            log_replay_ongoing(overseer) == false &&
+            overseer->log->P_term == cm->P_term - 1 &&
+            overseer->log->next_index == cm->next_index) {
+            debug_log(3, stdout, "Acknowledging clean P takeover.\n");
+            int rv = hl_update_status(overseer, cm->status, cm->host_id);
+            // Just ack back, in order to avoid unnecessary logfixes
+            if (cm_sendto_with_ack_back(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        MSG_TYPE_GENERIC_ACK,
+                                        cm->ack_reference) != EXIT_SUCCESS) {
+                debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
+                return EXIT_FAILURE;
+            }
+            return rv;
+        }
+
         if (DEBUG_LEVEL >= 3) {
             printf("Dist P-term (%d) is greater than local (%d).\n",
                    cm->P_term,
@@ -838,6 +858,25 @@ int hb_actions_as_server(overseer_s *overseer,
     // If dist P_term or Next index is greater
     int p_outdated = cm->P_term > overseer->log->P_term;
     if (p_outdated || cm->next_index > overseer->log->next_index) {
+        // If P-term is only outdated because of a takeover but all other parameters indicate coherence
+        if (cm->type == MSG_TYPE_P_TAKEOVER &&
+            log_repair_ongoing(overseer) == false &&
+            log_replay_ongoing(overseer) == false &&
+            overseer->log->P_term == cm->P_term - 1 &&
+            overseer->log->next_index == cm->next_index) {
+            // Just ack back, in order to avoid unnecessary logfixes
+            debug_log(3, stdout, "Acknowledging clean P takeover.\n");
+            if (cm_sendto_with_ack_back(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        MSG_TYPE_GENERIC_ACK,
+                                        cm->ack_reference) != EXIT_SUCCESS) {
+                debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
+                return EXIT_FAILURE;
+            }
+            return EXIT_SUCCESS;
+        }
+
         if (p_outdated) {
             if (DEBUG_LEVEL >= 2) {
                 printf("Local P-term (%d) is outdated (dist is %d).\n",

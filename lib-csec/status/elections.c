@@ -38,7 +38,7 @@ int start_hs_candidacy_bid(overseer_s *overseer) {
             continue; // Skip iteration
 
         if (DEBUG_LEVEL >= 4) {
-            printf("\n- CM target: %s\n", target->name);
+            printf("- CM target: %s\n", target->name);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
 
@@ -159,6 +159,17 @@ int promote_to_hs(overseer_s *overseer) {
         return stepdown_to_cs(overseer);
     }
 
+    if (p_liveness_set_timeout(overseer) != EXIT_SUCCESS) {
+        debug_log(0, stderr, "Failure initializing P liveness event, stepping back down to CS.\n");
+        return stepdown_to_cs(overseer);
+    }
+
+    overseer->log->HS_term++;
+    if (DEBUG_LEVEL >= 4) {
+        printf("Incremented HS-term to %d\n", overseer->log->HS_term);
+        if (INSTANT_FFLUSH) fflush(stdout);
+    }
+
     cm_broadcast(overseer, MSG_TYPE_HS_TAKEOVER, CM_DEFAULT_RT_ATTEMPTS, FLAG_SKIP_S);
 
     if (DEBUG_LEVEL >= 4)
@@ -191,6 +202,12 @@ int promote_to_p(overseer_s *overseer) {
             debug_log(0, stderr, "Failure initializing master heartbeat, stepping back down to CS.\n");
             return stepdown_to_cs(overseer);
         }
+    }
+
+    overseer->log->P_term++;
+    if (DEBUG_LEVEL >= 4) {
+        printf("Incremented P-term to %d\n", overseer->log->P_term);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
 
     cm_broadcast(overseer, MSG_TYPE_P_TAKEOVER, CM_DEFAULT_RT_ATTEMPTS, FLAG_NOSKIP);
