@@ -87,10 +87,6 @@ void cm_print_type(enum message_type type, FILE *stream) {
             debug_log(0, stream, "HB DEFAULT");
             break;
 
-        case MSG_TYPE_GENERIC_ACK:
-            debug_log(0, stream, "GENERIC ACK");
-            break;
-
         case MSG_TYPE_P_TAKEOVER:
             debug_log(0, stream, "P TAKEOVER");
             break;
@@ -99,12 +95,20 @@ void cm_print_type(enum message_type type, FILE *stream) {
             debug_log(0, stream, "HS TAKEOVER");
             break;
 
+        case MSG_TYPE_NETWORK_PROBE:
+            debug_log(0, stream, "NETWORK PROBE");
+            break;
+
         case MSG_TYPE_LOG_REPAIR:
             debug_log(0, stream, "LOG REPAIR");
             break;
 
         case MSG_TYPE_LOG_REPLAY:
             debug_log(0, stream, "LOG REPLAY");
+            break;
+
+        case MSG_TYPE_GENERIC_ACK:
+            debug_log(0, stream, "GENERIC ACK");
             break;
 
         case MSG_TYPE_ACK_ENTRY:
@@ -123,8 +127,12 @@ void cm_print_type(enum message_type type, FILE *stream) {
             debug_log(0, stream, "INDICATE HS");
             break;
 
-        case MSG_TYPE_NETWORK_PROBE:
-            debug_log(0, stream, "NETWORK PROBE");
+        case MSG_TYPE_HS_VOTING_BID:
+            debug_log(0, stream, "HS VOTING BID");
+            break;
+
+        case MSG_TYPE_HS_VOTE:
+            debug_log(0, stream, "HS VOTE");
             break;
 
         case MSG_TYPE_ETR_COMMIT:
@@ -277,6 +285,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout,
               "Start of CM reception callback -----------------------------------------------------------------\n");
 
+    overseer_s *overseer = (overseer_s *) arg;
     control_message_s cm;
     struct sockaddr_in6 sender_addr;
     socklen_t socklen = sizeof(sender_addr);
@@ -293,7 +302,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             if (INSTANT_FFLUSH) fflush(stderr);
             if (errno != EAGAIN) {
                 debug_log(1, stdout, "Failure receiving CM.\n");
-                cm_reception_init((overseer_s *) arg);
+                cm_reception_init(overseer);
                 debug_log(4, stdout,
                           "End of CM reception callback -------------------------------------------------------------------\n\n");
                 return; // Failure
@@ -304,7 +313,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 2) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf("Received from %s (aka. %s) a CM:\n", buf, ((overseer_s *) arg)->hl->hosts[cm.host_id].name);
+        printf("Received from %s (aka. %s) a CM:\n", buf, overseer->hl->hosts[cm.host_id].name);
         if (DEBUG_LEVEL >= 3)
             cm_print(&cm, stdout);
     }
@@ -315,7 +324,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             printf("Ack back value is non-zero (%d), removing corresponding RT cache entry ... ", cm.ack_back);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
-        if (rtc_remove_by_id((overseer_s *) arg, cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
+        if (rtc_remove_by_id(overseer, cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else
             debug_log(4,
@@ -325,11 +334,11 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     }
 
     // Take any actions that need be
-    if (cm_actions((overseer_s *) arg, sender_addr, socklen, &cm) != EXIT_SUCCESS)
+    if (cm_actions(overseer, sender_addr, socklen, &cm) != EXIT_SUCCESS)
         debug_log(1, stderr, "CM action failure.\n");
 
     // Init next event
-    cm_reception_init((overseer_s *) arg); // Fatal error in case of failure anyway, so no need for a check
+    cm_reception_init(overseer); // Fatal error in case of failure anyway, so no need for a check
 
     debug_log(4, stdout,
               "End of CM reception callback -------------------------------------------------------------------\n\n");
