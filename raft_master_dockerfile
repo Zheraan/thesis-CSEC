@@ -1,9 +1,7 @@
 FROM ubuntu:latest
 
-COPY ./cmake-build-debug/raft-master ./local
-COPY ./raft-master/hostfile.txt ./local
+COPY ./cmake-build-debug/raft-master ./raft-master/hostfile.txt ./local/
 WORKDIR ./local/
 
-EXPOSE 35007
-EXPOSE 35008
+EXPOSE 35007 35008
 CMD ["./raft_master"]

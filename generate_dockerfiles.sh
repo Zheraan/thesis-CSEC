@@ -26,12 +26,10 @@ while [[ $node_number -lt "$1" ]]; do
   cat <<EOT > ./dockergen/raft_master_dockerfile$node_number
 FROM ubuntu:latest
 
-COPY ./cmake-build-debug/raft-master ./local
-COPY ./dockergen/hostfile$host_number.txt ./local
+COPY ./cmake-build-debug/raft-master ./dockergen/hostfile$host_number.txt ./local/
 WORKDIR ./local/
 
-EXPOSE 35007
-EXPOSE 35008
+EXPOSE 35007 35008
 CMD ["./raft_master", "hostfile$host_number.txt"]
 EOT
   # Generate a docker-compose service
@@ -81,12 +79,10 @@ while [[ $node_number -lt "$2" ]]; do
   cat <<EOT > ./dockergen/raft_server_dockerfile$node_number
 FROM ubuntu:latest
 
-COPY ./cmake-build-debug/raft-server ./local
-COPY ./dockergen/hostfile$host_number.txt ./local
+COPY ./cmake-build-debug/raft-server ./dockergen/hostfile$host_number.txt ./local/
 WORKDIR ./local/
 
-EXPOSE 35007
-EXPOSE 35008
+EXPOSE 35007 35008
 CMD ["./raft_server", "hostfile$host_number.txt"]
 EOT
   # Generate a docker-compose service
