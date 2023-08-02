@@ -297,8 +297,20 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
 int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
     uint64_t target_index = cm->next_index;
-    if (cm->next_index >= overseer->log->next_index && cm->P_term >= overseer->log->P_term)
+    if (cm->next_index >= overseer->log->next_index)
         target_index = overseer->log->next_index - 1;
+    if (target_index == 0) {
+        debug_log(3,
+                  stdout,
+                  "Interlocutor requested a logfix but log is empty. Replying with HB DEFAULT.\n");
+        return cm_sendto_with_rt_init(overseer,
+                                      overseer->hl->hosts[cm->host_id].addr,
+                                      overseer->hl->hosts[cm->host_id].socklen,
+                                      MSG_TYPE_HB_DEFAULT,
+                                      CM_DEFAULT_RT_ATTEMPTS,
+                                      0,
+                                      cm->ack_reference);
+    }
     entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                           MSG_TYPE_ETR_LOGFIX,
                                                           target_index,
