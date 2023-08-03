@@ -517,7 +517,8 @@ int hb_actions_as_master(overseer_s *overseer,
             log_replay_ongoing(overseer) == false &&
             overseer->log->P_term == cm->P_term - 1 &&
             overseer->log->next_index == cm->next_index) {
-            debug_log(3, stdout, "Acknowledging clean P takeover.\n");
+            debug_log(3, stdout, "Acknowledging clean P takeover, incrementing P-term.\n");
+            overseer->log->P_term++;
             int rv = hl_update_status(overseer, cm->status, cm->host_id);
             // Just ack back, in order to avoid unnecessary logfixes
             if (cm_sendto_with_ack_back(overseer,
