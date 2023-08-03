@@ -801,6 +801,14 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             // If the program reaches this point, the local log is (now) fixed up until the last added entry
             debug_log(3, stdout, "Log coherency verified, proceeding to replay.\n");
 
+            // If local next index is higher than 1 (meaning there's at least one synced entry) and the latest entry in
+            // the local log has higher term than local
+            if (overseer->log->next_index > 1 &&
+                overseer->log->P_term < overseer->log->entries[overseer->log->next_index - 1].term) {
+                // Set the local term to the latest entry
+                overseer->log->P_term = overseer->log->entries[overseer->log->next_index - 1].term;
+            }
+
             uint64_t cached_set = 0;
 
             // While local next index is smaller than dist
