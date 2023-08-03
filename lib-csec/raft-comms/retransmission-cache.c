@@ -108,7 +108,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
         if (overseer->rtc_index == 0xFFFFFFFF)
             overseer->rtc_index = 1;
         if (DEBUG_LEVEL >= 4) {
-            printf("Done (%d entr%s in the cache).\n",
+            printf("Done (%d entr%s currently in the cache).\n",
                    overseer->rtc_number,
                    overseer->rtc_number == 1 ? "y" : "ies");
             if (INSTANT_FFLUSH) fflush(stdout);
@@ -132,7 +132,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
     } while (iterator != NULL);
 
     if (DEBUG_LEVEL >= 4) {
-        printf("Done (%d entr%s in the cache).\n",
+        printf("Done (%d entr%s currently in the cache).\n",
                overseer->rtc_number,
                overseer->rtc_number == 1 ? "y" : "ies");
         if (INSTANT_FFLUSH) fflush(stdout);
@@ -159,16 +159,18 @@ uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type) {
         ite = tmp;
         nb_removed++;
     }
-    ite = overseer->rtc;
-    while (ite != NULL) {
-        // Remove any entry with said type without breaking the chain
-        if (ite->next->type == type) {
-            tmp = ite->next->next;
-            rtc_free(ite->next);
-            ite->next = tmp;
-            nb_removed++;
+    overseer->rtc = ite;
+    if (ite != NULL) {
+        while (ite->next != NULL) {
+            // Remove any entry with said type without breaking the chain
+            if (ite->next->type == type) {
+                tmp = ite->next->next;
+                rtc_free(ite->next);
+                ite->next = tmp;
+                nb_removed++;
+            }
+            ite = ite->next;
         }
-        ite = ite->next;
     }
 
     return nb_removed;
