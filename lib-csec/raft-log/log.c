@@ -196,6 +196,14 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
 
 int log_replay(overseer_s *overseer, control_message_s *cm) {
     debug_log(1, stdout, "Starting Log Replay ... ");
+
+    if (cm->next_index == 1) {
+        debug_log(3, stdout, "Dist log is empty, acknowledging and setting correct term.\n");
+        overseer->log->P_term = cm->P_term;
+        log_fix_end(overseer);
+        return EXIT_SUCCESS;
+    }
+
     switch (overseer->log->fix_type) {
         case FIX_TYPE_REPLAY:
             // If there is another replay conversation ongoing
