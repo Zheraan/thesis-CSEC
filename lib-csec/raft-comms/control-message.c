@@ -668,10 +668,13 @@ int hb_actions_as_master(overseer_s *overseer,
             exit(EXIT_FAILURE);
         }
 
-        // If the log is being repaired or replayed
-        if (log_replay_ongoing(overseer) == true || log_repair_ongoing(overseer) == true) {
-            // Ack back with ack
-            debug_log(4, stdout, "Log is already being repaired or replayed, replying with GENERIC ACK ... ");
+        // If the log is being repaired or replayed in another conversation
+        if ((log_replay_ongoing(overseer) == true || log_repair_ongoing(overseer) == true) &&
+            cm->ack_back != overseer->log->fix_conversation) {
+            // Ack back with generic ack
+            debug_log(4,
+                      stdout,
+                      "Another logfix conversation is already ongoing, replying with GENERIC ACK ... ");
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
                                         socklen,
@@ -679,6 +682,8 @@ int hb_actions_as_master(overseer_s *overseer,
                                         cm->ack_reference) != EXIT_SUCCESS)
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             else debug_log(4, stdout, "Done.\n");
+            // TODO Check later if this function doesn't need to not return there, and same for the server version
+            return EXIT_SUCCESS;
         } else {
             // If the latest entry in the log committed or if the latest entry in the log has the same term as dist
             if (overseer->log->commit_index == overseer->log->next_index - 1) {
@@ -878,7 +883,8 @@ int hb_actions_as_server(overseer_s *overseer,
             overseer->log->P_term == cm->P_term - 1 &&
             overseer->log->next_index == cm->next_index) {
             // Just ack back, in order to avoid unnecessary logfixes
-            debug_log(3, stdout, "Acknowledging clean P takeover.\n");
+            debug_log(3, stdout, "Acknowledging clean P takeover, incrementing P-term.\n");
+            overseer->log->P_term++;
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
                                         socklen,
@@ -906,14 +912,19 @@ int hb_actions_as_server(overseer_s *overseer,
             }
         }
 
-        if (log_repair_ongoing(overseer) == true || log_replay_ongoing(overseer) == true) {
-            debug_log(4, stdout, "Log repair/replay already ongoing, replying with GENERIC ACK.\n");
+        // Check if the log is already being repaired in another conversation and if so, just ack back
+        if ((log_repair_ongoing(overseer) == true || log_replay_ongoing(overseer) == true) &&
+            cm->ack_back != overseer->log->fix_conversation) {
+            debug_log(4,
+                      stdout,
+                      "Another logfix conversation is already ongoing, replying with GENERIC ACK.\n");
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_GENERIC_ACK,
                                         cm->ack_reference) != EXIT_SUCCESS)
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
+            return EXIT_SUCCESS;
         }
 
         // If the log is empty or if its latest entry has the same term as dist
