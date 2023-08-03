@@ -1,5 +1,6 @@
 //
 // Created by zheraan on 10/05/23.
+// Raft-Communications related datatypes
 //
 
 #ifndef THESIS_CSEC_RC_DATATYPES_H
@@ -83,8 +84,8 @@
 #endif
 
 #ifndef TIMEOUT_VALUE_P_LIVENESS
-// Timeout duration for P's liveness. Default value of 500ms, in microseconds
-#define TIMEOUT_VALUE_P_LIVENESS 500000
+// Timeout duration for P's liveness. Default value of 1.75s, in microseconds
+#define TIMEOUT_VALUE_P_LIVENESS 1750000
 #endif
 
 #ifndef TIMEOUT_RANGE_FUZZER

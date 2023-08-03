@@ -263,7 +263,6 @@ int log_replay(overseer_s *overseer, control_message_s *cm) {
 }
 
 void log_fix_end(overseer_s *overseer) {
-    debug_log(2, stdout, "Log fix complete.\n");
     rtc_remove_by_id(overseer, overseer->log->fix_conversation, FLAG_SILENT);
     overseer->log->fix_conversation = 0;
     overseer->log->fix_type = FIX_TYPE_NONE;

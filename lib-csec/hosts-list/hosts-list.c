@@ -380,7 +380,8 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
             printf("[Status of %s (%s) did not change] ",
                    overseer->hl->hosts[id].name,
                    buf1);
-            printf("\n");
+            if (DEBUG_LEVEL <= 3)
+                printf("\n");
         }
         if (INSTANT_FFLUSH) fflush(stdout);
     }
@@ -459,7 +460,7 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
         else log->entries[i].server_rep++;
 
         if (DEBUG_LEVEL >= 4) {
-            printf("[e%ld%s++ M%d:S%d] ",
+            printf("[e%ld %s++ M%d:S%d] ",
                    i,
                    target_host->type == NODE_TYPE_M ? "M" : "S",
                    log->entries[i].master_rep,
@@ -478,7 +479,7 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
     for (uint64_t i = target_host->next_index > 0 ? target_host->next_index : 1; i > next_index; --i) {
         target_host->type == NODE_TYPE_M ? log->entries[i - 1].master_rep-- : log->entries[i - 1].server_rep--;
         if (DEBUG_LEVEL >= 4) {
-            printf("[e%ld%s-- M%d:S%d] ",
+            printf("[e%ld %s-- M%d:S%d] ",
                    i - 1,
                    target_host->type == NODE_TYPE_M ? "M" : "S",
                    log->entries[i].master_rep,

@@ -400,7 +400,19 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
     uint32_t nb_cm = 0;
 
     if (DEBUG_LEVEL >= 2) {
-        printf("Broadcasting CM of type %d to master pool ... ", type);
+        char buf[32] = "\0";
+        if ((flags & FLAG_SKIP_CS) != FLAG_SKIP_CS)
+            strcat(buf, " CS");
+        if ((flags & FLAG_SKIP_HS) != FLAG_SKIP_HS)
+            strcat(buf, " HS");
+        if ((flags & FLAG_SKIP_P) != FLAG_SKIP_P)
+            strcat(buf, " P");
+        if ((flags & FLAG_SKIP_S) != FLAG_SKIP_S)
+            strcat(buf, " S");
+
+        printf("Broadcasting CM of type %d (", type);
+        cm_print_type(type, stdout);
+        printf(") to%s ... ", buf);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     for (uint32_t i = 0; i < nb_hosts; ++i) {

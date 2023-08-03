@@ -1,5 +1,6 @@
 //
 // Created by zheraan on 10/05/23.
+// Raft-Log related datatypes
 //
 
 #ifndef THESIS_CSEC_RL_DATATYPES_H

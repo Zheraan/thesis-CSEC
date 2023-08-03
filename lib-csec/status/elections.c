@@ -14,7 +14,7 @@ void election_state_reset(overseer_s *overseer) {
     uint32_t rtc_removed = rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTING_BID) +
                            rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTE);
     if (DEBUG_LEVEL >= 4) {
-        printf("[%d RTC entries pertaining to elections removed] ", rtc_removed);
+        printf("[removed %d RTC entr%s pertaining to elections] ", rtc_removed, rtc_removed == 1 ? "y" : "ies");
     }
     if (overseer->es->election_round_event != NULL)
         event_free(overseer->es->election_round_event);
@@ -96,12 +96,12 @@ int stepdown_to_cs(overseer_s *overseer) {
     if (starting_status == HOST_STATUS_CS) {
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "Setting CS state +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "Setting CS state ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         else debug_log(1, stdout, "Setting CS state ... ");
     } else {
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "Stepping down to CS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "Stepping down to CS +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         else debug_log(1, stdout, "Stepping down to CS ... ");
     }
 
@@ -109,7 +109,7 @@ int stepdown_to_cs(overseer_s *overseer) {
         debug_log(1, stdout, "Local host is the only master, aborting.\n");
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         return EXIT_SUCCESS;
     }
 
@@ -124,23 +124,17 @@ int stepdown_to_cs(overseer_s *overseer) {
         overseer->special_event = NULL;
     }
 
-    // Remove P liveness event if set (meaning last role was HS)
-    if (overseer->p_liveness_event != NULL) {
-        event_free(overseer->p_liveness_event);
-        overseer->p_liveness_event = NULL;
-    }
-
     // TODO Improvement Reset replication array to avoid having stale data impact future promotions ?
 
     if (starting_status == HOST_STATUS_CS) {
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "End of CS setup ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "End of CS setup +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         else debug_log(1, stdout, "End of CS setup.\n");
     } else {
         if (DEBUG_LEVEL >= 4)
             debug_log(4, stdout,
-                      "End of step-down +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                      "End of step-down ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
         else debug_log(1, stdout, "Done.\n");
     }
     return EXIT_SUCCESS;
@@ -149,7 +143,7 @@ int stepdown_to_cs(overseer_s *overseer) {
 int promote_to_hs(overseer_s *overseer) {
     if (DEBUG_LEVEL >= 4)
         debug_log(4, stdout,
-                  "Promoting local node to HS ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                  "Promoting local node to HS +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     else debug_log(1, stdout, "Promoting local node to HS ... ");
 
     if (overseer->hl->nb_masters == 1) {
@@ -174,7 +168,7 @@ int promote_to_hs(overseer_s *overseer) {
 
     overseer->log->HS_term++;
     if (DEBUG_LEVEL >= 4) {
-        printf("Incremented HS-term to %d\n", overseer->log->HS_term);
+        printf("Incrementing HS-term to %d\n", overseer->log->HS_term);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
 
@@ -182,7 +176,7 @@ int promote_to_hs(overseer_s *overseer) {
 
     if (DEBUG_LEVEL >= 4)
         debug_log(4, stdout,
-                  "End of HS promotion +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                  "End of HS promotion ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     else debug_log(1, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
@@ -214,7 +208,7 @@ int promote_to_p(overseer_s *overseer) {
 
     overseer->log->P_term++;
     if (DEBUG_LEVEL >= 4) {
-        printf("Incremented P-term to %d\n", overseer->log->P_term);
+        printf("Incrementing P-term to %d\n", overseer->log->P_term);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
 
@@ -222,7 +216,7 @@ int promote_to_p(overseer_s *overseer) {
 
     if (DEBUG_LEVEL >= 4)
         debug_log(4, stdout,
-                  "End of P promotion +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+                  "End of P promotion +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n\n");
     else debug_log(1, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }

@@ -39,6 +39,9 @@ int p_liveness_set_timeout(overseer_s *overseer) {
 }
 
 void p_liveness_timeout_cb(evutil_socket_t fd, short event, void *arg) {
+    debug_log(4, stdout,
+              "Start of P Liveness callback -----------------------------------------------------------------------------\n");
+
     debug_log(1, stdout, "P liveness timed out ... ");
     // TODO Improvement Don't monitor liveness when there is no P and local node is not HS
 
@@ -57,5 +60,7 @@ void p_liveness_timeout_cb(evutil_socket_t fd, short event, void *arg) {
         promote_to_p(overseer); // Promote to P
     else p_liveness_set_timeout(overseer); // Otherwise set the next timeout
 
+    debug_log(4, stdout,
+              "End of P Liveness callback -------------------------------------------------------------------------------\n\n");
     return;
 }

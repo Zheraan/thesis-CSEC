@@ -252,7 +252,8 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     retransmission_cache_s *rtc = arg;
 
     if (DEBUG_LEVEL >= 3) {
-        printf("ETR retransmission timed out, reattempting transmission (attempt %d) ... ",
+        printf("ETR retransmission timed out, reattempting transmission to %s (attempt %d) ... ",
+               rtc->overseer->hl->hosts[rtc->etr->cm.host_id].name,
                rtc->cur_attempts + 1);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
@@ -817,7 +818,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                     cached_set++;
                 } else {
                     if (DEBUG_LEVEL >= 3 && cached_set > 0) {
-                        printf("%ld cached entries set to their correct state.\n",
+                        printf("%ld cached entries set to PENDING.\n",
                                cached_set);
                         if (INSTANT_FFLUSH) fflush(stdout);
                     }
@@ -839,13 +840,14 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                 }
             }
             if (DEBUG_LEVEL >= 3 && cached_set > 0) {
-                printf("%ld cached entries set to their correct state.\n",
+                printf("%ld cached entries set to PENDING.\n",
                        cached_set);
                 if (INSTANT_FFLUSH) fflush(stdout);
             }
 
             // At this point the log is in a valid and up-to-date state as far as the current logfix is concerned
             log_fix_end(overseer);
+            debug_log(2, stdout, "Log fix complete.\n");
             debug_log(3, stdout, "Acknowledging end of fix:\n");
             if (etr->cm.status == HOST_STATUS_HS) {
                 // Ack entry to P
