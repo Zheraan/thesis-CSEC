@@ -972,14 +972,24 @@ int hb_actions_as_server(overseer_s *overseer,
     }
 
     // Else if local and dist commit index are equal
-    debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
-    if (cm_sendto_with_ack_back(overseer,
-                                sender_addr,
-                                socklen,
-                                MSG_TYPE_GENERIC_ACK,
-                                cm->ack_reference) != EXIT_SUCCESS) {
-        debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
-        return EXIT_FAILURE;
+
+    // If the Ops-queue isn't empty, send first prop
+    if (overseer->mfs->queue != NULL) {
+        debug_log(4, stdout, "Everything is in order, but Ops-queue isn't empty. ");
+        if (server_send_first_prop(overseer, cm->ack_reference) != EXIT_SUCCESS) {
+            debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
+            return EXIT_FAILURE;
+        }
+    } else {
+        debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
+        if (cm_sendto_with_ack_back(overseer,
+                                    sender_addr,
+                                    socklen,
+                                    MSG_TYPE_GENERIC_ACK,
+                                    cm->ack_reference) != EXIT_SUCCESS) {
+            debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
+            return EXIT_FAILURE;
+        }
     }
 
     return EXIT_SUCCESS;
