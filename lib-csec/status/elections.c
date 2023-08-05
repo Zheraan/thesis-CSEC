@@ -16,11 +16,14 @@ void election_state_reset(overseer_s *overseer) {
     if (DEBUG_LEVEL >= 4) {
         printf("[removed %d RTC entr%s pertaining to elections] ", rtc_removed, rtc_removed == 1 ? "y" : "ies");
     }
-    if (overseer->es->election_round_event != NULL)
+    if (overseer->es->election_round_event != NULL) {
         event_free(overseer->es->election_round_event);
+        overseer->es->election_round_event = NULL;
+    }
+
     if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_CS)
         election_set_timeout(overseer);
-    else overseer->es->election_round_event = NULL;
+
     debug_log(4, stdout, "Done.\n");
     return;
 }
