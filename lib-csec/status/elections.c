@@ -257,11 +257,12 @@ int election_set_timeout(overseer_s *overseer) {
 
 // Callback for when an election times out, arg must be an overseer_s*
 void election_timeout_cb(evutil_socket_t fd, short event, void *arg) {
-    if (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id].status == HOST_STATUS_CS) {
+    overseer_s *overseer = (overseer_s *) arg;
+    if (overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_CS) {
         debug_log(2, stdout, "Election timeout: starting new HS bid.\n");
-        start_hs_candidacy_bid((overseer_s *) arg);
+        start_hs_candidacy_bid(overseer);
     } else {
-        debug_log(0, stderr, "Error: an election should not timeout if the local host is not CS.\n");
+        debug_log(0, stderr, "Fatal error: an election should not timeout if the local host is not CS.\n");
         exit(EXIT_FAILURE);
     }
     return;

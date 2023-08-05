@@ -7,7 +7,6 @@
 void rtc_free(retransmission_cache_s *rtc) {
     if (rtc == NULL)
         return;
-    free(rtc->etr);
     if (rtc->ev != NULL) {
         event_free(rtc->ev);
     } else {
@@ -15,6 +14,8 @@ void rtc_free(retransmission_cache_s *rtc) {
                   stderr,
                   "Attempting to free retransmission cache but retransmission event pointer is not set.\n");
     }
+    if (rtc->etr != NULL)
+        free(rtc->etr);
     if (rtc->id != 0)
         rtc->overseer->rtc_number--;
     free(rtc);
@@ -47,7 +48,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
 
     retransmission_cache_s *nrtc = malloc(sizeof(retransmission_cache_s));
     if (nrtc == NULL) {
-        perror("Malloc retransmission cache");
+        perror("Malloc retransmission cache entry");
         if (INSTANT_FFLUSH) fflush(stderr);
         return 0;
     }
@@ -77,6 +78,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
                                        (void *) nrtc);
     if (nevent == NULL) {
         fprintf(stderr, "Failed to create a retransmission event\n");
+        fflush(stderr);
         rtc_free(nrtc);
         return 0;
     }
@@ -89,9 +91,11 @@ uint32_t rtc_add_new(overseer_s *overseer,
 
     // Add the event in the loop with ACK timeout (if local host doesn't receive an ack with the ID of the message
     // before the timeout, retransmission will happen)
+    errno = 0;
     struct timeval retransmission_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
     if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &retransmission_timeout) != 0) {
         fprintf(stderr, "Failed to add a retransmission event\n");
+        fflush(stderr);
         rtc_free(nrtc);
         return 0;
     }
@@ -105,31 +109,24 @@ uint32_t rtc_add_new(overseer_s *overseer,
         nrtc->id = overseer->rtc_index;
         overseer->rtc_index += 1;
         overseer->rtc_number += 1;
-        if (overseer->rtc_index == 0xFFFFFFFF)
+        if (overseer->rtc_index >= 0xFFFFFFFF)
             overseer->rtc_index = 1;
-        if (DEBUG_LEVEL >= 4) {
-            printf("Done (%d entr%s currently in the cache).\n",
-                   overseer->rtc_number,
-                   overseer->rtc_number == 1 ? "y" : "ies");
-            if (INSTANT_FFLUSH) fflush(stdout);
-        }
-        return nrtc->id;
+    } else {
+        // Otherwise insert the cache at the end of the list
+        retransmission_cache_s *iterator = overseer->rtc;
+        do {
+            if (iterator->next == NULL) {
+                iterator->next = nrtc;
+                nrtc->id = overseer->rtc_index;
+                overseer->rtc_index += 1;
+                overseer->rtc_number += 1;
+                if (overseer->rtc_index == 0xFFFFFFFF)
+                    overseer->rtc_index = 1;
+                break;
+            }
+            iterator = iterator->next;
+        } while (iterator != NULL);
     }
-
-    // Otherwise insert the cache at the end of the list
-    retransmission_cache_s *iterator = overseer->rtc;
-    do {
-        if (iterator->next == NULL) {
-            iterator->next = nrtc;
-            nrtc->id = overseer->rtc_index;
-            overseer->rtc_index += 1;
-            overseer->rtc_number += 1;
-            if (overseer->rtc_index == 0xFFFFFFFF)
-                overseer->rtc_index = 1;
-            break;
-        }
-        iterator = iterator->next;
-    } while (iterator != NULL);
 
     if (DEBUG_LEVEL >= 4) {
         printf("Done (%d entr%s currently in the cache).\n",
@@ -178,7 +175,7 @@ uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type) {
 
 int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
     if (overseer->rtc == NULL) {
-        if (flag && FLAG_SILENT == FLAG_SILENT)
+        if ((flag & FLAG_SILENT) == FLAG_SILENT)
             return EXIT_SUCCESS;
         fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
         if (INSTANT_FFLUSH) fflush(stderr);
@@ -214,7 +211,7 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
         rtc_free(tmp);
         return EXIT_SUCCESS;
     }
-    if (flag && FLAG_SILENT == FLAG_SILENT)
+    if ((flag & FLAG_SILENT) == FLAG_SILENT)
         return EXIT_SUCCESS;
     fprintf(stderr, "Attempting to remove cache element %d but it does not exist.\n", id);
     if (INSTANT_FFLUSH) fflush(stderr);

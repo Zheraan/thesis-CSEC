@@ -19,6 +19,7 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
         uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
         if (p_id == EXIT_FAILURE && errno == ENONE) {
             debug_log(0, stderr, "Requesting INDICATE P message but no host has P status\n");
+            fflush(stdout);
             free(ncm);
             return (NULL);
         }
@@ -194,15 +195,15 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         if (INSTANT_FFLUSH) fflush(stdout);
     }
 
-    control_message_s *cm = cm_new(overseer, type, ack_back);
-    if (cm == NULL) {
+    control_message_s *ncm = cm_new(overseer, type, ack_back);
+    if (ncm == NULL) {
         fprintf(stderr, "Failed to create message of type %d", type);
         if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
 
     if (rt_attempts == 0 && ack_reference == 0)
-        cm->ack_reference = 0;
+        ncm->ack_reference = 0;
     else if (ack_reference == 0) {
         uint32_t rv = rtc_add_new(overseer, rt_attempts, sockaddr, socklen, type, NULL, ack_back);
         if (rv == 0) {
@@ -210,26 +211,26 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
             if (INSTANT_FFLUSH) fflush(stderr);
             return EXIT_FAILURE;
         }
-        cm->ack_reference = rv;
-    } else cm->ack_reference = ack_reference;
+        ncm->ack_reference = rv;
+    } else ncm->ack_reference = ack_reference;
 
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
 
     if (DEBUG_LEVEL >= 3) {
         printf("Sending to %s the following CM:\n", buf);
-        cm_print(cm, stdout);
+        cm_print(ncm, stdout);
     }
 
     if (FUZZER_ENABLED) {
-        fuzzer_entry_init(overseer, PACKET_TYPE_CM, (union packet) *cm, sockaddr, socklen);
+        fuzzer_entry_init(overseer, PACKET_TYPE_CM, (union packet) *ncm, sockaddr, socklen);
     } else {
         sockaddr.sin6_port = htons(PORT_CM);
         do {
             // If the fuzzer is disabled, send it normally
             errno = 0;
             if (sendto(overseer->socket_cm,
-                       cm,
+                       ncm,
                        sizeof(control_message_s),
                        0,
                        (const struct sockaddr *) &sockaddr,
@@ -237,14 +238,14 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                 perror("CM sendto");
                 if (INSTANT_FFLUSH) fflush(stderr);
                 if (errno != EAGAIN) {
-                    free(cm);
+                    free(ncm);
                     return EXIT_FAILURE;
                 }
             }
         } while (errno == EAGAIN);
     }
 
-    free(cm);
+    free(ncm);
 
     debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
@@ -821,7 +822,7 @@ int hb_actions_as_master(overseer_s *overseer,
 
     // Else if commit indexes are equal
 
-    // If dist is CS or if dist is HS and local is P, reply with HB Ack
+    // If dist is CS or if dist is HS and local is P, reply with Generic Ack
     if (cm->status == HOST_STATUS_CS || (cm->status == HOST_STATUS_HS && local_status == HOST_STATUS_P)) {
         debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
         if (cm_sendto_with_ack_back(overseer,
@@ -1113,7 +1114,7 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
                 return EXIT_SUCCESS;
             }
 
-            if (cm->P_term > overseer->log->P_term) {// If dist P-term is greater
+            if (cm->P_term > overseer->log->P_term) { // If dist P-term is greater
                 if (DEBUG_LEVEL >= 3) {
                     printf("Dist P-term (%d) is greater than local (%d).\n",
                            cm->P_term,

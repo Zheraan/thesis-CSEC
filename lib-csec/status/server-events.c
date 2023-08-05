@@ -157,6 +157,7 @@ int server_queue_element_deletion_init(overseer_s *overseer, ops_queue_s *elemen
     element->timeout_event = nevent;
 
     // Add the event in the loop
+    errno = 0;
     struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_PROPOSITION);
     if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &ops_timeout) != 0) {
         fprintf(stderr, "Failed to add a queue element deletion event\n");
