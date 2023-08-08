@@ -25,6 +25,18 @@ services:
     deploy:
       replicas: 1
 
+  cluster-monitor:
+    build:
+      context: .
+      dockerfile: cluster_monitor_dockerfile
+    cap_add:
+      - NET_ADMIN
+    networks:
+      global:
+        ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:0012
+    deploy:
+      replicas: 1
+
 networks:
   global:
     driver: bridge

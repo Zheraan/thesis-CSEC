@@ -4,3 +4,6 @@ M,master1,L,2001:0db8:0002:0000:0000:0000:0000:0010
 
 # Server node named server1 that is distant
 S,server1,D,2001:0db8:0002:0000:0000:0000:0000:0011
+
+# Cluster monitor node named monitor1 that is distant
+C,monitor1,D,2001:0db8:0002:0000:0000:0000:0000:0012
