@@ -51,11 +51,11 @@ uint8_t op_compare(data_op_s *ref, data_op_s *val, FILE *stream, int level) {
 
     fprintf(stream, "\n");
     if ((rv & OPCOMP_FLAG_INVALID_ROW) == OPCOMP_FLAG_INVALID_ROW)
-        fprintf(stream, "- Invalid row: is %d, should be %d\n", val->row, ref->row);
+        fprintf(stream, "  - Invalid row: is '%d', should be '%d'\n", val->row, ref->row);
     if ((rv & OPCOMP_FLAG_INVALID_COLUMN) == OPCOMP_FLAG_INVALID_COLUMN)
-        fprintf(stream, "- Invalid column: is %d, should be %d\n", val->column, ref->column);
+        fprintf(stream, "  - Invalid column: is '%d', should be '%d'\n", val->column, ref->column);
     if ((rv & OPCOMP_FLAG_INVALID_VALUE) == OPCOMP_FLAG_INVALID_VALUE)
-        fprintf(stream, "- Invalid value: is %c, should be %c\n", val->newval, ref->newval);
+        fprintf(stream, "  - Invalid value: is '%c', should be '%c'\n", val->newval, ref->newval);
 
     if (INSTANT_FFLUSH) fflush(stream);
     return rv;

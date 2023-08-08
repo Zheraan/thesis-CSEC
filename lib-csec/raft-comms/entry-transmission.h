@@ -120,6 +120,14 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                            socklen_t socklen,
                            entry_transmission_s *etr);
 
+// Determines the correct actions to take depending on local status and incoming ETR. Used for incoming ETRs
+// and a local host of status CM.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
+int etr_actions_as_cm(overseer_s *overseer,
+                      struct sockaddr_in6 sender_addr,
+                      socklen_t socklen,
+                      entry_transmission_s *etr);
+
 // Sends the first element in the proposition queue (added the earliest) and sets its retransmission through
 // the retransmission cache. If the queue is empty, has no effect.
 // Returns EXIT_FAILURE and wipes the proposition queue in case of failure, returns EXIT_SUCCESS otherwise
