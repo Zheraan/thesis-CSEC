@@ -65,15 +65,19 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
 int etr_reception_init(overseer_s *overseer);
 
 // Callback for receiving transmissions. Processes the incoming transmission and resets the entry
-// transmission event. Arg must be an overseer_s*
-// FIXME If a proposition is sent with this and reaches P, but the Ack doesn't reach back, we have to make
+// reception event. Arg must be a pointer to the local overseer.
+// TODO If a proposition is sent with this and reaches P, but the Ack doesn't reach back, we have to make
 //  sure that duplicate propositions are ignored. It should be checked with next index that is then outdated,
 //  however in this case we should not re-send the proposition as it will be done anyway through normal
 //  retransmission, as the Ack order for the prop is a new pending entry order from P.
+//  FIX: ignore proposition if its index is already occupied by an entry
+// FIXME Index of entry will be generated when sent, need to something to guard against duplicates, perhaps
+//  retransmit for as long as the entry is live in sender's queue ?
 void etr_receive_cb(evutil_socket_t fd, short event, void *arg);
 
 // Callback for the retransmission of ETRs. Arg must be a retransmission_s*. Cleans up the retransmission
 // cache once maximum attempts have been reached
+// Arg must be a pointer to the corresponding retransmission cache entry
 void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 
 // Transmits the entry corresponding to the cm's next index to its sender

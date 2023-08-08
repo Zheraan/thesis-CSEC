@@ -68,11 +68,12 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
 // Returns EXIT_SUCCESS in case of success or causes a fatal error in case of failure.
 int cm_reception_init(overseer_s *overseer);
 
-// Callback for receiving control messages, arg must be an overseer_s*
+// Callback for receiving control messages, arg must be an overseer_s*.
+// Arg must be a pointer to the local overseer
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg);
 
 // Callback for retransmitting events, cleans up after the maximum number of attempts has been made.
-// Arg must be an overseer_s*
+// Arg must be a pointer to the corresponding retransmission cache entry.
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 
 // Broadcasts a CM to all master nodes except for the local host.

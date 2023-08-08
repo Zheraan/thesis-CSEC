@@ -147,8 +147,10 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                        (const struct sockaddr *) &sockaddr,
                        socklen) == -1) {
                 perror("ETR sendto");
-                if (errno != EAGAIN)
+                if (errno != EAGAIN) {
+                    free(etr);
                     return EXIT_FAILURE;
+                }
             }
         } while (errno == EAGAIN);
     }
@@ -166,7 +168,7 @@ int etr_reception_init(overseer_s *overseer) {
                                               (void *) overseer);
     if (reception_event == NULL) {
         fprintf(stderr, "Fatal error: failed to create the next ETR reception event\n");
-        if (INSTANT_FFLUSH) fflush(stderr);
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -180,7 +182,7 @@ int etr_reception_init(overseer_s *overseer) {
     // Add the event in the loop
     if (event_add(reception_event, NULL) != 0) {
         fprintf(stderr, "Fatal error: failed to add the next ETR reception event\n");
-        if (INSTANT_FFLUSH) fflush(stderr);
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -214,7 +216,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (DEBUG_LEVEL >= 1) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf("Received from %s (aka. %s)  an ETR:\n", buf, overseer->hl->hosts[etr.cm.host_id].name);
+        printf("Received from %s (aka. %s) an ETR\n", buf, overseer->hl->hosts[etr.cm.host_id].name);
         if (DEBUG_LEVEL >= 3)
             etr_print(&etr, stdout);
     }
@@ -226,7 +228,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                    etr.cm.ack_back);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
-        if (rtc_remove_by_id(overseer, etr.cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
+        if (rtc_remove_by_id(overseer, etr.cm.ack_back, CSEC_FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else
             debug_log(4,
@@ -277,7 +279,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     // If attempts max reached, remove cache entry
     if (rtc->cur_attempts >= rtc->max_attempts) {
-        rtc_remove_by_id(rtc->overseer, rtc->id, FLAG_DEFAULT);
+        rtc_remove_by_id(rtc->overseer, rtc->id, CSEC_FLAG_DEFAULT);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
@@ -346,8 +348,8 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
     }
 
     host_s *target;
-    struct sockaddr_in6 receiver;
-    socklen_t receiver_len;
+    struct sockaddr_in6 target_addr;
+    socklen_t target_socklen;
     int nb_orders = 0;
     for (uint32_t i = 0; i < overseer->hl->nb_hosts; i++) {
         target = &(overseer->hl->hosts[i]);
@@ -363,8 +365,8 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
             if (INSTANT_FFLUSH) fflush(stdout);
         }
 
-        receiver = (target->addr);
-        receiver_len = (target->socklen);
+        target_addr = (target->addr);
+        target_socklen = (target->socklen);
 
 
         entry_transmission_s *netr = malloc(sizeof(entry_transmission_s));
@@ -375,8 +377,8 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
         *netr = *netr_blueprint;
 
         if (etr_sendto_with_rt_init(overseer,
-                                    receiver,
-                                    receiver_len,
+                                    target_addr,
+                                    target_socklen,
                                     netr,
                                     ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send and RT init Commit Order.\n");

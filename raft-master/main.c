@@ -5,7 +5,6 @@
 #endif
 
 #include "lib-csec.h"
-#include "status/master-events.h"
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -46,6 +45,8 @@ int main(int argc, char *argv[]) {
     // Clean program state and close socket
     fprintf(stdout, "Cleaning up and finishing...\n");
     overseer_wipe(&overseer);
+
+    return rv;
 
     // Initialize log
     // Initialize P-term with special start value
@@ -320,5 +321,4 @@ int main(int argc, char *argv[]) {
      *
      *
     */
-    return EXIT_SUCCESS;
 }

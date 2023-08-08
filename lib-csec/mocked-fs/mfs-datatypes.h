@@ -15,9 +15,21 @@
 #define MOCKED_FS_ARRAY_ROWS 2
 #endif
 
+// Originally defined in datatypes.h
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 4
 #endif
+
+// Originally defined in datatypes.h
+#ifndef CSEC_FLAG_DEFAULT
+#define CSEC_FLAG_DEFAULT 0
+#endif
+
+#define OPCOMP_FLAG_INVALID_ROW 0x100
+
+#define OPCOMP_FLAG_INVALID_COLUMN 0x10
+
+#define OPCOMP_FLAG_INVALID_VALUE 0x1
 
 typedef struct data_op_s {
     // Vertical position of the op in the mocked filesystem

@@ -88,6 +88,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             case 'C':
             case 'c':
                 list->hosts[parsed].type = NODE_TYPE_CM;
+                list->hosts[parsed].status = HOST_STATUS_CM;
                 break;
             default:
                 fprintf(stderr, "Failure to parse host: invalid host type \"%s\"\n", token);
@@ -112,10 +113,14 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             fprintf(stdout, "   -locality: %s\n", token);
         }
         if (strncmp(token, "d", 1) == 0 ||
-            strncmp(token, "D", 1) == 0) {
+            strncmp(token, "D", 1) == 0 ||
+            strncmp(token, "DISTANT", 6) == 0 ||
+            strncmp(token, "distant", 6) == 0) {
             list->hosts[parsed].locality = HOST_LOCALITY_DISTANT;
         } else if (strncmp(token, "l", 1) == 0 ||
-                   strncmp(token, "L", 1) == 0) {
+                   strncmp(token, "L", 1) == 0 ||
+                   strncmp(token, "LOCAL", 5) == 0 ||
+                   strncmp(token, "local", 5) == 0) {
             list->hosts[parsed].locality = HOST_LOCALITY_LOCAL;
             if (localhost_init) { // Checking we did not already set the value
                 fprintf(stderr, "Failure to parse hostfile: several local hosts defined\n");
@@ -127,7 +132,12 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
                 return 0;
             }
             localhost_init = 1;
-            list->hosts[parsed].status = list->hosts[parsed].type == NODE_TYPE_M ? HOST_STATUS_CS : HOST_STATUS_S;
+            if (list->hosts[parsed].type == NODE_TYPE_M)
+                list->hosts[parsed].status = HOST_STATUS_CS;
+            if (list->hosts[parsed].type == NODE_TYPE_S)
+                list->hosts[parsed].status = HOST_STATUS_S;
+            if (list->hosts[parsed].type == NODE_TYPE_CM)
+                list->hosts[parsed].status = HOST_STATUS_CM;
             list->localhost_id = parsed;
         } else {
             fprintf(stderr, "Failure to parse host: invalid host locality \"%s\"", token);
@@ -237,6 +247,9 @@ void host_status_string(char *buf, enum host_status status) {
             break;
         case HOST_STATUS_CS:
             sprintf(buf, "COLD-STANDBY MASTER");
+            break;
+        case HOST_STATUS_CM:
+            sprintf(buf, "CLUSTER MONITOR");
             break;
         case HOST_STATUS_S:
             sprintf(buf, "SERVER");

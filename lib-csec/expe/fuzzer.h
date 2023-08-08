@@ -26,6 +26,7 @@ int fuzzer_entry_free(overseer_s *overseer, uint32_t id);
 
 // Callback function for the transmission of a packet after its fuzzer delay times out. arg is the cache entry
 // containing that packet.
+// Arg must be a pointer to the corresponding fuzzer cache entry
 void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg);
 
 #endif //THESIS_CSEC_FUZZER_H

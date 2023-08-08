@@ -37,6 +37,8 @@
 #define MESSAGE_DROP_RATE 20 // Chances of the fuzzer dropping messages, in percentage
 #endif
 
+#define CSEC_FLAG_DEFAULT 0
+
 enum entry_state;
 enum timeout_type;
 enum message_type;
@@ -83,7 +85,8 @@ struct overseer_s {
     election_state_s *es;
     fuzzer_cache_s *fc;
 
-    // Pointer to keep track of heartbeat events for master nodes, and random op generator for server nodes
+    // Pointer to keep track of heartbeat events for master nodes, random op generator for server nodes,
+    // and PSTR reception for cluster monitor nodes
     struct event *special_event;
     // Pointer to keep track of control message reception events
     struct event *cm_reception_event;

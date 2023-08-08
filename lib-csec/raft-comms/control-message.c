@@ -325,7 +325,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             printf("Ack back value is non-zero (%d), removing corresponding RT cache entry ... ", cm.ack_back);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
-        if (rtc_remove_by_id(overseer, cm.ack_back, FLAG_DEFAULT) == EXIT_SUCCESS)
+        if (rtc_remove_by_id(overseer, cm.ack_back, CSEC_FLAG_DEFAULT) == EXIT_SUCCESS)
             debug_log(4, stdout, "Done.\n");
         else
             debug_log(4,
@@ -376,7 +376,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     // If attempts max reached, remove cache entry
     if (rtc->cur_attempts >= rtc->max_attempts) {
-        rtc_remove_by_id(rtc->overseer, rtc->id, FLAG_DEFAULT);
+        rtc_remove_by_id(rtc->overseer, rtc->id, CSEC_FLAG_DEFAULT);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
         struct timeval ops_timeout = timeout_gen(TIMEOUT_TYPE_ACK);

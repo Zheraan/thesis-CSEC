@@ -5,7 +5,7 @@
 #include "mocked-fs.h"
 
 void mfs_array_print(mocked_fs_s *mfs, FILE *stream) {
-    fprintf(stream, "Local MFS mfs contents:\n");
+    fprintf(stream, "Local MFS contents:\n");
     for (int i = 0; i < MOCKED_FS_ARRAY_ROWS; ++i) {
         for (int j = 0; j < MOCKED_FS_ARRAY_COLUMNS; ++j) {
             fprintf(stream, "%c  ", mfs->array[i][j]);

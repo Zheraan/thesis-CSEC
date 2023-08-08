@@ -47,6 +47,7 @@ int promote_to_p(overseer_s *overseer);
 int election_set_timeout(overseer_s *overseer);
 
 // Callback for receiving control messages, arg must be an overseer_s*. Has no effect if local is not CS.
+// Arg must be a pointer to the local overseer
 void election_timeout_cb(evutil_socket_t fd, short event, void *arg);
 
 #endif //THESIS_CSEC_ELECTIONS_H

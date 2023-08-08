@@ -13,6 +13,7 @@ int p_liveness_set_timeout(overseer_s *overseer);
 
 // Callback for when P's liveness times out. Sets the status of P (if any) as Unreachable, then promotes the
 // local node to P if local is HS, or sets the next timeout otherwise.
+// Arg must be a pointer to the local overseer
 void p_liveness_timeout_cb(evutil_socket_t fd, short event, void *arg);
 
 #endif //THESIS_CSEC_P_LIVENESS_H

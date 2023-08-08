@@ -8,7 +8,8 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
     debug_log(4, stdout,
               "Start of HB broadcast callback -----------------------------------------------------------------\n");
 
-    enum host_status local_status = (((overseer_s *) arg)->hl->hosts[((overseer_s *) arg)->hl->localhost_id]).status;
+    overseer_s *overseer = (overseer_s *) arg;
+    enum host_status local_status = (overseer->hl->hosts[overseer->hl->localhost_id]).status;
     uint8_t flags = FLAG_NOSKIP;
 
     // Skip server nodes if local is HS
@@ -19,10 +20,10 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
     if (local_status == HOST_STATUS_P)
         flags |= FLAG_SKIP_CS;
 
-    cm_broadcast((overseer_s *) arg, MSG_TYPE_HB_DEFAULT, CM_DEFAULT_RT_ATTEMPTS, flags);
+    cm_broadcast(overseer, MSG_TYPE_HB_DEFAULT, CM_DEFAULT_RT_ATTEMPTS, flags);
 
     // Set the next event
-    if (master_heartbeat_init((overseer_s *) arg) != EXIT_SUCCESS) {
+    if (master_heartbeat_init(overseer) != EXIT_SUCCESS) {
         fprintf(stderr, "Fatal Error: next heartbeat event couldn't be set\n");
         if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE); // TODO Extension Crash handler

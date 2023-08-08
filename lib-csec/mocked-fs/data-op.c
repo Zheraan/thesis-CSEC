@@ -4,7 +4,7 @@
 
 #include "data-op.h"
 
-data_op_s *op_new(){
+data_op_s *op_new() {
     data_op_s *nop = malloc(sizeof(data_op_s));
     if (nop == NULL) {
         perror("malloc new op");

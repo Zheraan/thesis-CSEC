@@ -26,10 +26,12 @@ int server_random_ops_init(overseer_s *overseer);
 
 // Callback function for the random ops events
 // Attempts at creating a random op, and if successful, creates a request to the current P master
+// Arg must be a pointer to the local overseer.
 void server_random_ops_cb(evutil_socket_t fd, short event, void *arg);
 
 // Deletes and frees all elements in the queue to prevent incoherences because
-// subsequent operations might depend on the one that timed out
+// subsequent operations might depend on the one that timed out.
+// Arg must be a pointer to the local overseer.
 void server_proposition_dequeue_timeout_cb(evutil_socket_t fd, short event, void *arg);
 
 // Creates a timeout event for deleting elements in the queue if timer has expired

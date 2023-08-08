@@ -33,12 +33,10 @@ int main(int argc, char *argv[]) {
     debug_log(1, stdout, "Done.\nStarting event loop initialization ...\n");
 
     // Initialize event loop
-    if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the message reception handler event
-                                                        etr_reception_init(&overseer) != EXIT_SUCCESS ||
-                                                        // Initialize the entry transmission event
+    if (cm_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the CM reception handler event
+        etr_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the ETR reception handler event
         server_random_ops_init(&overseer) != EXIT_SUCCESS || // Initialize the random ops generator
-                                                        p_liveness_set_timeout(&overseer) !=
-                                                        EXIT_SUCCESS) { // Initialize P liveness check
+        p_liveness_set_timeout(&overseer) != EXIT_SUCCESS) { // Initialize P liveness check
         fprintf(stderr, "Failed to initialize the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
@@ -55,6 +53,8 @@ int main(int argc, char *argv[]) {
     // Clean program state and close socket
     fprintf(stdout, "Cleaning up and finishing...\n");
     overseer_wipe(&overseer);
+
+    return rv;
 
     // Initialize log
     // Initialize P-term with special start value
@@ -177,5 +177,4 @@ int main(int argc, char *argv[]) {
      *      
      *
     */
-    return EXIT_SUCCESS;
 }

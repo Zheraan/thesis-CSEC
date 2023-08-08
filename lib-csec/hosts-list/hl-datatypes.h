@@ -43,6 +43,8 @@ enum host_status {
     HOST_STATUS_CS = 3,
     // Server
     HOST_STATUS_S = 4,
+    // Cluster Monitor
+    HOST_STATUS_CM = 5,
     // Unreachable node
     HOST_STATUS_UNREACHABLE = -1,
     // Its address couldn't be resolved at start
@@ -89,7 +91,7 @@ typedef struct host_s {
 typedef struct hosts_list_s {
     // Array of hosts
     host_s hosts[HOSTS_LIST_SIZE]; //TODO Extension Replace by a hashtable for masters and one for servers
-    // ID of the localhost in the list
+    // ID of the localhost in the mfs_array
     uint32_t localhost_id;
     // TODO Improvement save P and HS id (if any) to avoid searching for it if not necessary, and to remove
     //  liveness events when there isn't any P

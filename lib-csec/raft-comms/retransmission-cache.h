@@ -11,8 +11,9 @@
 #include "../datatypes.h"
 #include "../overseer.h"
 
-#define FLAG_DEFAULT 0
-#define FLAG_SILENT 1
+#ifndef FLAG_SILENT
+#define FLAG_SILENT 0x1
+#endif
 
 // Adds a new cache element to the list in the overseer to keep track of messages waiting for an ack that
 // also need to be freed later. Given etr parameter MUST be NULL for CM retransmission.
