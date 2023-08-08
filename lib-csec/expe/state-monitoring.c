@@ -50,13 +50,13 @@ void pstr_print(overseer_s *overseer, program_state_transmission_s *pstr, FILE *
             pstr->commit_index,
             nb_entries);
     for (int i = 0; i < nb_entries; ++i) {
-        log_entry_state_string(buf, pstr->last_entries[i].term);
+        log_entry_state_string(buf, pstr->last_entries[i].state);
         fprintf(stream, "   > entry #%d:\n"
                         "       * term:     %d\n"
                         "       * state:    %d (%s)\n"
                         "       * row:      %d\n"
                         "       * column:   %d\n"
-                        "       * value:    %d\n",
+                        "       * value:    %c\n",
                 i,
                 pstr->last_entries[i].term,
                 pstr->last_entries[i].state,
@@ -195,7 +195,7 @@ void pstr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
         printf("Received from %s (aka. %s) a PSTR\n", buf, overseer->hl->hosts[pstr.id].name);
-        if (MONITORING_LEVEL >= 3)
+        if (MONITORING_LEVEL >= 4)
             pstr_print(overseer, &pstr, stdout);
     }
     if (DEBUG_LEVEL >= 4)
@@ -221,7 +221,12 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
     // the MFS
     uint8_t advanced_entries[PSTR_NB_ENTRIES] = {false};
     int advanced_log = false;
+    int late_log = false;
 
+    if (MONITORING_LEVEL >= 3)
+        printf("\n+++++++++++ Start of coherency check +++++++++++\n");
+    if (MONITORING_LEVEL >= 4)
+        printf("Latest log entries check:\n");
     // Comparison of the log entries in the PSTR to the local log
     for (int i = 0; i < nb_entries; ++i) {
         // Number of target log entry for the current iteration
@@ -235,25 +240,56 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
         }
         if (entry_number == 0) {
             major_incoherences++;
-            printf("Entry %d of the PSTR has log number 0, this is a major incoherence.\n", i);
+            printf("> Entry #%d of the PSTR has log number 0, this is a major incoherence.\n", i);
+            continue;
+        }
+
+        // If entry term is lower than local
+        if (pstr->last_entries[i].term < overseer->log->entries[entry_number].term) {
+            if (MONITORING_LEVEL >= 3) {
+                printf("> Entry #%d of the PSTR has term %d instead of %d, this is a minor incoherence.\n",
+                       i,
+                       pstr->last_entries[i].term,
+                       overseer->log->entries[entry_number].term);
+            }
+            minor_incoherences++;
+            continue;
+        }
+
+        // If entry term is greater than local
+        if (pstr->last_entries[i].term > overseer->log->entries[entry_number].term) {
+            printf("> Entry #%d of the PSTR has term %d instead of %d, this is a major incoherence.\n",
+                   i,
+                   pstr->last_entries[i].term,
+                   overseer->log->entries[entry_number].term);
+            major_incoherences++;
             continue;
         }
 
         // If the entry is committed, incoherences are major incoherences, otherwise they're minor incoherences and do
         // not require to be printed at a low verbosity debug level, limiting output clutter.
-        if (pstr->last_entries[entry_number].state == ENTRY_STATE_COMMITTED)
+        if (pstr->last_entries[i].state == ENTRY_STATE_COMMITTED)
             committed = true;
         else committed = false;
 
+        if (MONITORING_LEVEL >= (committed == true ? 1 : 3))
+            printf("> Entry #%d ", i);
         uint8_t op_comp = op_compare(&overseer->log->entries[entry_number].op,
-                                     &pstr->last_entries[entry_number].op,
+                                     &pstr->last_entries[i].op,
                                      stdout,
                                      committed == true ? 1 : 3);
 
-        if (op_comp != CSEC_FLAG_DEFAULT && committed == true) {
+        // Major incoherence if entry is different and committed or different and has the same term
+        if (op_comp != CSEC_FLAG_DEFAULT &&
+            (committed == true ||
+             overseer->log->entries[entry_number].term != pstr->last_entries[i].term)) {
+            if (MONITORING_LEVEL >= 2)
+                printf("    > As the op is committed, this is a major incoherence.\n");
             major_incoherences++;
         } else if (op_comp != CSEC_FLAG_DEFAULT && committed == false) {
-            minor_incoherences++;
+            if (MONITORING_LEVEL >= 4)
+                printf("    > As the op is uncommitted, this is a minor incoherence.\n");
+            minor_incoherences++; // Otherwise if it's different it is only a minor incoherence
         }
     }
 
@@ -263,31 +299,51 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
     // node statuses. Furthermore, in this prototype it should not be possible for an S node to wrongfully commit data
     // this way.
     // TODO Improvement find a way to guard against the above
+    int is_p = pstr->status == HOST_STATUS_P ? true : false;
     if (pstr->nb_ops > overseer->mfs->nb_ops) {
-        int is_p = pstr->status == HOST_STATUS_P ? true : false;
         advanced_log = true;
         minor_incoherences++;
 
         if ((is_p == true && MONITORING_LEVEL >= 3) || MONITORING_LEVEL >= 1) {
-            printf("Dist host's MFS has more applied op (%ld) than reference (%ld) %s. This is a %s incoherence.%s\n",
+            printf("> Dist host's MFS has more applied op (%ld) than local (%ld)%s. This is a minor incoherence.%s\n",
                    pstr->nb_ops,
                    overseer->mfs->nb_ops,
-                   is_p == true ? ", but has status P" : "and hasn't P status",
-                   "minor",
+                   is_p == true ? ", but has status P" : " and hasn't P status",
                    is_p == true ? ""
-                                : " However, minor incoherences caused by an advanced MFS may be major incoherences"
-                                  " in case this node has committed wrong entries.");
+                                : " However, minor incoherences caused by an advanced MFS may hide major incoherences.");
+        }
+    }
+    // Same but to see if it's outdated compared to local
+    if (pstr->nb_ops < overseer->mfs->nb_ops) {
+        late_log = true;
+        if (is_p == false) minor_incoherences++;
+        else major_incoherences++;
+
+        if ((is_p == false && MONITORING_LEVEL >= 3) || MONITORING_LEVEL >= 1) {
+            printf("> Dist host's MFS has fewer applied op (%ld) than local (%ld)%s. This is a %s incoherence.%s\n",
+                   pstr->nb_ops,
+                   overseer->mfs->nb_ops,
+                   is_p == false ? ", but has status P" : " and hasn't P status",
+                   is_p == false ? "minor" : "major",
+                   is_p == false ? ""
+                                 : " However, minor incoherences caused by an advanced MFS may hide major incoherences.");
         }
     }
 
+    if (MONITORING_LEVEL >= 4)
+        printf("\nMFS Array check:\n");
+    int changes = false;
     // Coherency check for the PSTR's MFS array, using local as ref
     for (int i = 0; i < MOCKED_FS_ARRAY_ROWS; ++i) {
         for (int j = 0; j < MOCKED_FS_ARRAY_COLUMNS; ++j) {
-            // Regular check if dist host does not have a more advanced log
-            if (advanced_log == false && pstr->mfs_array[i][j] != overseer->mfs->array[i][j]) {
+            int difference = pstr->mfs_array[i][j] != overseer->mfs->array[i][j] ? true : false;
+
+            // Regular check if dist host does not have a more advanced or late log
+            if (difference == true && advanced_log == false && late_log == false) {
                 major_incoherences++;
+                changes = true;
                 if (MONITORING_LEVEL >= 1) {
-                    printf("Major incoherence at row %d column %d: is %c but should be %c\n",
+                    printf("> Major incoherence at row %d column %d: is '%c' but should be '%c'\n",
                            i,
                            j,
                            pstr->mfs_array[i][j],
@@ -295,22 +351,60 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
                 }
             }
 
-            // If dist is P and has a more advanced log, we need to check if there are changes in the log concerning the
+            // If dist has a more advanced log, we need to check if there are changes in the log concerning the
             // current MFS cell amongst its advanced entries in the PSTR.
-            if (advanced_log == true && pstr->mfs_array[i][j] != overseer->mfs->array[i][j]) {
+            if (advanced_log == true && difference == true) {
                 uint8_t newchar = overseer->mfs->array[i][j];
                 for (int k = 0; k < nb_entries; ++k) {
+                    // If an entry amongst the advanced ones concerns the cell, use its value for comparison
                     if (pstr->last_entries[k].op.column == j &&
                         pstr->last_entries[k].op.row == i &&
                         advanced_entries[k] == true) {
                         newchar = pstr->last_entries[k].op.newval;
-                        break;
+                        break; // We only use the most recent change
                     }
                 }
                 if (pstr->mfs_array[i][j] != newchar) {
                     major_incoherences++;
+                    changes = true;
                     if (MONITORING_LEVEL >= 1) {
-                        printf("Major incoherence at row %d column %d: is %c but should be %c\n",
+                        printf("> Major incoherence at row %d column %d: is '%c' but should be '%c'\n",
+                               i,
+                               j,
+                               pstr->mfs_array[i][j],
+                               newchar);
+                    }
+                }
+            }
+
+            // If dist has a late log, we need to check if there are changes in the log concerning the
+            // current MFS cell amongst local entries that are not committed yet by dist.
+            if (late_log == true && difference == true) {
+                uint8_t newchar = pstr->mfs_array[i][j];
+                uint64_t nb_missing_commits = overseer->log->commit_index - pstr->commit_index;
+                for (uint64_t k = 0; k < nb_missing_commits; ++k) {
+                    // If an entry amongst the advanced ones concerns the cell, use its value for comparison
+                    if (overseer->log->entries[overseer->log->commit_index - k].op.column == j &&
+                        overseer->log->entries[overseer->log->commit_index - k].op.row == i) {
+                        newchar = overseer->log->entries[overseer->log->commit_index - k].op.newval;
+                        break; // We only use the most recent change
+                    }
+                }
+                if (overseer->mfs->array[i][j] != newchar) {
+                    major_incoherences++;
+                    changes = true;
+                    if (MONITORING_LEVEL >= 1) {
+                        printf("> Major incoherence at row %d column %d: is '%c' but should be '%c'\n",
+                               i,
+                               j,
+                               pstr->mfs_array[i][j],
+                               newchar);
+                    }
+                } else { // If dist log is outdated, it is still a minor incoherence
+                    minor_incoherences++;
+                    changes = true;
+                    if (MONITORING_LEVEL >= 3) {
+                        printf("> Minor incoherence at row %d column %d: is '%c' but should later become '%c'\n",
                                i,
                                j,
                                pstr->mfs_array[i][j],
@@ -320,12 +414,20 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
             }
         }
     }
+    if (MONITORING_LEVEL >= 4)
+        printf("> MFS array OK.\n");
 
-    if (major_incoherences > 0 || minor_incoherences > 0) {
-        printf("Detected incoherences: %ld major and %ld minor (recoverable).\n",
+    if ((major_incoherences > 0 || minor_incoherences > 0) && MONITORING_LEVEL >= 1) {
+        printf("\nCoherency check results: \n"
+               "- Detected %ld major and %ld minor (recoverable) incoherences.\n",
                major_incoherences,
                minor_incoherences);
-    } else printf("No incoherences detected.\n");
+    } else if (MONITORING_LEVEL >= 2)
+        printf("\nCoherency check results: \n"
+               "- No incoherences detected.\n");
+
+    if (MONITORING_LEVEL >= 3)
+        printf("++++++++++++ End of coherency check ++++++++++++\n\n");
     if (INSTANT_FFLUSH) fflush(stdout);
     return major_incoherences;
 }
