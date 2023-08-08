@@ -30,6 +30,37 @@ data_op_s *op_new() {
     return nop;
 }
 
+uint8_t op_compare(data_op_s *ref, data_op_s *val, FILE *stream, int level) {
+    uint8_t rv = CSEC_FLAG_DEFAULT;
+    if (ref->newval != val->newval)
+        rv |= OPCOMP_FLAG_INVALID_VALUE;
+    if (ref->column != val->column)
+        rv |= OPCOMP_FLAG_INVALID_COLUMN;
+    if (ref->row != val->row)
+        rv |= OPCOMP_FLAG_INVALID_ROW;
+
+    if (DEBUG_LEVEL < level)
+        return rv;
+
+    fprintf(stream, "Op comparison result: ");
+    if (rv == CSEC_FLAG_DEFAULT) {
+        fprintf(stream, "OK.\n");
+        if (INSTANT_FFLUSH) fflush(stream);
+        return rv;
+    }
+
+    fprintf(stream, "\n");
+    if ((rv & OPCOMP_FLAG_INVALID_ROW) == OPCOMP_FLAG_INVALID_ROW)
+        fprintf(stream, "- Invalid row: is %d, should be %d\n", val->row, ref->row);
+    if ((rv & OPCOMP_FLAG_INVALID_COLUMN) == OPCOMP_FLAG_INVALID_COLUMN)
+        fprintf(stream, "- Invalid column: is %d, should be %d\n", val->column, ref->column);
+    if ((rv & OPCOMP_FLAG_INVALID_VALUE) == OPCOMP_FLAG_INVALID_VALUE)
+        fprintf(stream, "- Invalid value: is %c, should be %c\n", val->newval, ref->newval);
+
+    if (INSTANT_FFLUSH) fflush(stream);
+    return rv;
+}
+
 void op_print(const data_op_s *op, FILE *stream) {
     fprintf(stream,
             "row:       %d\n"
