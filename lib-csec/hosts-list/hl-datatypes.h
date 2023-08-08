@@ -102,6 +102,8 @@ typedef struct hosts_list_s {
     uint32_t nb_servers;
     // Number of hosts in the list
     uint32_t nb_masters;
+    // Number of hosts in the list
+    uint32_t nb_monitors;
 } hosts_list_s;
 
 #endif //THESIS_CSEC_HL_DATATYPES_H

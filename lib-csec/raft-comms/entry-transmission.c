@@ -84,14 +84,15 @@ void etr_print(const entry_transmission_s *etr, FILE *stream) {
 }
 
 int etr_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, entry_transmission_s *etr) {
-    return etr_sendto_with_rt_init(overseer, sockaddr, socklen, etr, 0);
+    return etr_sendto_with_rt_init(overseer, sockaddr, socklen, etr, 0, CSEC_FLAG_DEFAULT);
 }
 
 int etr_sendto_with_rt_init(overseer_s *overseer,
                             struct sockaddr_in6 sockaddr,
                             socklen_t socklen,
                             entry_transmission_s *etr,
-                            uint8_t rt_attempts) {
+                            uint8_t rt_attempts,
+                            int flag) {
     if (DEBUG_LEVEL >= 3) {
         if (rt_attempts > 0)
             printf("Sending ETR of type %d with %d retransmission attempt(s) ... \n", etr->cm.type, rt_attempts);
@@ -133,7 +134,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
     // address but with the Control Message port (35007)
     sockaddr.sin6_port = htons(PORT_ETR);
 
-    if (FUZZER_ENABLED) {
+    if (FUZZER_ENABLED && ((flag & FLAG_BYPASS_FUZZER) != FLAG_BYPASS_FUZZER)) {
         fuzzer_entry_init(overseer, PACKET_TYPE_ETR, (union packet) *etr, sockaddr, socklen);
     } else {
         sockaddr.sin6_port = htons(PORT_ETR);
@@ -221,8 +222,9 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
             etr_print(&etr, stdout);
     }
 
-    // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
-    if (etr.cm.ack_back != 0) {
+    // If the incoming message is acknowledging a previously sent message, remove its retransmission cache unless local
+    // host is a CM, which don't use RTC
+    if (etr.cm.ack_back != 0 && overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_CM) {
         if (DEBUG_LEVEL >= 4) {
             printf("Ack back value is non-zero (%d), removing corresponding RT cache entry ... ",
                    etr.cm.ack_back);
@@ -299,6 +301,10 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 }
 
 int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
+    if (overseer->hl->hosts[cm->host_id].status == HOST_STATUS_CM) {
+        debug_log(0, stderr, "A Cluster Monitor node should not require any logfixes.\n");
+        return EXIT_FAILURE;
+    }
     uint64_t target_index = cm->next_index;
     if (cm->next_index >= overseer->log->next_index)
         target_index = overseer->log->next_index - 1;
@@ -322,7 +328,7 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
                                 overseer->hl->hosts[cm->host_id].addr,
                                 overseer->hl->hosts[cm->host_id].socklen,
                                 netr,
-                                ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                                ETR_DEFAULT_RT_ATTEMPTS, CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
         debug_log(0, stderr, "Failed to send and RT init a LOGFIX as reply.\n");
         return EXIT_FAILURE;
     }
@@ -380,7 +386,9 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
                                     target_addr,
                                     target_socklen,
                                     netr,
-                                    ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                                    ETR_DEFAULT_RT_ATTEMPTS,
+                                    target->status == HOST_STATUS_CM ? FLAG_BYPASS_FUZZER : CSEC_FLAG_DEFAULT) !=
+            EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send and RT init Commit Order.\n");
         } else nb_orders++;
     }
@@ -444,7 +452,9 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
                                     target->addr,
                                     target->socklen,
                                     netr,
-                                    ETR_DEFAULT_RT_ATTEMPTS) != EXIT_SUCCESS) {
+                                    ETR_DEFAULT_RT_ATTEMPTS,
+                                    target->status == HOST_STATUS_CM ? FLAG_BYPASS_FUZZER : CSEC_FLAG_DEFAULT) !=
+            EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send and RT init New Entry.\n");
         } else nb_etr++;
     }
@@ -463,6 +473,9 @@ int etr_actions(overseer_s *overseer,
                 socklen_t socklen,
                 entry_transmission_s *etr) {
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
+
+    if (local_status == HOST_STATUS_CM)
+        return etr_actions_as_cm(overseer, sender_addr, socklen, etr);
 
     if ((local_status == HOST_STATUS_P || local_status == HOST_STATUS_HS) &&
         etr->cm.P_term == overseer->log->P_term &&
@@ -507,8 +520,9 @@ int etr_actions_as_p(overseer_s *overseer,
         // Update Hosts List
         hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
 
-        // Step down
-        stepdown_to_cs(overseer);
+        // Step down if dist is not P, because otherwise the status did it already
+        if (etr->cm.status != HOST_STATUS_P)
+            stepdown_to_cs(overseer);
 
         // Reply with HB DEFAULT
         if (cm_sendto_with_rt_init(overseer,
@@ -786,9 +800,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                                                  CM_DEFAULT_RT_ATTEMPTS,
                                                                  0,
                                                                  etr->cm.ack_reference) != EXIT_SUCCESS) {
-                        debug_log(0,
-                                  stderr,
-                                  "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
+                        debug_log(0, stderr, "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
                     }
                     return EXIT_SUCCESS;
                 }
@@ -841,9 +853,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                                    CM_DEFAULT_RT_ATTEMPTS,
                                                    0,
                                                    etr->cm.ack_reference) != EXIT_SUCCESS) {
-                            debug_log(0,
-                                      stderr,
-                                      "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
+                            debug_log(0, stderr, "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
                         }
                     }
                     return EXIT_SUCCESS;
@@ -868,9 +878,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                            CM_DEFAULT_RT_ATTEMPTS,
                                            0,
                                            etr->cm.ack_reference) != EXIT_SUCCESS) {
-                    debug_log(0,
-                              stderr,
-                              "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
+                    debug_log(0, stderr, "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
                 }
                 // Generic Ack back to HS
                 if (cm_sendto_with_ack_back(overseer,
@@ -878,9 +886,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                             socklen,
                                             MSG_TYPE_GENERIC_ACK,
                                             etr->cm.ack_reference) != EXIT_SUCCESS) {
-                    debug_log(0,
-                              stderr,
-                              "Failed to Generic Ack back to HS after receiving Logfix from HS.\n");
+                    debug_log(0, stderr, "Failed to Generic Ack back to HS after receiving Logfix from HS.\n");
                 }
             } else if (cm_sendto_with_rt_init(overseer,
                                               sender_addr,
@@ -889,17 +895,13 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                               CM_DEFAULT_RT_ATTEMPTS,
                                               0,
                                               etr->cm.ack_reference) != EXIT_SUCCESS) {
-                debug_log(0,
-                          stderr,
-                          "Failed to Ack back Entry after receiving Logfix.\n");
+                debug_log(0, stderr, "Failed to Ack back Entry after receiving Logfix.\n");
             }
             break;
 
         default:
             if (local_status == HOST_STATUS_S) {
-                debug_log(0,
-                          stderr,
-                          "Fatal error: Invalid message type received by server node.\n");
+                debug_log(0, stderr, "Fatal error: Invalid message type received by server node.\n");
                 exit(EXIT_FAILURE);
             }
             if (cm_sendto_with_ack_back(overseer,
@@ -911,6 +913,32 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                 return EXIT_FAILURE;
             }
     }
+
+    return EXIT_SUCCESS;
+}
+
+int etr_actions_as_cm(overseer_s *overseer,
+                      struct sockaddr_in6 sender_addr,
+                      socklen_t socklen,
+                      entry_transmission_s *etr) {
+    // Adjust local P-term based on what is received
+    if (etr->cm.P_term > overseer->log->P_term)
+        overseer->log->P_term = etr->cm.P_term;
+
+    // Update status
+    hl_update_status(overseer, etr->cm.status, etr->cm.host_id);
+
+    // Ack back
+    if (cm_sendto_with_ack_back(overseer,
+                                sender_addr,
+                                socklen,
+                                MSG_TYPE_GENERIC_ACK,
+                                etr->cm.ack_reference) != EXIT_SUCCESS) {
+        debug_log(0, stderr, "Failed to Ack back Entry.\n");
+    }
+
+    // Add entry to the log in the given state
+    log_add_entry(overseer, etr, etr->state);
 
     return EXIT_SUCCESS;
 }
@@ -940,7 +968,8 @@ int server_send_first_prop(overseer_s *overseer, uint32_t ack_back) {
                                 overseer->hl->hosts[p_id].addr,
                                 overseer->hl->hosts[p_id].socklen,
                                 netr,
-                                PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS) != EXIT_SUCCESS) {
+                                PROPOSITION_RETRANSMISSION_DEFAULT_ATTEMPTS,
+                                CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
         // Cleanup and abort in case of failure, including subsequent elements
         // Note: no risk of dangling pointer since queue was empty
         // FIXME Improvement: only reset queue if all attempts to send fail

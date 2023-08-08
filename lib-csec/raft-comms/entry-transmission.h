@@ -53,12 +53,15 @@ int etr_sendto(overseer_s *overseer,
 // The associated etr will be automatically freed along with its cache entry once it's been resent rt_attempts
 // times, and must not be freed manually until then unless the whole cache entry and its related events are
 // removed through rtc_remove_by_id.
+// The flag parameter at the moment is only used to eventually bypass the fuzzer if an ETR is destined at
+// a CM node.
 // Returns either EXIT_SUCCESS or EXIT_FAILURE
 int etr_sendto_with_rt_init(overseer_s *overseer,
                             struct sockaddr_in6 sockaddr,
                             socklen_t socklen,
                             entry_transmission_s *etr,
-                            uint8_t rt_attempts);
+                            uint8_t rt_attempts,
+                            int flag);
 
 // Initializes the entry transmission reception event.
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
@@ -85,7 +88,13 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg);
 int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm);
 
 // Sends the commit order for the given entry if it's committed, or fails otherwise
+// Returns EXIT_SUCCESS or EXIT_FAILURE
 int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index);
+
+// Broadcasts a received new entry in response to its reception, sending a ETR NEW AND ACK to the node that
+// first sent it.
+// Returns EXIT_SUCCESS or EXIT_FAILURE
+int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sender_id, uint32_t ack_back);
 
 // Determines the correct actions to take depending on local status and incoming ETR, for all host types.
 // Returns EXIT_SUCCESS or EXIT_FAILURE

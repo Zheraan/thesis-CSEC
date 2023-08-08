@@ -99,7 +99,7 @@ int pstr_transmit(overseer_s *overseer) {
         target = &(overseer->hl->hosts[i]);
 
         // Skip if target is not a cluster monitor
-        if (target->status == HOST_STATUS_CM)
+        if (target->type != NODE_TYPE_CM)
             continue;
 
         target_addr = (target->addr);
@@ -198,6 +198,8 @@ void pstr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         if (MONITORING_LEVEL >= 3)
             pstr_print(overseer, &pstr, stdout);
     }
+    if (DEBUG_LEVEL >= 4)
+        pstr_print(overseer, &pstr, stdout);
 
     if (pstr_actions(overseer, &pstr) != 0)
         debug_log(0, stderr, "PSTR action detected major incoherences.\n");

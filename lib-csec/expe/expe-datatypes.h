@@ -16,7 +16,7 @@
 #endif
 
 #include "event2/event.h"
-#include "../raft-comms/rc-datatypes.h"
+#include "../datatypes.h"
 #include "../overseer.h"
 
 // Contains either an entry_transmission_s in the etr field or a control_message_s in the cm field

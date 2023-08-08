@@ -401,7 +401,7 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
     uint32_t nb_cm = 0;
 
     if (DEBUG_LEVEL >= 2) {
-        char buf[32] = "\0";
+        char buf[32] = "";
         if ((flags & FLAG_SKIP_CS) != FLAG_SKIP_CS)
             strcat(buf, " CS");
         if ((flags & FLAG_SKIP_HS) != FLAG_SKIP_HS)
@@ -413,7 +413,7 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
 
         printf("Broadcasting CM of type %d (", type);
         cm_print_type(type, stdout);
-        printf(") to%s ... ", buf);
+        printf(") to%s nodes ... ", buf);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     for (uint32_t i = 0; i < nb_hosts; ++i) {
@@ -421,11 +421,12 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
 
         // TODO Extension Add conditional re-resolving of nodes that are of unknown or unreachable status
 
-        // Skip iterations based on flags or if it is the local host
+        // Skip iterations based on flags, if it's a monitor or if it is the local host
         if (((flags & FLAG_SKIP_CS) == FLAG_SKIP_CS && target->status == HOST_STATUS_CS) ||
             ((flags & FLAG_SKIP_HS) == FLAG_SKIP_HS && target->status == HOST_STATUS_HS) ||
             ((flags & FLAG_SKIP_P) == FLAG_SKIP_P && target->status == HOST_STATUS_P) ||
             ((flags & FLAG_SKIP_S) == FLAG_SKIP_S && target->type == NODE_TYPE_S) ||
+            target->type == NODE_TYPE_CM ||
             target->locality == HOST_LOCALITY_LOCAL)
             continue;
 

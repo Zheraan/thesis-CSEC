@@ -68,6 +68,7 @@ typedef struct log_s log_s;
 typedef struct retransmission_cache_s retransmission_cache_s;
 typedef struct election_state_s election_state_s;
 typedef struct fuzzer_cache_s fuzzer_cache_s;
+typedef struct program_state_transmission_s program_state_transmission_s;
 
 #include "raft-comms/rc-datatypes.h"
 #include "raft-log/rl-datatypes.h"

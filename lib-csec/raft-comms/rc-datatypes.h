@@ -20,6 +20,8 @@
 // Slight optimisation on the divide function in case X has a chance to be smaller than Y
 #define DIVIDE(X, Y)  ((X) < (Y) ? (0) : (X) / (Y))
 
+#define FLAG_BYPASS_FUZZER 0x1
+
 // Error code for unknown timeout type
 #define EUNKNOWN_TIMEOUT_TYPE (-1)
 

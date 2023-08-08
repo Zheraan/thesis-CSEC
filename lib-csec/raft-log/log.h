@@ -1,8 +1,9 @@
 #ifndef RAFT_ENTRY_LOG_LIBRARY_H
 #define RAFT_ENTRY_LOG_LIBRARY_H
 
-#include "rl-datatypes.h"
+#include "../datatypes.h"
 #include "../raft-comms/entry-transmission.h"
+#include "../expe/state-monitoring.h"
 
 // Initializes the log's state
 // Returns a pointer to the initialized log (same as argument)

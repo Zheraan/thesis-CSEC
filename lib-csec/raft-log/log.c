@@ -6,6 +6,7 @@ log_s *log_init(log_s *log) {
     log->P_term = 0;
     log->HS_term = 0;
     log->fix_conversation = 0;
+    log->log_coherency_counter = 0;
     log->fix_type = FIX_TYPE_NONE;
     // Empty entry state value is 0 so this sets it correctly, as well as the other fields
     memset(log->entries, 0, LOG_LENGTH * sizeof(log_entry_s));
@@ -60,12 +61,28 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
         return EXIT_FAILURE;
     }
 
+    // If local host is not a cluster monitor and there are some cluster monitors in the list
+    if (overseer->hl->nb_monitors > 0 && overseer->hl->hosts[overseer->hl->localhost_id].type != NODE_TYPE_CM) {
+        // Increment coherency check counter
+        overseer->log->log_coherency_counter++;
+
+        // If Threshold is reached
+        if (overseer->log->log_coherency_counter >= COHERENCY_CHECK_THRESHOLD) {
+            // Transmit current state
+            if (pstr_transmit(overseer) != EXIT_SUCCESS) {
+                debug_log(0, stderr, "Failed to transmit at least one PSTR.\n");
+            }
+            // Then reset counter
+            overseer->log->log_coherency_counter = 0;
+        }
+    }
+
+    // Set entry in the log
     log_entry_s *nentry = &(overseer->log->entries[etr->index]);
-    nentry->term = overseer->log->P_term;
+    nentry->term = etr->term;
     nentry->state = state;
     nentry->server_rep = 0;
     nentry->master_rep = 0;
-
     nentry->op.newval = etr->op.newval;
     nentry->op.row = etr->op.row;
     nentry->op.column = etr->op.column;

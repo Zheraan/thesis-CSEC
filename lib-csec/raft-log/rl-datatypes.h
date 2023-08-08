@@ -28,6 +28,12 @@ enum entry_state {
 #define LOG_LENGTH 2048 // Log length, in number of entries. May be redefined
 #endif
 
+#ifndef COHERENCY_CHECK_THRESHOLD
+// Number of log inputs after which a PSTR is sent to cluster monitors. This number is tracked in the log
+// struct by its log_coherency_counter member.
+#define COHERENCY_CHECK_THRESHOLD 8
+#endif
+
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 4
 #endif
@@ -74,6 +80,10 @@ typedef struct log_s {
     uint32_t fix_conversation;
     // Contains the type of ongoing fix, or FIX_TYPE_NONE otherwise.
     enum fix_type fix_type;
+
+    // Keeps track of the number of log inputs performed in order to send a PSTR to cluster monitors once
+    // COHERENCY_CHECK_THRESHOLD is reached.
+    uint32_t log_coherency_counter;
 
     // Arrays of entries in the log. Defined as static array for performance.
     log_entry_s entries[LOG_LENGTH];

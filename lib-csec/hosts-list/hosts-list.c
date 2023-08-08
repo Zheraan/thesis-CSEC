@@ -13,6 +13,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
     int localhost_init = 0;
     list->nb_masters = 0;
     list->nb_servers = 0;
+    list->nb_monitors = 0;
 
     if (file == NULL) {
         perror("hosts_init fopen");
@@ -88,7 +89,7 @@ uint32_t hosts_init(char const *hostfile, hosts_list_s *list) {
             case 'C':
             case 'c':
                 list->hosts[parsed].type = NODE_TYPE_CM;
-                list->hosts[parsed].status = HOST_STATUS_CM;
+                list->nb_monitors++;
                 break;
             default:
                 fprintf(stderr, "Failure to parse host: invalid host type \"%s\"\n", token);
