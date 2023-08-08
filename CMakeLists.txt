@@ -20,3 +20,6 @@ target_link_libraries(raft_server lib-csec libevent_core libevent_extra)
 
 add_subdirectory(raft-master)
 target_link_libraries(raft_master lib-csec libevent_core libevent_extra)
+
+add_subdirectory(cluster-monitor)
+target_link_libraries(cluster_monitor lib-csec libevent_core libevent_extra)

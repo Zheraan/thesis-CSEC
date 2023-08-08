@@ -5,6 +5,16 @@
 #ifndef THESIS_CSEC_EXPE_DATATYPES_H
 #define THESIS_CSEC_EXPE_DATATYPES_H
 
+#ifndef PSTR_NB_ENTRIES
+// Number of log entries sent in LSTRs
+#define PSTR_NB_ENTRIES 10
+#endif
+
+#ifndef MONITORING_LEVEL
+// Verbosity of the cluster monitor's output
+#define MONITORING_LEVEL DEBUG_LEVEL
+#endif
+
 #include "event2/event.h"
 #include "../raft-comms/rc-datatypes.h"
 #include "../overseer.h"
@@ -41,5 +51,24 @@ typedef struct fuzzer_cache_s {
     // Pointer back to the program state
     overseer_s *overseer;
 } fuzzer_cache_s;
+
+typedef struct program_state_transmission_s {
+    // Sender's hosts-list ID
+    uint32_t id;
+    // Status of the sender
+    enum host_status status;
+    // Sender's P-term
+    uint32_t P_term;
+    // Index of next log entry that will be added by the sender
+    uint64_t next_index;
+    // Index of latest log entry that is committed by the sender
+    uint64_t commit_index;
+    // Number of ops applied since initialization or last patch by the sender
+    uint64_t nb_ops;
+    // Latest PSTR_NB_ENTRIES entries in the sender's log
+    log_entry_s last_entries[PSTR_NB_ENTRIES];
+    // Sender's current MFS state
+    uint8_t mfs_array[MOCKED_FS_ARRAY_ROWS][MOCKED_FS_ARRAY_COLUMNS];
+} program_state_transmission_s;
 
 #endif //THESIS_CSEC_EXPE_DATATYPES_H

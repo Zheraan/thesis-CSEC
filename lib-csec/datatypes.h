@@ -17,6 +17,10 @@
 #define PORT_ETR 35008
 #endif
 
+#ifndef PORT_PSTR
+#define PORT_PSTR PORT_CM
+#endif
+
 #define true 1
 #define false 0
 
