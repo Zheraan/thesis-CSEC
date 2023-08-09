@@ -11,9 +11,9 @@
 // Returns NULL if the allocation fails, or a pointer to the newly allocated struct.
 program_state_transmission_s *pstr_new(overseer_s *overseer);
 
-// Prints the contents ofr the PSTR to the given stream. Overseer may be NULL, in which case the sender's id
-// won't be translated into a name.
-void pstr_print(overseer_s *overseer, program_state_transmission_s *pstr, FILE *stream);
+// Prints the contents ofr the PSTR to the given stream.
+// The flags parameter may be CSEC_FLAG_DEFAULT (zero) or FLAG_PRINT_SHORT for a shorter inline print
+void pstr_print(program_state_transmission_s *pstr, FILE *stream, int flags);
 
 // Creates an image of the program state and sends it to all cluster monitor nodes using the CM port, as
 // it is not necessary for cluster monitors to receive CMs.

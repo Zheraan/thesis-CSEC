@@ -30,41 +30,62 @@ program_state_transmission_s *pstr_new(overseer_s *overseer) {
     return npstr;
 }
 
-void pstr_print(overseer_s *overseer, program_state_transmission_s *pstr, FILE *stream) {
+void pstr_print(program_state_transmission_s *pstr, FILE *stream, int flags) {
     int nb_entries = (int) (pstr->next_index >= PSTR_NB_ENTRIES + 2 ? PSTR_NB_ENTRIES : pstr->next_index - 2);
-    char buf[20];
+    char buf[32];
     host_status_string(buf, pstr->status);
-    fprintf(stream, "- PSTR Metadata:\n"
-                    "   > id:               %d (aka. %s)\n"
-                    "   > status:           %d (%s)\n"
-                    "   > P-term:           %d\n"
-                    "   > next index:       %ld\n"
-                    "   > commit index:     %ld\n"
-                    "- Latest %d log entries:\n",
-            pstr->id,
-            overseer == NULL ? "?" : overseer->hl->hosts[pstr->id].name,
-            pstr->status,
-            buf,
-            pstr->P_term,
-            pstr->next_index,
-            pstr->commit_index,
-            nb_entries);
+
+    if ((flags & FLAG_PRINT_SHORT) == FLAG_PRINT_SHORT)
+        fprintf(stream, "- PSTR Metadata [HID %d,  %s,  PTerm %d,  NIx %ld,  CIx %ld]\n",
+                pstr->id,
+                buf,
+                pstr->P_term,
+                pstr->next_index,
+                pstr->commit_index);
+    else
+        fprintf(stream, "- PSTR Metadata:\n"
+                        "   > host_id:          %d\n"
+                        "   > status:           %d (%s)\n"
+                        "   > P_term:           %d\n"
+                        "   > next_index:       %ld\n"
+                        "   > commit_index:     %ld\n"
+                        "- Latest %d log entries:\n",
+                pstr->id,
+                pstr->status,
+                buf,
+                pstr->P_term,
+                pstr->next_index,
+                pstr->commit_index,
+                nb_entries);
     for (int i = 0; i < nb_entries; ++i) {
         log_entry_state_string(buf, pstr->last_entries[i].state);
-        fprintf(stream, "   > entry #%d:\n"
-                        "       * term:     %d\n"
-                        "       * state:    %d (%s)\n"
-                        "       * row:      %d\n"
-                        "       * column:   %d\n"
-                        "       * value:    %c\n",
-                i,
-                pstr->last_entries[i].term,
-                pstr->last_entries[i].state,
-                buf,
-                pstr->last_entries[i].op.row,
-                pstr->last_entries[i].op.column,
-                pstr->last_entries[i].op.newval);
+
+        if ((flags & FLAG_PRINT_SHORT) == FLAG_PRINT_SHORT) {
+            fprintf(stream, "   > Entry #%d [Term %d,  %s,  Row %d,  Col %d,  Val %c]",
+                    i,
+                    pstr->last_entries[i].term,
+                    buf,
+                    pstr->last_entries[i].op.row,
+                    pstr->last_entries[i].op.column,
+                    pstr->last_entries[i].op.newval);
+            if (i % 2 == 1 || i == nb_entries - 1)
+                printf("\n");
+        } else
+            fprintf(stream, "   > Entry #%d:\n"
+                            "       * term:     %d\n"
+                            "       * state:    %d (%s)\n"
+                            "       * row:      %d\n"
+                            "       * column:   %d\n"
+                            "       * value:    %c\n",
+                    i,
+                    pstr->last_entries[i].term,
+                    pstr->last_entries[i].state,
+                    buf,
+                    pstr->last_entries[i].op.row,
+                    pstr->last_entries[i].op.column,
+                    pstr->last_entries[i].op.newval);
     }
+
     fprintf(stream, "- MFS array contents:\n");
     for (int i = 0; i < MOCKED_FS_ARRAY_ROWS; ++i) {
         for (int j = 0; j < MOCKED_FS_ARRAY_COLUMNS; ++j) {
@@ -88,8 +109,12 @@ int pstr_transmit(overseer_s *overseer) {
     }
     int rv = EXIT_SUCCESS;
 
+    if (DEBUG_LEVEL >= 3)
+        printf("\n");
     if (DEBUG_LEVEL >= 4)
-        pstr_print(overseer, npstr, stdout);
+        pstr_print(npstr, stdout, CSEC_FLAG_DEFAULT);
+    else if (DEBUG_LEVEL == 3)
+        pstr_print(npstr, stdout, FLAG_PRINT_SHORT);
 
     host_s *target;
     struct sockaddr_in6 target_addr;
@@ -194,19 +219,26 @@ void pstr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     if (MONITORING_LEVEL >= 1) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf("Received from %s (aka. %s) a PSTR\n", buf, overseer->hl->hosts[pstr.id].name);
+        printf("Received from %s (aka. %s) a PSTR:\n", buf, overseer->hl->hosts[pstr.id].name);
         if (MONITORING_LEVEL >= 4)
-            pstr_print(overseer, &pstr, stdout);
+            pstr_print(&pstr, stdout, CSEC_FLAG_DEFAULT);
+        else if (DEBUG_LEVEL == 3)
+            pstr_print(&pstr, stdout, FLAG_PRINT_SHORT);
     }
     if (DEBUG_LEVEL >= 4)
-        pstr_print(overseer, &pstr, stdout);
+        pstr_print(&pstr, stdout, CSEC_FLAG_DEFAULT);
+    else if (DEBUG_LEVEL == 3)
+        pstr_print(&pstr, stdout, FLAG_PRINT_SHORT);
 
     if (pstr_actions(overseer, &pstr) != 0)
-        debug_log(0, stderr, "PSTR action detected major incoherences.\n");
+        debug_log(0, stderr, "--- /!\\ --- Attention: PSTR action detected major incoherences. --- /!\\ ---\n");
 
     pstr_reception_init(overseer);
     debug_log(4, stdout,
               "End of PSTR reception callback ----------------------------------------------------------------------------\n\n");
+
+    if (DEBUG_LEVEL == 3)
+        printf("\n");
     return;
 }
 
@@ -223,8 +255,10 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
     int advanced_log = false;
     int late_log = false;
 
+    if (MONITORING_LEVEL >= 4)
+        printf("\n");
     if (MONITORING_LEVEL >= 3)
-        printf("\n+++++++++++ Start of coherency check +++++++++++\n");
+        printf("+++++++++++ Start of coherency check +++++++++++\n");
     if (MONITORING_LEVEL >= 4)
         printf("Latest log entries check:\n");
     // Comparison of the log entries in the PSTR to the local log
@@ -272,18 +306,18 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
             committed = true;
         else committed = false;
 
-        if (MONITORING_LEVEL >= (committed == true ? 1 : 3))
-            printf("> Entry #%d ", i);
         uint8_t op_comp = op_compare(&overseer->log->entries[entry_number].op,
                                      &pstr->last_entries[i].op,
-                                     stdout,
-                                     committed == true ? 1 : 3);
+                                     stdout);
+
+        if (MONITORING_LEVEL >= ((committed == true && op_comp != CSEC_FLAG_DEFAULT) ? 1 : 4))
+            printf("> Entry #%d ", i);
 
         // Major incoherence if entry is different and committed or different and has the same term
         if (op_comp != CSEC_FLAG_DEFAULT &&
             (committed == true ||
              overseer->log->entries[entry_number].term != pstr->last_entries[i].term)) {
-            if (MONITORING_LEVEL >= 2)
+            if (MONITORING_LEVEL >= 1)
                 printf("    > As the op is committed, this is a major incoherence.\n");
             major_incoherences++;
         } else if (op_comp != CSEC_FLAG_DEFAULT && committed == false) {
@@ -304,7 +338,7 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
         advanced_log = true;
         minor_incoherences++;
 
-        if ((is_p == true && MONITORING_LEVEL >= 3) || MONITORING_LEVEL >= 1) {
+        if (MONITORING_LEVEL >= 3) {
             printf("> Dist host's MFS has more applied op (%ld) than local (%ld)%s. This is a minor incoherence.%s\n",
                    pstr->nb_ops,
                    overseer->mfs->nb_ops,
@@ -414,20 +448,21 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
             }
         }
     }
-    if (MONITORING_LEVEL >= 4)
+    if (changes == true && MONITORING_LEVEL >= 4)
         printf("> MFS array OK.\n");
 
     if ((major_incoherences > 0 || minor_incoherences > 0) && MONITORING_LEVEL >= 1) {
-        printf("\nCoherency check results: \n"
-               "- Detected %ld major and %ld minor (recoverable) incoherences.\n",
+        if (MONITORING_LEVEL >= 3) printf("Coherency check results: \n");
+        printf("- Detected a total of %ld major and %ld minor (recoverable) incoherences.\n",
                major_incoherences,
                minor_incoherences);
-    } else if (MONITORING_LEVEL >= 2)
-        printf("\nCoherency check results: \n"
-               "- No incoherences detected.\n");
+    } else if (MONITORING_LEVEL >= 2) {
+        if (MONITORING_LEVEL >= 3) printf("\nCoherency check results: \n");
+        printf("- No incoherences detected.\n");
+    }
 
     if (MONITORING_LEVEL >= 3)
-        printf("++++++++++++ End of coherency check ++++++++++++\n\n");
+        printf("++++++++++++ End of coherency check ++++++++++++\n");
     if (INSTANT_FFLUSH) fflush(stdout);
     return major_incoherences;
 }
