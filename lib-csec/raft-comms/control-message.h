@@ -27,10 +27,12 @@
 control_message_s *cm_new(const overseer_s *overseer, enum message_type type, uint32_t ack_back);
 
 // Outputs the contents of the cm struct to the specified stream
-void cm_print(const control_message_s *cm, FILE *stream);
+// The flags parameter may be CSEC_FLAG_DEFAULT (zero) or FLAG_PRINT_SHORT for a shorter inline print
+void cm_print(const control_message_s *cm, FILE *stream, int flags);
 
-// Prints a line of text indicating the CM's type
-void cm_print_type(enum message_type type, FILE *stream);
+// Sets buf to be a string containing the name of the given message type number.
+// Attention: buffer space must be at least 16 characters long.
+void cm_type_string(char *buf, enum message_type type);
 
 // Sends a control message to the provided address with the provided message type, without retransmission
 // or acknowledgement.

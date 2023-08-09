@@ -51,116 +51,122 @@ control_message_s *cm_new(const overseer_s *overseer, enum message_type type, ui
     return ncm;
 }
 
-void cm_print(const control_message_s *cm, FILE *stream) {
-    char buf[20];
-    host_status_string(buf, cm->status);
-    fprintf(stream,
-            "   > host_id:       %d\n"
-            "   > status:        %d (%s)\n"
-            "   > type:          %d (",
-            cm->host_id,
-            cm->status,
-            buf,
-            cm->type);
-    cm_print_type(cm->type, stream);
-    fprintf(stream,
-            ")\n"
-            "   > ack_reference: %d\n"
-            "   > ack_back:      %d\n"
-            "   > next_index:    %ld\n"
-            "   > commit_index:  %ld\n"
-            "   > P_term:        %d\n"
-            "   > HS_term:       %d\n",
-            cm->ack_reference,
-            cm->ack_back,
-            cm->next_index,
-            cm->commit_index,
-            cm->P_term,
-            cm->HS_term);
+void cm_print(const control_message_s *cm, FILE *stream, int flags) {
+    char status_string[32];
+    host_status_string(status_string, cm->status);
+    char type_string[32];
+    cm_type_string(type_string, cm->type);
+    if ((flags & FLAG_PRINT_SHORT) == FLAG_PRINT_SHORT)
+        fprintf(stream, "[HID %d,  %s,  %s,  AckR %d,  AckB %d,  NIx %ld,  CIx %ld,  PTerm %d,  HSTerm %d]\n",
+                cm->host_id,
+                status_string,
+                type_string,
+                cm->ack_reference,
+                cm->ack_back,
+                cm->next_index,
+                cm->commit_index,
+                cm->P_term,
+                cm->HS_term);
+    else
+        fprintf(stream,
+                "   > host_id:       %d\n"
+                "   > status:        %d (%s)\n"
+                "   > type:          %d (%s)\n"
+                "   > ack_reference: %d\n"
+                "   > ack_back:      %d\n"
+                "   > next_index:    %ld\n"
+                "   > commit_index:  %ld\n"
+                "   > P_term:        %d\n"
+                "   > HS_term:       %d\n",
+                cm->host_id,
+                cm->status,
+                status_string,
+                cm->type,
+                type_string,
+                cm->ack_reference,
+                cm->ack_back,
+                cm->next_index,
+                cm->commit_index,
+                cm->P_term,
+                cm->HS_term);
     if (INSTANT_FFLUSH) fflush(stream);
     return;
 }
 
-void cm_print_type(enum message_type type, FILE *stream) {
-    // Responses depending on the type of control message
+void cm_type_string(char *buf, enum message_type type) {
     switch (type) {
         case MSG_TYPE_HB_DEFAULT:
-            debug_log(0, stream, "HB DEFAULT");
+            sprintf(buf, "HB DEFAULT");
             break;
 
         case MSG_TYPE_P_TAKEOVER:
-            debug_log(0, stream, "P TAKEOVER");
+            sprintf(buf, "P TAKEOVER");
             break;
 
         case MSG_TYPE_HS_TAKEOVER:
-            debug_log(0, stream, "HS TAKEOVER");
+            sprintf(buf, "HS TAKEOVER");
             break;
 
         case MSG_TYPE_NETWORK_PROBE:
-            debug_log(0, stream, "NETWORK PROBE");
+            sprintf(buf, "NETWORK PROBE");
             break;
 
         case MSG_TYPE_LOG_REPAIR:
-            debug_log(0, stream, "LOG REPAIR");
+            sprintf(buf, "LOG REPAIR");
             break;
 
         case MSG_TYPE_LOG_REPLAY:
-            debug_log(0, stream, "LOG REPLAY");
+            sprintf(buf, "LOG REPLAY");
             break;
 
         case MSG_TYPE_GENERIC_ACK:
-            debug_log(0, stream, "GENERIC ACK");
+            sprintf(buf, "GENERIC ACK");
             break;
 
         case MSG_TYPE_ACK_ENTRY:
-            debug_log(0, stream, "ACK ENTRY");
+            sprintf(buf, "ACK ENTRY");
             break;
 
         case MSG_TYPE_ACK_COMMIT:
-            debug_log(0, stream, "ACK COMMIT");
+            sprintf(buf, "ACK COMMIT");
             break;
 
         case MSG_TYPE_INDICATE_P:
-            debug_log(0, stream, "INDICATE P");
+            sprintf(buf, "INDICATE P");
             break;
 
         case MSG_TYPE_INDICATE_HS:
-            debug_log(0, stream, "INDICATE HS");
+            sprintf(buf, "INDICATE HS");
             break;
 
         case MSG_TYPE_HS_VOTING_BID:
-            debug_log(0, stream, "HS VOTING BID");
+            sprintf(buf, "HS VOTING BID");
             break;
 
         case MSG_TYPE_HS_VOTE:
-            debug_log(0, stream, "HS VOTE");
+            sprintf(buf, "HS VOTE");
             break;
 
         case MSG_TYPE_ETR_COMMIT:
-            debug_log(0, stream, "ETR COMMIT");
+            sprintf(buf, "ETR COMMIT");
             break;
 
         case MSG_TYPE_ETR_NEW:
-            debug_log(0, stream, "ETR NEW");
+            sprintf(buf, "ETR NEW");
             break;
 
         case MSG_TYPE_ETR_PROPOSITION:
-            debug_log(0, stream, "ETR PROPOSITION");
+            sprintf(buf, "ETR PROPOSITION");
             break;
 
         case MSG_TYPE_ETR_LOGFIX:
-            debug_log(0, stream, "ETR LOGFIX");
+            sprintf(buf, "ETR LOGFIX");
             break;
 
         case MSG_TYPE_ETR_NEW_AND_ACK:
-            debug_log(0, stream, "ETR NEW AND ACK");
+            sprintf(buf, "ETR NEW AND ACK");
             break;
-
-        default:
-            fprintf(stderr, "\nInvalid control message type %d\n", type);
-            if (INSTANT_FFLUSH) fflush(stderr);
     }
-
     return;
 }
 
@@ -187,14 +193,6 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            uint32_t ack_reference,
                            uint32_t ack_back) {
 
-    if (DEBUG_LEVEL >= 3) {
-        if (rt_attempts > 0)
-            printf("Sending CM of type %d with %d retransmission rt_attempts ... \n", type, rt_attempts);
-        else
-            printf("Sending CM of type %d ... \n", type);
-        if (INSTANT_FFLUSH) fflush(stdout);
-    }
-
     control_message_s *ncm = cm_new(overseer, type, ack_back);
     if (ncm == NULL) {
         fprintf(stderr, "Failed to create message of type %d", type);
@@ -214,12 +212,23 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         ncm->ack_reference = rv;
     } else ncm->ack_reference = ack_reference;
 
-    char buf[256];
-    evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
-
     if (DEBUG_LEVEL >= 3) {
-        printf("Sending to %s the following CM:\n", buf);
-        cm_print(ncm, stdout);
+        char addr_buf[256];
+        evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), addr_buf, 256);
+
+        if (DEBUG_LEVEL >= 4) {
+            if (rt_attempts > 0)
+                printf("Sending to %s the following CM with %d retransmission attempts:\n", addr_buf, rt_attempts);
+            else
+                printf("Sending to %s the following CM:\n", addr_buf);
+            cm_print(ncm, stdout, CSEC_FLAG_DEFAULT);
+        } else if (DEBUG_LEVEL >= 2) {
+            if (rt_attempts > 0)
+                printf("Sending to %s a CM with %d RT attempts:\n- ", addr_buf, rt_attempts);
+            else
+                printf("Sending to %s a CM:\n- ", addr_buf);
+            cm_print(ncm, stdout, FLAG_PRINT_SHORT);
+        }
     }
 
     if (FUZZER_ENABLED) {
@@ -247,7 +256,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
 
     free(ncm);
 
-    debug_log(3, stdout, "Done.\n");
+    debug_log(4, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
@@ -306,17 +315,30 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
                 cm_reception_init(overseer);
                 debug_log(4, stdout,
                           "End of CM reception callback -------------------------------------------------------------------\n\n");
+                if (DEBUG_LEVEL == 3)
+                    printf("\n");
                 return; // Failure
             }
         }
     } while (errno == EAGAIN);
 
-    if (DEBUG_LEVEL >= 2) {
+    if (DEBUG_LEVEL == 2) printf("Received from %s a CM", overseer->hl->hosts[cm.host_id].name);
+    else if (DEBUG_LEVEL >= 3) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf("Received from %s (aka. %s) a CM:\n", buf, overseer->hl->hosts[cm.host_id].name);
-        if (DEBUG_LEVEL >= 3)
-            cm_print(&cm, stdout);
+        printf("Received from %s (aka. %s) a CM", buf, overseer->hl->hosts[cm.host_id].name);
+    }
+
+    if (DEBUG_LEVEL == 1 || DEBUG_LEVEL == 2) {
+        char type_string[32];
+        cm_type_string(type_string, cm.type);
+        printf(" of type %s\n", type_string);
+    } else if (DEBUG_LEVEL >= 4) {
+        printf(":\n");
+        cm_print(&cm, stdout, CSEC_FLAG_DEFAULT);
+    } else if (DEBUG_LEVEL == 3) {
+        printf(":\n- ");
+        cm_print(&cm, stdout, FLAG_PRINT_SHORT);
     }
 
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
@@ -343,6 +365,9 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
     debug_log(4, stdout,
               "End of CM reception callback -------------------------------------------------------------------\n\n");
+
+    if (DEBUG_LEVEL == 3)
+        printf("\n");
     return;
 }
 
@@ -392,6 +417,9 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         debug_log(3, stdout, "Done.\n");
     debug_log(4, stdout,
               "End of CM retransmission callback --------------------------------------------------------------\n\n");
+
+    if (DEBUG_LEVEL == 3)
+        printf("\n");
     return;
 }
 
@@ -401,19 +429,20 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
     uint32_t nb_cm = 0;
 
     if (DEBUG_LEVEL >= 2) {
-        char buf[32] = "";
-        if ((flags & FLAG_SKIP_CS) != FLAG_SKIP_CS)
-            strcat(buf, " CS");
-        if ((flags & FLAG_SKIP_HS) != FLAG_SKIP_HS)
-            strcat(buf, " HS");
-        if ((flags & FLAG_SKIP_P) != FLAG_SKIP_P)
-            strcat(buf, " P");
-        if ((flags & FLAG_SKIP_S) != FLAG_SKIP_S)
-            strcat(buf, " S");
+        char broadcast_targets_string[32] = "";
+        if (!((flags & FLAG_SKIP_CS) == FLAG_SKIP_CS))
+            strcat(broadcast_targets_string, " CS");
+        if (!((flags & FLAG_SKIP_HS) == FLAG_SKIP_HS))
+            strcat(broadcast_targets_string, " HS");
+        if (!((flags & FLAG_SKIP_P) == FLAG_SKIP_P))
+            strcat(broadcast_targets_string, " P");
+        if (!((flags & FLAG_SKIP_S) == FLAG_SKIP_S))
+            strcat(broadcast_targets_string, " S");
 
-        printf("Broadcasting CM of type %d (", type);
-        cm_print_type(type, stdout);
-        printf(") to%s nodes ... ", buf);
+        char type_string[32];
+        cm_type_string(type_string, type);
+        printf("Broadcasting CM of type %d (%s) to%s nodes ... ", type, type_string, broadcast_targets_string);
+        debug_log(3, stdout, "\n");
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     for (uint32_t i = 0; i < nb_hosts; ++i) {
@@ -472,12 +501,12 @@ int cm_actions(overseer_s *overseer,
 
     // If message has superior or equal P-term and comes from P and local is not already P
     if (cm->P_term >= overseer->log->P_term && cm->status == HOST_STATUS_P && local_status != HOST_STATUS_P) {
-        debug_log(3, stdout, "Message is from P, resetting Liveness timeout.\n");
+        debug_log(4, stdout, "Message is from P, resetting Liveness timeout.\n");
         p_liveness_set_timeout(overseer); // Reset P liveness timer
     }
-    // If message has superior or equal HS-term and comes from HS and local is not already HS
-    if (cm->HS_term >= overseer->log->HS_term && cm->status == HOST_STATUS_HS && local_status != HOST_STATUS_HS) {
-        debug_log(3, stdout, "Message is from HS, resetting election timeout.\n");
+    // If message has superior or equal HS-term and comes from HS and local is CS
+    if (cm->status == HOST_STATUS_HS && cm->HS_term >= overseer->log->HS_term && local_status == HOST_STATUS_CS) {
+        debug_log(4, stdout, "Message is from HS, resetting election timeout.\n");
         election_set_timeout(overseer); // Reset HS election timer
     }
 
@@ -1326,9 +1355,12 @@ int cm_forward(overseer_s *overseer,
     char buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
 
-    if (DEBUG_LEVEL >= 3) {
+    if (DEBUG_LEVEL >= 4) {
         printf(" - Forwarding to %s the following CM:\n", buf);
-        cm_print(cm, stdout);
+        cm_print(cm, stdout, CSEC_FLAG_DEFAULT);
+    } else if (DEBUG_LEVEL == 3) {
+        printf(" - Forwarding to %s the following CM:\n", buf);
+        cm_print(cm, stdout, FLAG_PRINT_SHORT);
     }
 
     if (FUZZER_ENABLED) {
