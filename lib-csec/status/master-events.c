@@ -31,6 +31,9 @@ void master_heartbeat_broadcast_cb(evutil_socket_t sender, short event, void *ar
 
     debug_log(4, stdout,
               "End of HB broadcast callback -------------------------------------------------------------------\n\n");
+
+    if (DEBUG_LEVEL == 3)
+        printf("\n");
     return;
 }
 

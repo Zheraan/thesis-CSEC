@@ -185,9 +185,9 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
     retransmission_cache_s *ptr = overseer->rtc;
     if (overseer->rtc->id == id) {
         if (DEBUG_LEVEL >= 4) {
-            printf("[Entry is of type %d (", ptr->id);
-            cm_print_type(ptr->type, stdout);
-            printf(")] ");
+            char type_string[32];
+            cm_type_string(type_string, ptr->type);
+            printf("[Entry is of type %d (%s)] ", ptr->id, type_string);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         overseer->rtc = ptr->next;
@@ -203,9 +203,9 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
             overseer->log->fix_type = FIX_TYPE_NONE;
         }
         if (DEBUG_LEVEL >= 4) {
-            printf("[Entry is of type %d (", tmp->id);
-            cm_print_type(tmp->type, stdout);
-            printf(")] ");
+            char type_string[32];
+            cm_type_string(type_string, tmp->type);
+            printf("[Entry is of type %d (%s)] ", tmp->id, type_string);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         rtc_free(tmp);

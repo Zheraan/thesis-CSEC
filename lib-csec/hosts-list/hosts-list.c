@@ -379,7 +379,7 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
                overseer->hl->localhost_id == id ? "(local host) " : "");
     if (DEBUG_LEVEL >= 2) {
         if (status != overseer->hl->hosts[id].status) {
-            char buf1[20], buf2[20];
+            char buf1[32], buf2[32];
             host_status_string(buf1, overseer->hl->hosts[id].status);
             host_status_string(buf2, status);
             printf("[Updated status of %s from %s to %s] ",
@@ -388,8 +388,8 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
                    buf2);
             if (DEBUG_LEVEL <= 3)
                 printf("\n");
-        } else if (DEBUG_LEVEL >= 3) {
-            char buf1[20];
+        } else if (DEBUG_LEVEL >= 4) {
+            char buf1[32];
             host_status_string(buf1, status);
             printf("[Status of %s (%s) did not change] ",
                    overseer->hl->hosts[id].name,
@@ -413,7 +413,12 @@ int hl_update_status(overseer_s *overseer, enum host_status status, uint32_t id)
 
 int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t next_index, uint64_t commit_index) {
     if (DEBUG_LEVEL >= 4) {
-        printf("Checking for replication index changes for %s %s... ",
+        printf("Checking for replication array changes for %s %s... ",
+               overseer->hl->hosts[host_id].name,
+               overseer->hl->localhost_id == host_id ? "(local host) " : "");
+        if (INSTANT_FFLUSH) fflush(stdout);
+    } else if (DEBUG_LEVEL >= 3) {
+        printf("%s %sreplication ",
                overseer->hl->hosts[host_id].name,
                overseer->hl->localhost_id == host_id ? "(local host) " : "");
         if (INSTANT_FFLUSH) fflush(stdout);
@@ -435,36 +440,41 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
     uint64_t commit_order = 0;
 
     int change = 0;
-    if (DEBUG_LEVEL >= 3 && target_host->next_index < next_index) {
-        printf("[New replication index (%ld) is higher than local (%ld), updating array] ",
-               next_index,
-               target_host->next_index);
-        change = 1;
-        if (INSTANT_FFLUSH) fflush(stdout);
-    } else if (DEBUG_LEVEL >= 3 && target_host->next_index > next_index) {
-        printf("[New replication index (%ld) is lower than local (%ld), updating array] ",
-               next_index,
-               target_host->next_index);
-        change = 1;
-        if (INSTANT_FFLUSH) fflush(stdout);
+    if (target_host->next_index < next_index) {
+        if (DEBUG_LEVEL >= 3) {
+            printf("[New replication index (%ld) is higher than local (%ld), updating array] ",
+                   next_index,
+                   target_host->next_index);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
+        change = true;
+    } else if (target_host->next_index > next_index) {
+        if (DEBUG_LEVEL >= 3) {
+            printf("[New replication index (%ld) is lower than local (%ld), updating array] ",
+                   next_index,
+                   target_host->next_index);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
+        change = true;
     }
 
-    if (DEBUG_LEVEL >= 3 && target_host->commit_index < commit_index) {
-        printf("[New commit index (%ld) is higher than local (%ld), updating array] ",
-               commit_index,
-               target_host->commit_index);
-        change = 1;
-        if (INSTANT_FFLUSH) fflush(stdout);
-    } else if (DEBUG_LEVEL >= 3 && target_host->commit_index > commit_index) {
-        printf("[New commit index (%ld) is lower than local (%ld), updating array] ",
-               commit_index,
-               target_host->commit_index);
-        change = 1;
-        if (INSTANT_FFLUSH) fflush(stdout);
+    if (target_host->commit_index < commit_index) {
+        if (DEBUG_LEVEL >= 3) {
+            printf("[New commit index (%ld) is higher than local (%ld), updating array] ",
+                   commit_index,
+                   target_host->commit_index);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
+        change = true;
+    } else if (target_host->commit_index > commit_index) {
+        if (DEBUG_LEVEL >= 3) {
+            printf("[New commit index (%ld) is lower than local (%ld), updating array] ",
+                   commit_index,
+                   target_host->commit_index);
+            if (INSTANT_FFLUSH) fflush(stdout);
+        }
+        change = true;
     }
-
-    if (change == 0)
-        debug_log(3, stdout, "[No changes] ");
 
     // If new next index is higher, increment replication index on each of the concerned log entries
     // Entry 0 represents uninitialized state, so it's skept if the index is 0
@@ -472,6 +482,7 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
         if (target_host->type == NODE_TYPE_M)
             log->entries[i].master_rep++;
         else log->entries[i].server_rep++;
+        change = true;
 
         if (DEBUG_LEVEL >= 4) {
             printf("[e%ld %s++ M%d:S%d] ",
@@ -492,6 +503,7 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
     // Otherwise decrement it for concerned entries
     for (uint64_t i = target_host->next_index > 0 ? target_host->next_index : 1; i > next_index; --i) {
         target_host->type == NODE_TYPE_M ? log->entries[i - 1].master_rep-- : log->entries[i - 1].server_rep--;
+        change = true;
         if (DEBUG_LEVEL >= 4) {
             printf("[e%ld %s-- M%d:S%d] ",
                    i - 1,
@@ -501,10 +513,15 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
         }
     }
 
+    if (change == false)
+        debug_log(3, stdout, "[No changes]\n");
+    else printf("\n");
+
     // If the commit index changed, broadcast the commit order
     if (commit_order != 0) {
         if (DEBUG_LEVEL >= 2) {
-            printf("\nConsensus reached for log entries up to entry #%ld, ", commit_order);
+            debug_log(4, stdout, "\n");
+            printf("Consensus reached for log entries up to entry #%ld, ", commit_order);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         log_commit_upto(overseer, commit_order);

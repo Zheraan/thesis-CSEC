@@ -16,11 +16,6 @@
 #endif
 
 // Originally defined in datatypes.h
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 4
-#endif
-
-// Originally defined in datatypes.h
 #ifndef CSEC_FLAG_DEFAULT
 #define CSEC_FLAG_DEFAULT 0
 #endif

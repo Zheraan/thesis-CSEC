@@ -58,6 +58,9 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
             if (INSTANT_FFLUSH) fflush(stderr);
             debug_log(4, stdout,
                       "End of random op callback ----------------------------------------------------------------------\n\n");
+
+            if (DEBUG_LEVEL == 3)
+                printf("\n");
             return; // Abort in case of failure
         }
 
@@ -74,6 +77,9 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
             if (INSTANT_FFLUSH) fflush(stderr);
             debug_log(4, stdout,
                       "End of random op callback ----------------------------------------------------------------------\n\n");
+
+            if (DEBUG_LEVEL == 3)
+                printf("\n");
             return;
         }
 
@@ -97,6 +103,9 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
             if (INSTANT_FFLUSH) fflush(stderr);
             debug_log(4, stdout,
                       "End of random op callback ----------------------------------------------------------------------\n\n");
+
+            if (DEBUG_LEVEL == 3)
+                printf("\n");
             return;
         }
 
@@ -121,6 +130,9 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
 
     debug_log(4, stdout,
               "End of random op callback ----------------------------------------------------------------------\n\n");
+
+    if (DEBUG_LEVEL == 3)
+        printf("\n");
     return;
 }
 

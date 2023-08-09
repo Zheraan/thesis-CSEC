@@ -1,9 +1,5 @@
 // TODO Extension Insert file description, copyright, etc
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 4
-#endif
-
 #include "lib-csec.h"
 #include "status/server-events.h"
 

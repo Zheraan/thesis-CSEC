@@ -87,10 +87,9 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
     nentry->op.row = etr->op.row;
     nentry->op.column = etr->op.column;
 
-    char state_string[12];
+    char state_string[32];
     log_entry_state_string(state_string, state);
-
-    if (DEBUG_LEVEL >= 1) {
+    if (DEBUG_LEVEL >= 4) {
         printf("Added to the log the following entry:\n"
                "- entry number: %ld\n"
                "- P-term:       %d\n"
@@ -105,10 +104,19 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
                nentry->op.row,
                nentry->op.column,
                nentry->op.newval);
+    } else if (DEBUG_LEVEL >= 1) {
+        printf("New log entry%s[# %ld,  PTerm %d,  %s,  Row %d,  Col %d,  Val %c]\n",
+               DEBUG_LEVEL == 3 ? ":\n- " : "",
+               overseer->log->next_index,
+               nentry->term,
+               state_string,
+               nentry->op.row,
+               nentry->op.column,
+               nentry->op.newval);
     }
 
     if (state == ENTRY_STATE_COMMITTED) {
-        debug_log(3, stdout, "Entry state is COMMITTED, committing entries up to this point.\n");
+        debug_log(2, stdout, "Entry state is COMMITTED: committing entries up to this point.\n");
         if (log_commit_upto(overseer, etr->index) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failure committing all necessary entries.\n");
             return EXIT_FAILURE;

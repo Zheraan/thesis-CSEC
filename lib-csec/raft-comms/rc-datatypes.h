@@ -11,10 +11,6 @@
 #include "../hosts-list/hl-datatypes.h"
 #include "../mocked-fs/mfs-datatypes.h"
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 4
-#endif
-
 // Slight optimisation on the modulo function in case X has a chance to be smaller than Y
 #define MODULO(X, Y)  ((X) < (Y) ? (X) : (X) % (Y))
 // Slight optimisation on the divide function in case X has a chance to be smaller than Y
@@ -236,7 +232,7 @@ typedef struct entry_transmission_s {
     // Transmitted entry's related data op
     data_op_s op;
     // Transmitted entry's index
-    uint32_t index;
+    uint64_t index;
     // Transmitted entry's P-term
     uint32_t term;
     // Term of the entry before transmitted entry

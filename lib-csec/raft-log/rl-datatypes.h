@@ -34,10 +34,6 @@ enum entry_state {
 #define COHERENCY_CHECK_THRESHOLD 8
 #endif
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 4
-#endif
-
 enum fix_type {
     FIX_TYPE_NONE = 0,
     FIX_TYPE_REPAIR = 1,

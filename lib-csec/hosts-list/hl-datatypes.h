@@ -11,25 +11,13 @@
 #define HOSTS_LIST_SIZE 128 // May be redefined
 #endif
 
-#ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 4
-#endif
-
-#ifndef ENOLOCALHOST
 #define ENOLOCALHOST 90
-#endif
 
-#ifndef ENOMASTER
 #define ENOMASTER 91
-#endif
 
-#ifndef ENOSERVER
 #define ENOSERVER 92
-#endif
 
-#ifndef EPARSINGFAILURE
 #define EPARSINGFAILURE 93
-#endif
 
 // Status of a host, if it is available and what type is it if so
 enum host_status {
