@@ -42,6 +42,7 @@
 #endif
 
 #define CSEC_FLAG_DEFAULT 0
+#define FLAG_PRINT_SHORT 0x1
 
 enum entry_state;
 enum timeout_type;

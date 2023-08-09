@@ -24,7 +24,7 @@
 entry_transmission_s *etr_new(const overseer_s *overseer,
                               enum message_type type,
                               const data_op_s *op,
-                              uint32_t index,
+                              uint64_t index,
                               uint32_t term,
                               enum entry_state state,
                               uint32_t ack_back);
@@ -39,7 +39,8 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
                                                uint32_t ack_back);
 
 // Outputs the contents of the structure to the specified stream
-void etr_print(const entry_transmission_s *tr, FILE *stream);
+// The flags parameter may be CSEC_FLAG_DEFAULT (zero) or FLAG_PRINT_SHORT for a shorter inline print
+void etr_print(const entry_transmission_s *etr, FILE *stream, int flags);
 
 // Sends a transmission to the specified address
 // Returns either EXIT_SUCCESS or EXIT_FAILURE

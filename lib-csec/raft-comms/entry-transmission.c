@@ -7,7 +7,7 @@
 entry_transmission_s *etr_new(const overseer_s *overseer,
                               enum message_type type,
                               const data_op_s *op,
-                              uint32_t index,
+                              uint64_t index,
                               uint32_t term,
                               enum entry_state state,
                               uint32_t ack_back) {
@@ -59,27 +59,41 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
     return netr;
 }
 
-void etr_print(const entry_transmission_s *etr, FILE *stream) {
-    char buf[12];
+void etr_print(const entry_transmission_s *etr, FILE *stream, int flags) {
+    char buf[32];
     log_entry_state_string(buf, etr->state);
-    fprintf(stream, "- CM metadata:\n");
-    cm_print(&(etr->cm), stream);
-    fprintf(stream,
-            "- Entry Metadata:\n"
-            "   > state:         %d (%s)\n"
-            "   > index:         %d\n"
-            "   > P-term:        %d\n"
-            "- Data Op Metadata:\n"
-            "   > row:           %d\n"
-            "   > column:        %d\n"
-            "   > newval:        %c\n",
-            etr->state,
-            buf,
-            etr->index,
-            etr->term,
-            etr->op.row,
-            etr->op.column,
-            etr->op.newval);
+
+    if ((flags & FLAG_PRINT_SHORT) == FLAG_PRINT_SHORT) {
+        fprintf(stream, "- ");
+        cm_print(&(etr->cm), stream, flags);
+        fprintf(stream, "- [# %ld,  %s,  PTerm %d,  Row %d,  Col %d,  Val %c]\n",
+                etr->index,
+                buf,
+                etr->term,
+                etr->op.row,
+                etr->op.column,
+                etr->op.newval);
+    } else {
+        fprintf(stream, "- CM metadata:\n");
+        cm_print(&(etr->cm), stream, flags);
+        fprintf(stream,
+                "- Entry Metadata:\n"
+                "   > state:         %d (%s)\n"
+                "   > index:         %ld\n"
+                "   > P-term:        %d\n"
+                "- Data Op Metadata:\n"
+                "   > row:           %d\n"
+                "   > column:        %d\n"
+                "   > newval:        %c\n",
+                etr->state,
+                buf,
+                etr->index,
+                etr->term,
+                etr->op.row,
+                etr->op.column,
+                etr->op.newval);
+    }
+    if (INSTANT_FFLUSH) fflush(stream);
     return;
 }
 
@@ -93,13 +107,6 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                             entry_transmission_s *etr,
                             uint8_t rt_attempts,
                             int flag) {
-    if (DEBUG_LEVEL >= 3) {
-        if (rt_attempts > 0)
-            printf("Sending ETR of type %d with %d retransmission attempt(s) ... \n", etr->cm.type, rt_attempts);
-        else
-            printf("Sending ETR of type %d ... \n", etr->cm.type);
-        if (INSTANT_FFLUSH) fflush(stdout);
-    }
 
     // If there are no retransmissions attempts (and thus no need for an ack), the ack number is always 0. Otherwise,
     // we make sure that it's initialized with the cache entry's ID, or to not reset it if it has already been set as
@@ -123,13 +130,24 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
         etr->cm.ack_reference = rv;
     }
 
-    char buf[256];
-    evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), buf, 256);
-
+    char address_buf[256];
+    evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), address_buf, 256);
     if (DEBUG_LEVEL >= 3) {
-        printf("Sending to %s the following ETR:\n", buf);
-        etr_print(etr, stdout);
+        if (rt_attempts > 0)
+            printf("Sending to %s the following ETR with %d retransmission attempt(s):\n", address_buf, rt_attempts);
+        else
+            printf("Sending to %s the following ETR:\n", address_buf);
+        etr_print(etr, stdout, CSEC_FLAG_DEFAULT);
+    } else if (DEBUG_LEVEL == 2) {
+        char type_buf[32];
+        cm_type_string(address_buf, etr->cm.type);
+        if (rt_attempts > 0)
+            printf("Sending to %s an ETR of type %s with %d retransmission attempt(s).\n", address_buf, type_buf,
+                   rt_attempts);
+        else
+            printf("Sending to %s an ETR of type %s.\n", address_buf, type_buf);
     }
+
     // Ensuring we are sending to the transmission port, since the stored addresses in the hosts-list contain the right
     // address but with the Control Message port (35007)
     sockaddr.sin6_port = htons(PORT_ETR);
@@ -156,7 +174,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
         } while (errno == EAGAIN);
     }
 
-    debug_log(3, stdout, "Done.\n");
+    debug_log(4, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }
 
@@ -214,12 +232,18 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         }
     } while (errno == EAGAIN);
 
-    if (DEBUG_LEVEL >= 1) {
+    if (DEBUG_LEVEL == 1 || DEBUG_LEVEL == 2) {
+        char type_string[32];
+        cm_type_string(type_string, etr.cm.type);
+        printf("Received from %s an ETR of type %s\n", overseer->hl->hosts[etr.cm.host_id].name, type_string);
+    } else if (DEBUG_LEVEL >= 4) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf("Received from %s (aka. %s) an ETR\n", buf, overseer->hl->hosts[etr.cm.host_id].name);
-        if (DEBUG_LEVEL >= 3)
-            etr_print(&etr, stdout);
+        printf(":\nReceived from %s (aka. %s) the following ETR:\n", buf, overseer->hl->hosts[etr.cm.host_id].name);
+        etr_print(&etr, stdout, CSEC_FLAG_DEFAULT);
+    } else if (DEBUG_LEVEL == 3) {
+        printf("Received from %s the following ETR:\n", overseer->hl->hosts[etr.cm.host_id].name);
+        etr_print(&etr, stdout, FLAG_PRINT_SHORT);
     }
 
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache unless local
@@ -247,6 +271,8 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
     debug_log(4, stdout,
               "End of ETR reception callback -----------------------------------------------------------------------------\n\n");
+    if (DEBUG_LEVEL == 3)
+        printf("\n");
     return;
 }
 
@@ -259,6 +285,8 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         printf("ETR retransmission timed out, reattempting transmission to %s (attempt %d) ... ",
                rtc->overseer->hl->hosts[rtc->etr->cm.host_id].name,
                rtc->cur_attempts + 1);
+        if (DEBUG_LEVEL == 3)
+            printf("\n");
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     int success = 1;
@@ -297,6 +325,9 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
         debug_log(3, stdout, "Done.\n");
     debug_log(4, stdout,
               "End of ETR Retransmission callback -------------------------------------------------------------\n\n");
+
+    if (DEBUG_LEVEL == 3)
+        printf("\n");
     return;
 }
 
@@ -488,14 +519,14 @@ int etr_actions(overseer_s *overseer,
     if (etr->cm.P_term >= overseer->log->P_term &&
         etr->cm.status == HOST_STATUS_P &&
         local_status != HOST_STATUS_P) {
-        debug_log(3, stdout, "Message is from active P:\n");
+        debug_log(4, stdout, "Message is from active P:\n");
         p_liveness_set_timeout(overseer); // Reset P liveness timer
     }
     // If message has superior or equal HS-term and comes from HS and local is not already HS
-    if (etr->cm.HS_term >= overseer->log->HS_term &&
-        etr->cm.status == HOST_STATUS_HS &&
+    if (etr->cm.status == HOST_STATUS_HS &&
+        etr->cm.HS_term >= overseer->log->HS_term &&
         local_status != HOST_STATUS_HS) {
-        debug_log(3, stdout, "Message is from active HS:\n");
+        debug_log(4, stdout, "Message is from active HS:\n");
         election_set_timeout(overseer); // Reset HS election timer
     }
 
