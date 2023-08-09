@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(thesis_csec C)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wvla -Wno-unused-parameter")
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -gdwarf-4 -Wall -Wextra -Wvla -Wno-unused-parameter")
 set(CMAKE_C_STANDARD 17)
 
 add_library(libevent_core STATIC IMPORTED)
