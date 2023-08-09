@@ -35,11 +35,11 @@ uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type);
 
 // Removes and frees the element in the cache list with the given ID
 // Returns EXIT_SUCCESS, or EXIT_FAILURE if cache was empty or did not contain any entry with the given ID.
-// If the flag parameter is FLAG_SILENT, does not log an error for empty cache or if no entry with the
+// If the flags parameter is FLAG_SILENT, does not log an error for empty cache or if no entry with the
 // given ID is found. If the id was the same as the local fix_conversation value, sets it back to 0 and
 // the fix_type to FIX_TYPE_NONE.
 // TODO Improvement: store and check sender in cache to avoid disruption
-int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag);
+int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flags);
 
 // Frees the full cache and deletes associated events
 void rtc_free_all(overseer_s *overseer);

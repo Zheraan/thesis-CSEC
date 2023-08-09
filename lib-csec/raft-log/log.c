@@ -128,8 +128,10 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
         overseer->log->next_index++;
     }
 
-    // If local status is a master node, update the replication array
-    if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M)
+    // If local status is a master node and the entry isn't committed, update the replication array. If it was
+    // committed, the log_commit_upto will already have updated the array
+    if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M &&
+        state != ENTRY_STATE_COMMITTED)
         hl_replication_index_change(overseer,
                                     overseer->hl->localhost_id,
                                     overseer->log->next_index,

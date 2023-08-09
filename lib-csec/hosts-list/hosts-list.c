@@ -514,7 +514,7 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
     }
 
     if (change == false)
-        debug_log(3, stdout, "[No changes]\n");
+        debug_log(3, stdout, "[No changes] ");
     else printf("\n");
 
     // If the commit index changed, broadcast the commit order
@@ -529,6 +529,7 @@ int hl_replication_index_change(overseer_s *overseer, uint32_t host_id, uint64_t
     }
     target_host->next_index = next_index;
     target_host->commit_index = commit_index;
+    if (DEBUG_LEVEL == 3) printf("\n");
     debug_log(4, stdout, "Done.\n");
     return EXIT_SUCCESS;
 }

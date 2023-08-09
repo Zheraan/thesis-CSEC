@@ -173,9 +173,9 @@ uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type) {
     return nb_removed;
 }
 
-int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
+int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flags) {
     if (overseer->rtc == NULL) {
-        if ((flag & FLAG_SILENT) == FLAG_SILENT)
+        if ((flags & FLAG_SILENT) == FLAG_SILENT)
             return EXIT_SUCCESS;
         fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
         if (INSTANT_FFLUSH) fflush(stderr);
@@ -187,7 +187,7 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
         if (DEBUG_LEVEL >= 4) {
             char type_string[32];
             cm_type_string(type_string, ptr->type);
-            printf("[Entry is of type %d (%s)] ", ptr->id, type_string);
+            printf("[Entry is of type %s] ", type_string);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         overseer->rtc = ptr->next;
@@ -205,13 +205,13 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flag) {
         if (DEBUG_LEVEL >= 4) {
             char type_string[32];
             cm_type_string(type_string, tmp->type);
-            printf("[Entry is of type %d (%s)] ", tmp->id, type_string);
+            printf("[Entry is of type %s] ", type_string);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         rtc_free(tmp);
         return EXIT_SUCCESS;
     }
-    if ((flag & FLAG_SILENT) == FLAG_SILENT)
+    if ((flags & FLAG_SILENT) == FLAG_SILENT)
         return EXIT_SUCCESS;
     fprintf(stderr, "Attempting to remove cache element %d but it does not exist.\n", id);
     if (INSTANT_FFLUSH) fflush(stderr);
