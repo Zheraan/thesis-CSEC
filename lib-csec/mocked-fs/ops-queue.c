@@ -54,43 +54,36 @@ void ops_queue_element_free_first(mocked_fs_s *mfs) {
 int ops_queue_free_all(overseer_s *overseer, ops_queue_s *element) {
     if (element == NULL)
         return 0;
+    if (overseer->mfs->queue == NULL)
+        return 0;
 
     int nb_elem = 0;
 
+    if (overseer->mfs->queue == element) {
+        overseer->mfs->queue = element->next;
+        ops_queue_element_free(element);
+        return 1 + ops_queue_free_all(overseer, overseer->mfs->queue);
+    }
+
     ops_queue_s *ite = overseer->mfs->queue;
 
-    if (ite == NULL || ite == element) {
-        if (ite == element) // Clearing dangling pointer in case the given element was the first of the queue
-            overseer->mfs->queue = NULL;
-        ite = element->next;
-        ops_queue_element_free(element);
-        return 1 + ops_queue_free_all(overseer, ite);
-    }
-
-    // Getting to where the element is in the queue to clear the dangling pointer on the previous element if any, skip
-    // if it's the first one
-    while (true) {
-        if (ite == NULL) {
-            fprintf(stderr,
-                    "Error resetting queue: given element was not part of it\n");
-            return -1;
-        }
-
-        if (ite->next == element) {
-            ite->next = NULL; // Clearing dangling pointer in case the queue element was not the first
-            break;
-        }
+    while (ite->next != element || ite != NULL)
         ite = ite->next;
+
+    if (ite == NULL) {
+        debug_log(0, stderr, "Error resetting queue: given element was not part of it\n");
+        return -1;
     }
 
-    ops_queue_s *ptr = element;
-    ops_queue_s *next;
-    do {
-        next = element->next;
-        ops_queue_element_free(ptr);
-        ptr = next;
-        nb_elem++;
-    } while (ptr != NULL);
+    ops_queue_s *tmp = ite->next;
+    ite->next = NULL; // Clearing possible dangling pointer
+    ite = tmp;
 
+    while (ite != NULL) {
+        tmp = ite->next;
+        ops_queue_element_free(ite);
+        ite = tmp;
+        nb_elem++;
+    }
     return nb_elem;
 }

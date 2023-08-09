@@ -353,7 +353,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
             debug_log(4,
                       stdout,
                       "Failure. The entry may have been removed earlier due to timeout.\n");
-        // TODO Improvement: Log an error in case time was lower than timeout somehow or figure a way
+        // TODO Improvement: Figure a way to check if it was removed by timeout
     }
 
     // Take any actions that need be
