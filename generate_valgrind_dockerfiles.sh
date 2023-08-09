@@ -30,7 +30,7 @@ COPY ./cmake-build-debug/raft-master ./dockergen/hostfile$host_number.txt ./loca
 WORKDIR ./local/
 
 EXPOSE 35007 35008
-CMD ["valgrind", "./raft_master", "hostfile$host_number.txt"]
+CMD ["valgrind", "--track-origins=yes", "./raft_master", "hostfile$host_number.txt"]
 EOT
   # Generate a docker-compose service
   cat <<EOT >> ./dockergen/docker-compose.yaml
@@ -83,7 +83,7 @@ COPY ./cmake-build-debug/raft-server ./dockergen/hostfile$host_number.txt ./loca
 WORKDIR ./local/
 
 EXPOSE 35007 35008
-CMD ["valgrind", "./raft_server", "hostfile$host_number.txt"]
+CMD ["valgrind", "--track-origins=yes", "./raft_server", "hostfile$host_number.txt"]
 EOT
   # Generate a docker-compose service
   cat <<EOT >> ./dockergen/docker-compose.yaml
@@ -135,7 +135,7 @@ COPY ./cmake-build-debug/cluster-monitor ./dockergen/hostfile$host_number.txt ./
 WORKDIR ./local/
 
 EXPOSE 35007 35008
-CMD ["valgrind", "./cluster_monitor", "hostfile$host_number.txt"]
+CMD ["valgrind", "--track-origins=yes", "./cluster_monitor", "hostfile$host_number.txt"]
 EOT
   # Generate a docker-compose service
   cat <<EOT >> ./dockergen/docker-compose.yaml

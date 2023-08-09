@@ -17,7 +17,7 @@ program_state_transmission_s *pstr_new(overseer_s *overseer) {
     npstr->nb_ops = overseer->mfs->nb_ops;
     npstr->status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
-    for (int i = 0; npstr->next_index - i - 1 > 0; i++) {
+    for (int i = 0; npstr->next_index - i - 1 > 0 && i < PSTR_NB_ENTRIES; i++) {
         npstr->last_entries[i] = overseer->log->entries[npstr->next_index - i - 1];
     }
 
