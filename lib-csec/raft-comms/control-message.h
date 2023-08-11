@@ -145,4 +145,7 @@ int cm_forward(overseer_s *overseer,
                socklen_t socklen,
                const control_message_s *cm);
 
+// Updates the host-list based on CM's metadata.
+int cm_status_actions(overseer_s *overseer, control_message_s *cm);
+
 #endif //THESIS_CSEC_CONTROL_MESSAGE_H

@@ -558,10 +558,17 @@ int hb_actions_as_master(overseer_s *overseer,
                          struct sockaddr_in6 sender_addr,
                          socklen_t socklen,
                          control_message_s *cm) {
-    // Save local status
-    enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
+    // Save local and dist status
+    // It is necessary to use dist's status in the HL rather than the CM's otherwise outdated masters can mess up with
+    // the actions, since the status is updated before taking actions
+    enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status,
+            dist_status = overseer->hl->hosts[cm->host_id].status;
 
-    if (cm->P_term > overseer->log->P_term) { // If dist P-term is greater
+    // To keep track if something went wrong amongst the actions
+    int rv = EXIT_SUCCESS;
+
+    // If dist P-term is greater
+    if (cm->P_term > overseer->log->P_term) {
         // If P-term is only outdated because of a takeover but all other parameters indicate coherence
         if (cm->type == MSG_TYPE_P_TAKEOVER &&
             log_repair_ongoing(overseer) == false &&
@@ -570,7 +577,6 @@ int hb_actions_as_master(overseer_s *overseer,
             overseer->log->next_index == cm->next_index) {
             debug_log(3, stdout, "Acknowledging clean P takeover, incrementing P-term.\n");
             overseer->log->P_term++;
-            int rv = hl_update_status(overseer, cm->status, cm->host_id);
             // Just ack back, in order to avoid unnecessary logfixes
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
@@ -581,7 +587,7 @@ int hb_actions_as_master(overseer_s *overseer,
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
                 return EXIT_FAILURE;
             }
-            return rv;
+            return EXIT_SUCCESS;
         }
 
         if (DEBUG_LEVEL >= 3) {
@@ -590,7 +596,6 @@ int hb_actions_as_master(overseer_s *overseer,
                    overseer->log->P_term);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
-        int rv = hl_update_status(overseer, cm->status, cm->host_id);
 
         if (local_status != HOST_STATUS_CS) { // If local host is P or HS
             if (stepdown_to_cs(overseer) != EXIT_SUCCESS)
@@ -662,9 +667,6 @@ int hb_actions_as_master(overseer_s *overseer,
                    overseer->log->HS_term);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
-        if (cm->status == HOST_STATUS_HS) {
-            hl_update_status(overseer, HOST_STATUS_HS, cm->host_id); // Auto steps down if necessary
-        }
         election_state_reset(overseer); // Reset election state
         overseer->log->HS_term = cm->HS_term;
     }
@@ -699,9 +701,6 @@ int hb_actions_as_master(overseer_s *overseer,
         }
         return EXIT_SUCCESS;
     }
-
-    // Else if local and dist HS-terms are equal
-    hl_update_status(overseer, cm->status, cm->host_id);
 
     if (cm->next_index > overseer->log->next_index) { // If dist next_index is greater than local
         debug_log(4, stdout, "Dist next index is greater than local\n");
@@ -761,14 +760,16 @@ int hb_actions_as_master(overseer_s *overseer,
             return etr_reply_logfix(overseer, cm);
         }
 
-        if (log_repair_ongoing(overseer) == true) {
-            debug_log(4, stdout, "Overriding outdated Log Repair process.\n");
-            log_repair_override(overseer, cm);
-        }
+        if (dist_status == HOST_STATUS_P || local_status == HOST_STATUS_CS) {
+            if (log_repair_ongoing(overseer) == true) {
+                debug_log(4, stdout, "Overriding outdated Log Repair process.\n");
+                log_repair_override(overseer, cm);
+            }
 
-        log_invalidate_from(overseer->log, cm->next_index);
-        debug_log(4, stdout, "Starting Log Repair.\n");
-        return log_repair(overseer, cm);
+            log_invalidate_from(overseer->log, cm->next_index);
+            debug_log(4, stdout, "Starting Log Repair.\n");
+            return log_repair(overseer, cm);
+        }
     }
 
     // Else if local and dist next_indexes are equal
@@ -800,8 +801,7 @@ int hb_actions_as_master(overseer_s *overseer,
             }
         }
 
-        if (local_status == HOST_STATUS_P || (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_CS)) {
-            // Send commit order with latest committed entry
+        if (local_status == HOST_STATUS_P || (local_status == HOST_STATUS_HS && dist_status == HOST_STATUS_CS)) {
             debug_log(4, stdout, "Sending heartbeat for target node to update its commit index.\n");
             return cm_sendto_with_rt_init(overseer,
                                           sender_addr,
@@ -912,15 +912,9 @@ int hb_actions_as_server(overseer_s *overseer,
         if (rv != EXIT_SUCCESS)
             debug_log(0, stderr, "Failed to Indicate P in response to HB with p_outdated P-Term.\n");
 
-        // Outdated Master nodes return to CS status
-        hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
-
         return rv;
     }
 
-    hl_update_status(overseer, cm->status, cm->host_id);
-
-    // If dist P_term or Next index is greater
     int p_outdated = cm->P_term > overseer->log->P_term;
 
     // If dist P_term or Next index is greater
@@ -1226,7 +1220,7 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
             exit(EXIT_FAILURE);
     }
 
-    return hl_update_status(overseer, cm->status, cm->host_id);;
+    return EXIT_SUCCESS;
 }
 
 int cm_other_actions_as_p_hs(overseer_s *overseer,
@@ -1368,19 +1362,8 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
             if (INSTANT_FFLUSH) fflush(stderr);
             exit(EXIT_FAILURE);
     }
-
-    // If local and dist are P and dist has outdated P-term, set it to CS in local HL
-    if (local_status == HOST_STATUS_P && cm->status == HOST_STATUS_P && cm->P_term < overseer->log->P_term) {
-        return hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
-    }
-    // If local and dist are HS and dist has outdated HS-term, set it to CS in local HL
-    if (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_HS && cm->HS_term < overseer->log->HS_term) {
-        return hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
-    }
-    // Otherwise update normally
-    return hl_update_status(overseer, cm->status, cm->host_id);;
+    return EXIT_SUCCESS;
 }
-
 
 int cm_forward(overseer_s *overseer,
                struct sockaddr_in6 sockaddr,
@@ -1420,4 +1403,19 @@ int cm_forward(overseer_s *overseer,
 
     debug_log(3, stdout, "Done.\n");
     return EXIT_SUCCESS;
+}
+
+int cm_status_actions(overseer_s *overseer, control_message_s *cm) {
+    // If dist's P-term is greater, adjust to CM's status
+    if (cm->P_term > overseer->log->P_term)
+        return hl_update_status(overseer, cm->status, cm->host_id);
+
+    // If dist's P-term is smaller and dist is a master node, update dist's status to CS
+    // If disn't HS-term is smaller and is HS, update dist's status to CS
+    if ((cm->P_term < overseer->log->P_term && overseer->hl->hosts[cm->host_id].type == NODE_TYPE_M) ||
+        (cm->HS_term < overseer->log->HS_term && cm->status == HOST_STATUS_HS))
+        return hl_update_status(overseer, HOST_STATUS_CS, cm->host_id);
+
+    // Otherwise adjust normally
+    return hl_update_status(overseer, cm->status, cm->host_id);
 }
