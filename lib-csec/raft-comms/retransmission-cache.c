@@ -120,7 +120,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
                 nrtc->id = overseer->rtc_index;
                 overseer->rtc_index += 1;
                 overseer->rtc_number += 1;
-                if (overseer->rtc_index == 0xFFFFFFFF)
+                if (overseer->rtc_index >= 0xFFFFFFFF)
                     overseer->rtc_index = 1;
                 break;
             }
@@ -145,7 +145,11 @@ retransmission_cache_s *rtc_find_by_id(overseer_s *overseer, uint32_t id) {
     return target;
 }
 
+//FIXME Apparently there's some segfaulting here
 uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type) {
+    if (overseer->rtc == NULL)
+        return 0;
+
     uint32_t nb_removed = 0;
 
     retransmission_cache_s *ite = overseer->rtc, *tmp;

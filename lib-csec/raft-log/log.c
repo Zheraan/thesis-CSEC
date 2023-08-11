@@ -97,7 +97,7 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
                "- row:          %d\n"
                "- column:       %d\n"
                "- newval:       %c\n",
-               overseer->log->next_index,
+               etr->index,
                nentry->term,
                nentry->state,
                state_string,
@@ -105,9 +105,9 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
                nentry->op.column,
                nentry->op.newval);
     } else if (DEBUG_LEVEL >= 1) {
-        printf("New log entry%s[# %ld,  PTerm %d,  %s,  Row %d,  Col %d,  Val %c]\n",
-               DEBUG_LEVEL == 3 ? ":\n- " : "",
-               overseer->log->next_index,
+        printf("New log entry%s [# %ld,  PTerm %d,  %s,  Row %d,  Col %d,  Val %c]\n",
+               DEBUG_LEVEL == 3 ? ":\n-" : "",
+               etr->index,
                nentry->term,
                state_string,
                nentry->op.row,
@@ -322,13 +322,24 @@ int log_repair_override(overseer_s *overseer, control_message_s *cm) {
 }
 
 void log_invalidate_from(log_s *log, uint64_t index) {
+    if (index > log->next_index - 1)
+        return;
+    uint64_t invalidated = 0;
     for (uint64_t i = index;
-         log->entries[i].state != ENTRY_STATE_EMPTY || log->entries[i].state != ENTRY_STATE_COMMITTED;
+         log->entries[i].state != ENTRY_STATE_EMPTY;
          ++i) {
+        if (log->entries[i].state == ENTRY_STATE_COMMITTED) {
+            debug_log(0, stderr, "Fatal Error: trying to invalidate COMMITTED log entry.\n");
+            exit(EXIT_FAILURE);
+        }
         log->entries[i].state = ENTRY_STATE_INVALID;
+        invalidated++;
     }
     if (log->next_index > index)
         log->next_index = index;
+    if (DEBUG_LEVEL >= 2 & invalidated != 0) {
+        printf("Invalidated %ld local log entries from index %ld.\n", invalidated, index);
+    }
     return;
 }
 

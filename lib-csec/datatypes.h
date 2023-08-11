@@ -25,16 +25,18 @@
 #define false 0
 
 #ifndef INSTANT_FFLUSH
+// If this is non-zero, streams will be flushed after each piece of log outputted to stdout or stderr
 #define INSTANT_FFLUSH 1
 #endif
 
 #ifndef FUZZER_ENABLED
-#define FUZZER_ENABLED 0 // Boolean value determining if the fuzzer is used or not
+// Boolean value determining if the fuzzer is used or not
+#define FUZZER_ENABLED 1
 #endif
 
 #ifndef MESSAGE_DROPPING_ENABLED
 // Boolean value determining if messages should be dropped using the set drop rate MESSAGE_DROP_RATE
-#define MESSAGE_DROPPING_ENABLED 0
+#define MESSAGE_DROPPING_ENABLED 1
 #endif
 
 #ifndef MESSAGE_DROP_RATE

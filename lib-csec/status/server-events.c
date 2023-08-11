@@ -43,7 +43,7 @@ void server_random_ops_cb(evutil_socket_t fd, short event, void *arg) {
     overseer_s *overseer = (overseer_s *) arg;
 
     if (log_replay_ongoing(overseer) == true || log_repair_ongoing(overseer) == true) {
-        debug_log(2, stdout, "Log repair or replay ongoing, random op generation cancelled.");
+        debug_log(2, stdout, "Log repair or replay ongoing, random op generation cancelled.\n");
     } else {
 
         // Check if queue is empty

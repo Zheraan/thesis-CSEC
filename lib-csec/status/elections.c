@@ -11,11 +11,11 @@ void election_state_reset(overseer_s *overseer) {
     overseer->es->last_voted_bid = 0;
     overseer->es->bid_number = 0;
     // Remove all RTC entries pertaining to elections
-    uint32_t rtc_removed = rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTING_BID) +
-                           rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTE);
-    if (DEBUG_LEVEL >= 4) {
-        printf("[removed %d RTC entr%s pertaining to elections] ", rtc_removed, rtc_removed == 1 ? "y" : "ies");
-    }
+//    uint32_t rtc_removed = rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTING_BID) +
+//                           rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTE); // TODO REMOVE DEBUG COMMENTING
+//    if (DEBUG_LEVEL >= 4) {
+//        printf("[removed %d RTC entr%s pertaining to elections] ", rtc_removed, rtc_removed == 1 ? "y" : "ies");
+//    }
 
     if (overseer->es->election_round_event != NULL) {
         event_free(overseer->es->election_round_event);
@@ -39,6 +39,7 @@ int start_hs_candidacy_bid(overseer_s *overseer) {
     overseer->es->vote_count = 1;
     int count = 0;
 
+    debug_log(3, stdout, "Broadcasting voting bid :\n");
     host_s *target;
     // Broadcast bid to master nodes
     for (uint32_t i = 0; i < overseer->hl->nb_hosts; ++i) {
@@ -63,7 +64,7 @@ int start_hs_candidacy_bid(overseer_s *overseer) {
             count++;
     }
 
-    if (DEBUG_LEVEL >= 3) {
+    if (DEBUG_LEVEL >= 2) {
         printf("Done (%d CM sent).\n", count);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
@@ -87,7 +88,7 @@ void end_hs_candidacy_round(overseer_s *overseer) {
     debug_log(2, stdout, "Ending candidacy round.\n");
 
     overseer->es->candidacy = CANDIDACY_NONE; // Reset candidacy
-    rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTING_BID);
+//    rtc_remove_by_type(overseer, MSG_TYPE_HS_VOTING_BID); // TODO REMOVE DEBUG COMMENTING
 
     if (overseer->es->election_round_event != NULL) {
         event_free(overseer->es->election_round_event);

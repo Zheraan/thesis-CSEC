@@ -132,15 +132,18 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
 
     char address_buf[256];
     evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), address_buf, 256);
-    if (DEBUG_LEVEL >= 3) {
+    if (DEBUG_LEVEL >= 4) {
         if (rt_attempts > 0)
             printf("Sending to %s the following ETR with %d retransmission attempt(s):\n", address_buf, rt_attempts);
         else
             printf("Sending to %s the following ETR:\n", address_buf);
-        etr_print(etr, stdout, CSEC_FLAG_DEFAULT);
+        if (DEBUG_LEVEL == 3)
+            etr_print(etr, stdout, FLAG_PRINT_SHORT);
+        else
+            etr_print(etr, stdout, CSEC_FLAG_DEFAULT);
     } else if (DEBUG_LEVEL == 2) {
         char type_buf[32];
-        cm_type_string(address_buf, etr->cm.type);
+        cm_type_string(type_buf, etr->cm.type);
         if (rt_attempts > 0)
             printf("Sending to %s an ETR of type %s with %d retransmission attempt(s).\n", address_buf, type_buf,
                    rt_attempts);
@@ -239,7 +242,7 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
     } else if (DEBUG_LEVEL >= 4) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
-        printf(":\nReceived from %s (aka. %s) the following ETR:\n", buf, overseer->hl->hosts[etr.cm.host_id].name);
+        printf("Received from %s (aka. %s) the following ETR:\n", buf, overseer->hl->hosts[etr.cm.host_id].name);
         etr_print(&etr, stdout, CSEC_FLAG_DEFAULT);
     } else if (DEBUG_LEVEL == 3) {
         printf("Received from %s the following ETR:\n", overseer->hl->hosts[etr.cm.host_id].name);
@@ -287,6 +290,11 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
                rtc->cur_attempts + 1);
         if (DEBUG_LEVEL == 3)
             printf("\n");
+        if (INSTANT_FFLUSH) fflush(stdout);
+    } else if (DEBUG_LEVEL == 2) {
+        printf("ETR RT (%d of %d) : ",
+               rtc->cur_attempts + 1,
+               rtc->max_attempts);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
     int success = 1;
@@ -359,7 +367,8 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
                                 overseer->hl->hosts[cm->host_id].addr,
                                 overseer->hl->hosts[cm->host_id].socklen,
                                 netr,
-                                ETR_DEFAULT_RT_ATTEMPTS, CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
+                                ETR_DEFAULT_RT_ATTEMPTS,
+                                CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
         debug_log(0, stderr, "Failed to send and RT init a LOGFIX as reply.\n");
         return EXIT_FAILURE;
     }

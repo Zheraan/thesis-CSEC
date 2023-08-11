@@ -12,7 +12,7 @@
 
 #ifndef MONITORING_LEVEL
 // Verbosity of the cluster monitor's output
-#define MONITORING_LEVEL DEBUG_LEVEL
+#define MONITORING_LEVEL 3
 #endif
 
 #include "event2/event.h"

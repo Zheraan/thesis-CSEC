@@ -129,7 +129,7 @@ void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
               "Start of Fuzzer transmission callback ----------------------------------------------------------\n");
     fuzzer_cache_s *fc = arg;
 
-    if (DEBUG_LEVEL >= 2) {
+    if (DEBUG_LEVEL >= 3) {
         char buf[32];
         cm_type_string(buf, fc->type == PACKET_TYPE_CM ? fc->p.cm.type : fc->p.etr.cm.type);
         printf("Fuzzer timeout: transmitting entry %d, a %s of type %d (%s) ... ",
@@ -175,7 +175,7 @@ void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
     // Cleaning up the memory
     fuzzer_entry_free(fc->overseer, fc->id);
 
-    debug_log(2, stdout, "Done.\n");
+    debug_log(3, stdout, "Done.\n");
     debug_log(4, stdout,
               "End of Fuzzer transmission callback ------------------------------------------------------------\n\n");
     if (DEBUG_LEVEL == 3)

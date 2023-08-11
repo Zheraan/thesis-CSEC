@@ -381,6 +381,11 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
                rtc->cur_attempts + 1,
                rtc->max_attempts);
         if (INSTANT_FFLUSH) fflush(stdout);
+    } else if (DEBUG_LEVEL == 2) {
+        printf("CM RT (%d of %d) : ",
+               rtc->cur_attempts + 1,
+               rtc->max_attempts);
+        if (INSTANT_FFLUSH) fflush(stdout);
     }
     int success = 1;
 
@@ -914,7 +919,7 @@ int hb_actions_as_server(overseer_s *overseer,
             overseer->log->P_term == cm->P_term - 1 &&
             overseer->log->next_index == cm->next_index) {
             // Just ack back, in order to avoid unnecessary logfixes
-            debug_log(3, stdout, "Acknowledging clean P takeover, incrementing P-term.\n");
+            debug_log(2, stdout, "Acknowledging clean P takeover, incrementing P-term.\n");
             overseer->log->P_term++;
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
