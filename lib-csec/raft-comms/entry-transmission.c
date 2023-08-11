@@ -97,8 +97,12 @@ void etr_print(const entry_transmission_s *etr, FILE *stream, int flags) {
     return;
 }
 
-int etr_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, entry_transmission_s *etr) {
-    return etr_sendto_with_rt_init(overseer, sockaddr, socklen, etr, 0, CSEC_FLAG_DEFAULT);
+int etr_sendto(overseer_s *overseer,
+               struct sockaddr_in6 sockaddr,
+               socklen_t socklen,
+               entry_transmission_s *etr,
+               int flags) {
+    return etr_sendto_with_rt_init(overseer, sockaddr, socklen, etr, 0, flags);
 }
 
 int etr_sendto_with_rt_init(overseer_s *overseer,
@@ -106,7 +110,7 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
                             socklen_t socklen,
                             entry_transmission_s *etr,
                             uint8_t rt_attempts,
-                            int flag) {
+                            int flags) {
 
     // If there are no retransmissions attempts (and thus no need for an ack), the ack number is always 0. Otherwise,
     // we make sure that it's initialized with the cache entry's ID, or to not reset it if it has already been set as
@@ -155,7 +159,9 @@ int etr_sendto_with_rt_init(overseer_s *overseer,
     // address but with the Control Message port (35007)
     sockaddr.sin6_port = htons(PORT_ETR);
 
-    if (FUZZER_ENABLED && ((flag & FLAG_BYPASS_FUZZER) != FLAG_BYPASS_FUZZER)) {
+    if ((flags & FLAG_BYPASS_FUZZER) == FLAG_BYPASS_FUZZER)
+        debug_log(4, stdout, "Bypassing fuzzer.\n");
+    if (FUZZER_ENABLED && ((flags & FLAG_BYPASS_FUZZER) != FLAG_BYPASS_FUZZER)) {
         fuzzer_entry_init(overseer, PACKET_TYPE_ETR, (union packet) *etr, sockaddr, socklen);
     } else {
         sockaddr.sin6_port = htons(PORT_ETR);
@@ -307,7 +313,7 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     free(ncm);
 
     // Send proposition to P
-    if (etr_sendto(rtc->overseer, rtc->addr, rtc->socklen, rtc->etr)) {
+    if (etr_sendto(rtc->overseer, rtc->addr, rtc->socklen, rtc->etr, CSEC_FLAG_DEFAULT)) {
         fprintf(stderr, "Failed retransmitting ETR.\n");
         success = 0;
     }
@@ -357,7 +363,8 @@ int etr_reply_logfix(overseer_s *overseer, const control_message_s *cm) {
                                       MSG_TYPE_HB_DEFAULT,
                                       CM_DEFAULT_RT_ATTEMPTS,
                                       0,
-                                      cm->ack_reference);
+                                      cm->ack_reference,
+                                      CSEC_FLAG_DEFAULT);
     }
     entry_transmission_s *netr = etr_new_from_local_entry(overseer,
                                                           MSG_TYPE_ETR_LOGFIX,
@@ -571,7 +578,8 @@ int etr_actions_as_p(overseer_s *overseer,
                                    MSG_TYPE_HB_DEFAULT,
                                    CM_DEFAULT_RT_ATTEMPTS,
                                    0,
-                                   etr->cm.ack_reference) != EXIT_SUCCESS)
+                                   etr->cm.ack_reference,
+                                   CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
             debug_log(0, stderr, "Failed to reply with a DEFAULT HB after stepping down to CS.\n");
         return EXIT_SUCCESS;
     }
@@ -588,7 +596,8 @@ int etr_actions_as_p(overseer_s *overseer,
                                    MSG_TYPE_HB_DEFAULT,
                                    CM_DEFAULT_RT_ATTEMPTS,
                                    0,
-                                   etr->cm.ack_reference) != EXIT_SUCCESS)
+                                   etr->cm.ack_reference,
+                                   CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
             debug_log(0, stderr, "Failed to reply with a DEFAULT HB.\n");
         return EXIT_SUCCESS;
     }
@@ -611,7 +620,8 @@ int etr_actions_as_p(overseer_s *overseer,
                                        MSG_TYPE_HB_DEFAULT,
                                        CM_DEFAULT_RT_ATTEMPTS,
                                        0,
-                                       etr->cm.ack_reference) != EXIT_SUCCESS)
+                                       etr->cm.ack_reference,
+                                       CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
                 debug_log(0, stderr, "Failed to reply with a DEFAULT HB.\n");
             return EXIT_SUCCESS;
         }
@@ -676,7 +686,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                     sender_addr,
                                     socklen,
                                     MSG_TYPE_INDICATE_P,
-                                    etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                    etr->cm.ack_reference,
+                                    CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to reply with an INDICATE P.\n");
             return EXIT_FAILURE;
         }
@@ -685,7 +696,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
 
     // Else if P-terms are equal
 
-    // If local not S and dist HS-term is greater than local
+    // If local is not S and dist HS-term is greater than local
     if (local_status != HOST_STATUS_S && etr->cm.HS_term > overseer->log->HS_term) {
         if (DEBUG_LEVEL >= 4) {
             printf("Dist HS-term (%d) is greater than local (%d).\n", etr->cm.HS_term, overseer->log->HS_term);
@@ -712,7 +723,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_INDICATE_HS,
-                                        etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                        etr->cm.ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to reply with an INDICATE HS.\n");
                 return EXIT_FAILURE;
             }
@@ -721,11 +733,12 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
         if (cm_sendto(overseer,
                       sender_addr,
                       socklen,
-                      MSG_TYPE_INDICATE_HS) != EXIT_SUCCESS)
+                      MSG_TYPE_INDICATE_HS,
+                      CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
             debug_log(0, stderr, "Failed to reply with an INDICATE HS.\n");
     }
 
-    // Else local is S or HS-terms are equal
+    // At this point local HS-terms matters are settled
 
     // Variable to hold if log is up-to-date and the new entry can be added. If not, it will be cached.
     int utd_check = 1;
@@ -796,7 +809,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                               MSG_TYPE_ACK_ENTRY,
                                               CM_DEFAULT_RT_ATTEMPTS,
                                               0,
-                                              etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                              etr->cm.ack_reference,
+                                              CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to Ack back New Entry.\n");
                 return EXIT_FAILURE;
             }
@@ -813,7 +827,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                        MSG_TYPE_ACK_COMMIT,
                                        CM_DEFAULT_RT_ATTEMPTS,
                                        0,
-                                       etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                       etr->cm.ack_reference,
+                                       CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to Ack back Commit Order.\n");
                 return EXIT_FAILURE;
             }
@@ -839,7 +854,9 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                                                  MSG_TYPE_ACK_ENTRY,
                                                                  CM_DEFAULT_RT_ATTEMPTS,
                                                                  0,
-                                                                 etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                                                 etr->cm.ack_reference,
+                                                                 CSEC_FLAG_DEFAULT) !=
+                                          EXIT_SUCCESS) {
                         debug_log(0, stderr, "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
                     }
                     return EXIT_SUCCESS;
@@ -853,7 +870,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             }
 
             // If the program reaches this point, the local log is (now) fixed up until the last added entry
-            debug_log(3, stdout, "Log coherency verified, proceeding to replay.\n");
+            debug_log(3, stdout, "Log coherency OK.\n");
 
             // If local next index is higher than 1 (meaning there's at least one synced entry) and the latest entry in
             // the local log has higher term than local
@@ -892,7 +909,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                                    MSG_TYPE_ACK_ENTRY,
                                                    CM_DEFAULT_RT_ATTEMPTS,
                                                    0,
-                                                   etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                                   etr->cm.ack_reference,
+                                                   CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                             debug_log(0, stderr, "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
                         }
                     }
@@ -917,7 +935,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                            MSG_TYPE_ACK_ENTRY,
                                            CM_DEFAULT_RT_ATTEMPTS,
                                            0,
-                                           etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                           etr->cm.ack_reference,
+                                           CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                     debug_log(0, stderr, "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
                 }
                 // Generic Ack back to HS
@@ -925,7 +944,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                             sender_addr,
                                             socklen,
                                             MSG_TYPE_GENERIC_ACK,
-                                            etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                            etr->cm.ack_reference,
+                                            CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                     debug_log(0, stderr, "Failed to Generic Ack back to HS after receiving Logfix from HS.\n");
                 }
             } else if (cm_sendto_with_rt_init(overseer,
@@ -934,7 +954,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                               MSG_TYPE_ACK_ENTRY,
                                               CM_DEFAULT_RT_ATTEMPTS,
                                               0,
-                                              etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                              etr->cm.ack_reference,
+                                              CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to Ack back Entry after receiving Logfix.\n");
             }
             break;
@@ -948,7 +969,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_INDICATE_P,
-                                        etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                        etr->cm.ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to indicate P back after receiving ETR of invalid type.\n");
                 return EXIT_FAILURE;
             }
@@ -973,7 +995,8 @@ int etr_actions_as_cm(overseer_s *overseer,
                                 sender_addr,
                                 socklen,
                                 MSG_TYPE_GENERIC_ACK,
-                                etr->cm.ack_reference) != EXIT_SUCCESS) {
+                                etr->cm.ack_reference,
+                                FLAG_BYPASS_FUZZER) != EXIT_SUCCESS) {
         debug_log(0, stderr, "Failed to Ack back Entry.\n");
     }
 

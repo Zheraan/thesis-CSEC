@@ -36,18 +36,24 @@ void cm_type_string(char *buf, enum message_type type);
 
 // Sends a control message to the provided address with the provided message type, without retransmission
 // or acknowledgement.
+// The flags parameter at the moment is only used to eventually bypass the fuzzer if an ETR is destined at
+// a CM node. Values can be CSEC_FLAG_DEFAULT (zero) or FLAG_BYPASS_FUZZER
 // Returns EXIT_SUCCESS or EXIT_FAILURE depending on result
 int cm_sendto(overseer_s *overseer,
               struct sockaddr_in6 sockaddr,
               socklen_t socklen,
-              enum message_type type);
+              enum message_type type,
+              int flags);
 
 // Sale as above, but with an acknowledgement of a previous message.
+// The flags parameter at the moment is only used to eventually bypass the fuzzer if an ETR is destined at
+// a CM node. Values can be CSEC_FLAG_DEFAULT (zero) or FLAG_BYPASS_FUZZER
 int cm_sendto_with_ack_back(overseer_s *overseer,
                             struct sockaddr_in6 sockaddr,
                             socklen_t socklen,
                             enum message_type type,
-                            uint32_t ack_back);
+                            uint32_t ack_back,
+                            int flags);
 
 // Sends a CM, then initializes events and structure in the cache for retransmitting a CM if the number
 // of attempts is greater than 0. If the ack reference is non-zero, uses that reference number when sending
@@ -57,6 +63,8 @@ int cm_sendto_with_ack_back(overseer_s *overseer,
 // should be set to that message's ack_reference value, or 0 otherwise. The rt_attempts parameter is
 // ignored if the ack_reference parameter is non-zero, as the retransmission cache is handling the
 // retransmission attempts.
+// The flags parameter at the moment is only used to eventually bypass the fuzzer if an ETR is destined at
+// a CM node. Values can be CSEC_FLAG_DEFAULT (zero) or FLAG_BYPASS_FUZZER
 // Returns EXIT_SUCCESS or EXIT_FAILURE depending on result
 int cm_sendto_with_rt_init(overseer_s *overseer,
                            struct sockaddr_in6 sockaddr,
@@ -64,7 +72,8 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            enum message_type type,
                            uint8_t rt_attempts,
                            uint32_t ack_reference,
-                           uint32_t ack_back);
+                           uint32_t ack_back,
+                           int flags);
 
 // Initializes the control message reception event.
 // Returns EXIT_SUCCESS in case of success or causes a fatal error in case of failure.

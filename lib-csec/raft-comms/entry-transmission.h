@@ -43,26 +43,26 @@ entry_transmission_s *etr_new_from_local_entry(const overseer_s *overseer,
 void etr_print(const entry_transmission_s *etr, FILE *stream, int flags);
 
 // Sends a transmission to the specified address
+// The flags parameter at the moment is only used to eventually bypass the fuzzer if an ETR is destined at
+// a CM node. Values can be CSEC_FLAG_DEFAULT (zero) or FLAG_BYPASS_FUZZER
 // Returns either EXIT_SUCCESS or EXIT_FAILURE
-int etr_sendto(overseer_s *overseer,
-               struct sockaddr_in6 sockaddr,
-               socklen_t socklen,
-               entry_transmission_s *etr);
+int
+etr_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen, entry_transmission_s *etr, int flags);
 
 // Sends an entry transmission to the specified address, caches it for retransmission, and sets the callback
 // event for it. The message sent will have the same ack_reference as the retransmission cache id for that ETR.
 // The associated etr will be automatically freed along with its cache entry once it's been resent rt_attempts
 // times, and must not be freed manually until then unless the whole cache entry and its related events are
 // removed through rtc_remove_by_id.
-// The flag parameter at the moment is only used to eventually bypass the fuzzer if an ETR is destined at
-// a CM node.
+// The flags parameter at the moment is only used to eventually bypass the fuzzer if an ETR is destined at
+// a CM node. Values can be CSEC_FLAG_DEFAULT (zero) or FLAG_BYPASS_FUZZER
 // Returns either EXIT_SUCCESS or EXIT_FAILURE
 int etr_sendto_with_rt_init(overseer_s *overseer,
                             struct sockaddr_in6 sockaddr,
                             socklen_t socklen,
                             entry_transmission_s *etr,
                             uint8_t rt_attempts,
-                            int flag);
+                            int flags);
 
 // Initializes the entry transmission reception event.
 // Returns EXIT_FAILURE and prints the reason to stderr in case of failure, EXIT_SUCCESS otherwise
