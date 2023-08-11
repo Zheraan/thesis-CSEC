@@ -173,16 +173,18 @@ void cm_type_string(char *buf, enum message_type type) {
 int cm_sendto(overseer_s *overseer,
               struct sockaddr_in6 sockaddr,
               socklen_t socklen,
-              enum message_type type) {
-    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0, 0);
+              enum message_type type,
+              int flags) {
+    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0, 0, flags);
 }
 
 int cm_sendto_with_ack_back(overseer_s *overseer,
                             struct sockaddr_in6 sockaddr,
                             socklen_t socklen,
                             enum message_type type,
-                            uint32_t ack_back) {
-    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0, ack_back);
+                            uint32_t ack_back,
+                            int flags) {
+    return cm_sendto_with_rt_init(overseer, sockaddr, socklen, type, 0, 0, ack_back, flags);
 }
 
 int cm_sendto_with_rt_init(overseer_s *overseer,
@@ -191,7 +193,8 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            enum message_type type,
                            uint8_t rt_attempts,
                            uint32_t ack_reference,
-                           uint32_t ack_back) {
+                           uint32_t ack_back,
+                           int flags) {
 
     control_message_s *ncm = cm_new(overseer, type, ack_back);
     if (ncm == NULL) {
@@ -231,7 +234,9 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         }
     }
 
-    if (FUZZER_ENABLED) {
+    if ((flags & FLAG_BYPASS_FUZZER) == FLAG_BYPASS_FUZZER)
+        debug_log(4, stdout, "Bypassing fuzzer.\n");
+    if (FUZZER_ENABLED && ((flags & FLAG_BYPASS_FUZZER) != FLAG_BYPASS_FUZZER)) {
         fuzzer_entry_init(overseer, PACKET_TYPE_CM, (union packet) *ncm, sockaddr, socklen);
     } else {
         sockaddr.sin6_port = htons(PORT_CM);
@@ -396,7 +401,8 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
                                rtc->type,
                                0,
                                rtc->id,
-                               rtc->ack_back)) {
+                               rtc->ack_back,
+                               CSEC_FLAG_DEFAULT)) {
         fprintf(stderr, "Failed retransmitting the control message\n");
         success = 0;
     }
@@ -475,7 +481,8 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
                                    type,
                                    CM_DEFAULT_RT_ATTEMPTS,
                                    0,
-                                   0) != EXIT_SUCCESS) {
+                                   0,
+                                   CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send and RT init heartbeat\n");
         } else nb_cm++;
     }
@@ -561,7 +568,8 @@ int hb_actions_as_master(overseer_s *overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_GENERIC_ACK,
-                                        cm->ack_reference) != EXIT_SUCCESS) {
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
                 return EXIT_FAILURE;
             }
@@ -589,7 +597,8 @@ int hb_actions_as_master(overseer_s *overseer,
                                    MSG_TYPE_HB_DEFAULT,
                                    CM_DEFAULT_RT_ATTEMPTS,
                                    0,
-                                   cm->ack_reference) != EXIT_SUCCESS) {
+                                   cm->ack_reference,
+                                   CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to send and RT init an HB DEFAULT\n");
             rv = EXIT_FAILURE;
         } else debug_log(4, stdout, "Done.\n");
@@ -611,27 +620,27 @@ int hb_actions_as_master(overseer_s *overseer,
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         if (local_status == HOST_STATUS_P) {
-            // Heartbeat back without ack
-            debug_log(4, stdout, "Sending back a HB DEFAULT ... ");
+            // Generick Ack back without ack
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
                                         socklen,
-                                        MSG_TYPE_HB_DEFAULT,
-                                        cm->ack_reference) != EXIT_SUCCESS) {
-                debug_log(0, stderr, "Failed to send and RT init a HB DEFAULT\n");
+                                        MSG_TYPE_GENERIC_ACK,
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
+                debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
                 return EXIT_FAILURE;
-            } else debug_log(4, stdout, "Done.\n");
+            }
         } else { // Local status is HS or CS
             // Indicate P back without ack
-            debug_log(4, stdout, "Sending back an INDICATE P ... ");
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_INDICATE_P,
-                                        cm->ack_reference) != EXIT_SUCCESS) {
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to send an INDICATE P\n");
                 return EXIT_FAILURE;
-            } else debug_log(4, stdout, "Done.\n");
+            }
         }
 
         return EXIT_SUCCESS;
@@ -665,19 +674,19 @@ int hb_actions_as_master(overseer_s *overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_INDICATE_HS,
-                                        cm->ack_reference) != EXIT_SUCCESS) {
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to reply with INDICATE HS");
                 return EXIT_FAILURE;
             }
         } else {
-            if (cm_sendto_with_rt_init(overseer,
-                                       sender_addr,
-                                       socklen,
-                                       MSG_TYPE_HB_DEFAULT,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0,
-                                       cm->ack_reference) != EXIT_SUCCESS) {
-                debug_log(0, stderr, "Failed to reply and RT init with HB DEFAULT");
+            if (cm_sendto_with_ack_back(overseer,
+                                        sender_addr,
+                                        socklen,
+                                        MSG_TYPE_GENERIC_ACK,
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
+                debug_log(0, stderr, "Failed to reply with GENERIC ACK");
                 return EXIT_FAILURE;
             }
         }
@@ -715,7 +724,8 @@ int hb_actions_as_master(overseer_s *overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_GENERIC_ACK,
-                                        cm->ack_reference) != EXIT_SUCCESS)
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             else debug_log(4, stdout, "Done.\n");
             // TODO Check later if this function doesn't need to not return there, and same for the server version
@@ -776,7 +786,8 @@ int hb_actions_as_master(overseer_s *overseer,
                                        MSG_TYPE_HB_DEFAULT,
                                        CM_DEFAULT_RT_ATTEMPTS,
                                        0,
-                                       cm->ack_reference) != EXIT_SUCCESS) {
+                                       cm->ack_reference,
+                                       CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
                 return EXIT_FAILURE;
             }
@@ -791,7 +802,8 @@ int hb_actions_as_master(overseer_s *overseer,
                                           MSG_TYPE_HB_DEFAULT,
                                           CM_DEFAULT_RT_ATTEMPTS,
                                           0,
-                                          cm->ack_reference);
+                                          cm->ack_reference,
+                                          CSEC_FLAG_DEFAULT);
         }
 
         // Else if local is HS and dist is P
@@ -811,7 +823,8 @@ int hb_actions_as_master(overseer_s *overseer,
                                     sender_addr,
                                     socklen,
                                     MSG_TYPE_GENERIC_ACK,
-                                    cm->ack_reference) != EXIT_SUCCESS) {
+                                    cm->ack_reference,
+                                    CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             return EXIT_FAILURE;
         }
@@ -842,7 +855,8 @@ int hb_actions_as_master(overseer_s *overseer,
                                        MSG_TYPE_HB_DEFAULT,
                                        CM_DEFAULT_RT_ATTEMPTS,
                                        0,
-                                       cm->ack_reference) != EXIT_SUCCESS) {
+                                       cm->ack_reference,
+                                       CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
                 return EXIT_FAILURE;
             }
@@ -857,26 +871,14 @@ int hb_actions_as_master(overseer_s *overseer,
 
     // Else if commit indexes are equal
 
-    // If dist is CS or if dist is HS and local is P, reply with Generic Ack
-    if (cm->status == HOST_STATUS_CS || (cm->status == HOST_STATUS_HS && local_status == HOST_STATUS_P)) {
-        debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
-        if (cm_sendto_with_ack_back(overseer,
-                                    sender_addr,
-                                    socklen,
-                                    MSG_TYPE_GENERIC_ACK,
-                                    cm->ack_reference) != EXIT_SUCCESS)
-            debug_log(0, stderr, "Failed to send a GENERIC ACK.\n");
-    } else {
-        debug_log(4, stdout, "Everything is in order, replying back with HB DEFAULT.\n");
-        if (cm_sendto_with_rt_init(overseer,
-                                   sender_addr,
-                                   socklen,
-                                   MSG_TYPE_HB_DEFAULT,
-                                   CM_DEFAULT_RT_ATTEMPTS,
-                                   0,
-                                   cm->ack_reference) != EXIT_SUCCESS)
-            debug_log(0, stderr, "Failed to send and RT init an HB DEFAULT.\n");
-    }
+    debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
+    if (cm_sendto_with_ack_back(overseer,
+                                sender_addr,
+                                socklen,
+                                MSG_TYPE_GENERIC_ACK,
+                                cm->ack_reference,
+                                CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
+        debug_log(0, stderr, "Failed to reply with GENERIC ACK.\n");
 
     return EXIT_SUCCESS;
 }
@@ -897,7 +899,8 @@ int hb_actions_as_server(overseer_s *overseer,
                                          sender_addr,
                                          socklen,
                                          MSG_TYPE_INDICATE_P,
-                                         cm->ack_reference);
+                                         cm->ack_reference,
+                                         CSEC_FLAG_DEFAULT);
         if (rv != EXIT_SUCCESS)
             debug_log(0, stderr, "Failed to Indicate P in response to HB with p_outdated P-Term.\n");
 
@@ -911,8 +914,13 @@ int hb_actions_as_server(overseer_s *overseer,
 
     // If dist P_term or Next index is greater
     int p_outdated = cm->P_term > overseer->log->P_term;
+
+    // If dist P_term or Next index is greater
     if (p_outdated || cm->next_index > overseer->log->next_index) {
         // If P-term is only outdated because of a takeover but all other parameters indicate coherence
+        // TODO Turn P_TAKEOVER into an ETR with the latest entry in order to keep coherency even in the highly
+        //  improbable scenario of a takeover message arriving after the new P synchronizes a new entry while the local
+        //  node has another pending entry with the same ID (that the master was missing)
         if (cm->type == MSG_TYPE_P_TAKEOVER &&
             log_repair_ongoing(overseer) == false &&
             log_replay_ongoing(overseer) == false &&
@@ -925,7 +933,8 @@ int hb_actions_as_server(overseer_s *overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_GENERIC_ACK,
-                                        cm->ack_reference) != EXIT_SUCCESS) {
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
                 return EXIT_FAILURE;
             }
@@ -958,7 +967,8 @@ int hb_actions_as_server(overseer_s *overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_GENERIC_ACK,
-                                        cm->ack_reference) != EXIT_SUCCESS)
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
                 debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             return EXIT_SUCCESS;
         }
@@ -991,7 +1001,8 @@ int hb_actions_as_server(overseer_s *overseer,
                                     sender_addr,
                                     socklen,
                                     MSG_TYPE_GENERIC_ACK,
-                                    cm->ack_reference) != EXIT_SUCCESS) {
+                                    cm->ack_reference,
+                                    CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             return EXIT_FAILURE;
         }
@@ -1022,7 +1033,8 @@ int hb_actions_as_server(overseer_s *overseer,
                                     sender_addr,
                                     socklen,
                                     MSG_TYPE_GENERIC_ACK,
-                                    cm->ack_reference) != EXIT_SUCCESS) {
+                                    cm->ack_reference,
+                                    CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             return EXIT_FAILURE;
         }
@@ -1062,7 +1074,8 @@ int cm_election_actions(overseer_s *overseer,
                                         sender_addr,
                                         socklen,
                                         MSG_TYPE_GENERIC_ACK,
-                                        cm->ack_reference) != EXIT_SUCCESS)
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
                 debug_log(0, stderr, "Failed to ack back HS Vote.\n");
 
             // If majority is reached, step up as the new HS
@@ -1089,6 +1102,7 @@ int cm_election_actions(overseer_s *overseer,
             overseer->log->HS_term = cm->HS_term; // Set the HS-term if dist was higher
             overseer->es->bid_number = cm->commit_index; // Set the local bid if dist was higher
             overseer->es->last_voted_bid = cm->commit_index; // Keep track of vote
+            debug_log(3, stdout, "Bid has higher bid number than local.\n");
             end_hs_candidacy_round(overseer); // Stop local candidacy
 
             // Reply with HS vote
@@ -1098,7 +1112,8 @@ int cm_election_actions(overseer_s *overseer,
                                           MSG_TYPE_HS_VOTE,
                                           CM_DEFAULT_RT_ATTEMPTS,
                                           0,
-                                          cm->ack_back);
+                                          cm->ack_back,
+                                          CSEC_FLAG_DEFAULT);
 
         default:
             fprintf(stderr, "Fatal error: Invalid election CM type %d.\n", cm->type);
@@ -1111,7 +1126,8 @@ int cm_election_actions(overseer_s *overseer,
                                      sender_addr,
                                      socklen,
                                      MSG_TYPE_GENERIC_ACK,
-                                     cm->ack_reference);
+                                     cm->ack_reference,
+                                     CSEC_FLAG_DEFAULT);
     if (rv != EXIT_SUCCESS)
         fprintf(stderr,
                 "Failed to ack back election CM of type %d.\n", cm->type);
@@ -1140,7 +1156,8 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
                 if (cm_sendto(overseer,
                               sender_addr,
                               socklen,
-                              MSG_TYPE_INDICATE_P) != EXIT_SUCCESS) {
+                              MSG_TYPE_INDICATE_P,
+                              CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                     debug_log(0,
                               stderr,
                               "Failed to send CM of type Indicate P.\n");
@@ -1176,7 +1193,8 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
                 if (cm_sendto(overseer,
                               sender_addr,
                               socklen,
-                              MSG_TYPE_INDICATE_HS) != EXIT_SUCCESS) {
+                              MSG_TYPE_INDICATE_HS,
+                              CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                     debug_log(0,
                               stderr,
                               "Failed to send CM of type Indicate HS.\n");
@@ -1242,7 +1260,8 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                                         overseer->hl->hosts[cm->host_id].addr,
                                         overseer->hl->hosts[cm->host_id].socklen,
                                         MSG_TYPE_GENERIC_ACK,
-                                        cm->ack_reference) != EXIT_SUCCESS) {
+                                        cm->ack_reference,
+                                        CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
                 if (cm->type == MSG_TYPE_ACK_ENTRY)
                     debug_log(4, stderr, "Failure acknowledging CM of type ACK ENTRY.\n");
                 else debug_log(4, stderr, "Failure acknowledging CM of type ACK COMMIT.\n");
@@ -1264,7 +1283,8 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                                                MSG_TYPE_HB_DEFAULT,
                                                CM_DEFAULT_RT_ATTEMPTS,
                                                0,
-                                               cm->ack_reference) != EXIT_SUCCESS)
+                                               cm->ack_reference,
+                                               CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
                         debug_log(0,
                                   stderr,
                                   "Failed to send CM of type HB DEFAULT.\n");
@@ -1273,7 +1293,8 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                                                 sender_addr,
                                                 socklen,
                                                 MSG_TYPE_INDICATE_P,
-                                                cm->ack_reference) != EXIT_SUCCESS)
+                                                cm->ack_reference,
+                                                CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
                         debug_log(0,
                                   stderr,
                                   "Failed to send CM of type INDICATE P.\n");
@@ -1309,7 +1330,8 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                                                MSG_TYPE_HB_DEFAULT,
                                                CM_DEFAULT_RT_ATTEMPTS,
                                                0,
-                                               cm->ack_reference) != EXIT_SUCCESS)
+                                               cm->ack_reference,
+                                               CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
                         debug_log(0,
                                   stderr,
                                   "Failed to send CM of type HB DEFAULT.\n");
@@ -1318,7 +1340,8 @@ int cm_other_actions_as_p_hs(overseer_s *overseer,
                                                 sender_addr,
                                                 socklen,
                                                 MSG_TYPE_INDICATE_HS,
-                                                cm->ack_reference) != EXIT_SUCCESS)
+                                                cm->ack_reference,
+                                                CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
                         debug_log(0,
                                   stderr,
                                   "Failed to send CM of type INDICATE HS.\n");

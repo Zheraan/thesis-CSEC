@@ -60,7 +60,8 @@ int start_hs_candidacy_bid(overseer_s *overseer) {
                                    MSG_TYPE_HS_VOTING_BID,
                                    CM_DEFAULT_RT_ATTEMPTS,
                                    0,
-                                   0) == EXIT_SUCCESS)
+                                   0,
+                                   CSEC_FLAG_DEFAULT) == EXIT_SUCCESS)
             count++;
     }
 
