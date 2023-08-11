@@ -34,7 +34,7 @@
 #ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET
 // Offset for all timeouts to slow down the program without having to fine tune it, for debug purposes.
 // Unit in microseconds
-#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 1000000
+#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 500000
 #endif
 
 #ifndef TIMEOUT_RANGE_ELECTION
@@ -103,7 +103,7 @@
 #ifndef FUZZER_LATENCY_DISTRIBUTION_PROPORTION
 // Enables the use of a more realistic distribution of latencies for the fuzzer. Must be strictly
 // comprised between 0 and 100. Is the percentage of packets with latency below 2*a.
-#define FUZZER_LATENCY_DISTRIBUTION_PROPORTION 90
+#define FUZZER_LATENCY_DISTRIBUTION_PROPORTION 85
 #endif
 
 #ifndef FUZZER_LATENCY_DISTRIBUTION_MAXIMUM
@@ -199,11 +199,10 @@ enum timeout_type {
 };
 
 typedef struct control_message_s {
-    // Message sender's id in the hosts list
+    // Message sender's id in the hosts list, or P/HS's ID in case of INDICATE P/HS
     uint32_t host_id;
     // Status of the sender
     enum host_status status;
-    // TODO Improvement Implement target status to avoid complex issues
     // Enum for determining the type of control message
     enum message_type type;
     // Message number to determine what number an ack back for this message should have, in which case it
