@@ -4,9 +4,14 @@
 
 #include "retransmission-cache.h"
 
-void rtc_free(retransmission_cache_s *rtc) {
+void rtc_free(overseer_s *overseer, retransmission_cache_s *rtc) {
     if (rtc == NULL)
         return;
+
+    if (rtc->id == overseer->log->fix_conversation) {
+        overseer->log->fix_conversation = 0;
+        overseer->log->fix_type = FIX_TYPE_NONE;
+    }
     if (rtc->ev != NULL) {
         event_free(rtc->ev);
     } else {
@@ -27,7 +32,7 @@ void rtc_free_all(overseer_s *overseer) {
         retransmission_cache_s *next;
         for (retransmission_cache_s *cur = overseer->rtc; cur != NULL; cur = next) {
             next = cur->next;
-            rtc_free(cur);
+            rtc_free(overseer, cur);
         }
         overseer->rtc = NULL; // Avoid dangling pointer
     }
@@ -79,7 +84,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
     if (nevent == NULL) {
         fprintf(stderr, "Failed to create a retransmission event\n");
         fflush(stderr);
-        rtc_free(nrtc);
+        rtc_free(overseer, nrtc);
         return 0;
     }
 
@@ -96,7 +101,7 @@ uint32_t rtc_add_new(overseer_s *overseer,
     if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &retransmission_timeout) != 0) {
         fprintf(stderr, "Failed to add a retransmission event\n");
         fflush(stderr);
-        rtc_free(nrtc);
+        rtc_free(overseer, nrtc);
         return 0;
     }
 
@@ -156,7 +161,7 @@ uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type) {
     // Clearing all entries of said type that are at the beginning of the linked list
     while (ite != NULL && ite->type == type) {
         tmp = ite->next;
-        rtc_free(ite);
+        rtc_free(overseer, ite);
         ite = tmp;
         nb_removed++;
     }
@@ -166,7 +171,7 @@ uint32_t rtc_remove_by_type(overseer_s *overseer, enum message_type type) {
             // Remove any entry with said type without breaking the chain
             if (ite->next->type == type) {
                 tmp = ite->next->next;
-                rtc_free(ite->next);
+                rtc_free(overseer, ite->next);
                 ite->next = tmp;
                 nb_removed++;
             }
@@ -195,24 +200,20 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flags) {
             if (INSTANT_FFLUSH) fflush(stdout);
         }
         overseer->rtc = ptr->next;
-        rtc_free(ptr);
+        rtc_free(overseer, ptr);
         return EXIT_SUCCESS;
     }
     for (; ptr->next != NULL && ptr->next->id != id; ptr = ptr->next);
     if (ptr->next != NULL && ptr->next->id == id) {
         retransmission_cache_s *tmp = ptr->next;
         ptr->next = tmp->next;
-        if (tmp->id == overseer->log->fix_conversation) {
-            overseer->log->fix_conversation = 0;
-            overseer->log->fix_type = FIX_TYPE_NONE;
-        }
         if (DEBUG_LEVEL >= 4) {
             char type_string[32];
             cm_type_string(type_string, tmp->type);
             printf("[Entry is of type %s] ", type_string);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
-        rtc_free(tmp);
+        rtc_free(overseer, tmp);
         return EXIT_SUCCESS;
     }
     if ((flags & FLAG_SILENT) == FLAG_SILENT)

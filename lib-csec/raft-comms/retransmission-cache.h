@@ -44,7 +44,8 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flags);
 // Frees the full cache and deletes associated events
 void rtc_free_all(overseer_s *overseer);
 
-// Frees a single cache element and
-void rtc_free(retransmission_cache_s *rtc);
+// Frees a single cache element and its related event. If its id is equal to the one in the fix_conversation
+// member of the overseer, also resets the ongoing fix type to FIX_TYPE_NONE
+void rtc_free(overseer_s *overseer, retransmission_cache_s *rtc);
 
 #endif //THESIS_CSEC_RETRANSMISSION_CACHE_H
