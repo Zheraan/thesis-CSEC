@@ -255,8 +255,13 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         etr_print(&etr, stdout, FLAG_PRINT_SHORT);
     }
 
+    // Take actions that need be
+    if (etr_actions(overseer, sender_addr, socklen, &etr) != EXIT_SUCCESS)
+        debug_log(1, stderr, "ETR action failure.\n");
+
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache unless local
     // host is a CM, which don't use RTC
+    // RTC is removed after actions to not mess up logfix conversation info before checks are done
     if (etr.cm.ack_back != 0 && overseer->hl->hosts[overseer->hl->localhost_id].status != HOST_STATUS_CM) {
         if (DEBUG_LEVEL >= 4) {
             printf("Ack back value is non-zero (%d), removing corresponding RT cache entry ... ",
@@ -271,9 +276,6 @@ void etr_receive_cb(evutil_socket_t fd, short event, void *arg) {
                       "Failure. The entry may have been removed earlier due to timeout.\n");
         // TODO Improvement: Log an error in case time was lower than timeout somehow or figure a way
     }
-
-    if (etr_actions(overseer, sender_addr, socklen, &etr) != EXIT_SUCCESS)
-        debug_log(1, stderr, "ETR action failure.\n");
 
     // Init next event so it can keep receiving messages
     etr_reception_init(overseer);

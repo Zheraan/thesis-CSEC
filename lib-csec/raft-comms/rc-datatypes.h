@@ -137,18 +137,18 @@ enum message_type {
     //  - need a way to detect that the network is partitioned even if the partition contains several nodes
     //  - partitions contain up to half the nodes (but not a strict majority)
     MSG_TYPE_NETWORK_PROBE = 4,
+    // Ack without issues, sent back for takeover messages, heartbeats and back from commit or entry acks
+    MSG_TYPE_GENERIC_ACK = 5,
 
     // CONTROL
     // Repairing the log, asking master for entry in next index
     MSG_TYPE_LOG_REPAIR = 10,
     // Replaying the log, asking master for entry in next index
     MSG_TYPE_LOG_REPLAY = 11,
-    // Ack without issues, sent back for takeover messages, heartbeats and back from commit or entry acks
-    MSG_TYPE_GENERIC_ACK = 20,
     // Ack message for an ETR New
-    MSG_TYPE_ACK_ENTRY = 21,
+    MSG_TYPE_ACK_ENTRY = 20,
     // Ack message for an ETR Commit
-    MSG_TYPE_ACK_COMMIT = 22,
+    MSG_TYPE_ACK_COMMIT = 21,
     // Message for indicating who is P in case host that is not P received a message sent to P or if the
     // sender of a message had an outdated P-term
     MSG_TYPE_INDICATE_P = 30,

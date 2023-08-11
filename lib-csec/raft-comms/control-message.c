@@ -57,13 +57,14 @@ void cm_print(const control_message_s *cm, FILE *stream, int flags) {
     char type_string[32];
     cm_type_string(type_string, cm->type);
     if ((flags & FLAG_PRINT_SHORT) == FLAG_PRINT_SHORT)
-        fprintf(stream, "[HID %d,  %s,  %s,  AckR %d,  AckB %d,  NIx %ld,  CIx %ld,  PTerm %d,  HSTerm %d]\n",
+        fprintf(stream, "[HID %d,  %s,  %s,  AckR %d,  AckB %d,  NIx %ld,  %s %ld,  PTerm %d,  HSTerm %d]\n",
                 cm->host_id,
                 status_string,
                 type_string,
                 cm->ack_reference,
                 cm->ack_back,
                 cm->next_index,
+                cm->type == MSG_TYPE_HS_VOTE || cm->type == MSG_TYPE_HS_VOTING_BID ? "BNb" : "CIx",
                 cm->commit_index,
                 cm->P_term,
                 cm->HS_term);
@@ -75,7 +76,7 @@ void cm_print(const control_message_s *cm, FILE *stream, int flags) {
                 "   > ack_reference: %d\n"
                 "   > ack_back:      %d\n"
                 "   > next_index:    %ld\n"
-                "   > commit_index:  %ld\n"
+                "   > %s  %ld\n"
                 "   > P_term:        %d\n"
                 "   > HS_term:       %d\n",
                 cm->host_id,
@@ -86,6 +87,7 @@ void cm_print(const control_message_s *cm, FILE *stream, int flags) {
                 cm->ack_reference,
                 cm->ack_back,
                 cm->next_index,
+                cm->type == MSG_TYPE_HS_VOTE || cm->type == MSG_TYPE_HS_VOTING_BID ? "bid_number:  " : "commit_index:",
                 cm->commit_index,
                 cm->P_term,
                 cm->HS_term);
@@ -346,6 +348,10 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
         cm_print(&cm, stdout, FLAG_PRINT_SHORT);
     }
 
+    // Take any actions that need be
+    if (cm_actions(overseer, sender_addr, socklen, &cm) != EXIT_SUCCESS)
+        debug_log(1, stderr, "CM action failure.\n");
+
     // If the incoming message is acknowledging a previously sent message, remove its retransmission cache
     if (cm.ack_back != 0) {
         if (DEBUG_LEVEL >= 4) {
@@ -360,10 +366,6 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
                       "Failure. The entry may have been removed earlier due to timeout.\n");
         // TODO Improvement: Figure a way to check if it was removed by timeout
     }
-
-    // Take any actions that need be
-    if (cm_actions(overseer, sender_addr, socklen, &cm) != EXIT_SUCCESS)
-        debug_log(1, stderr, "CM action failure.\n");
 
     // Init next event
     cm_reception_init(overseer); // Fatal error in case of failure anyway, so no need for a check
@@ -498,6 +500,7 @@ int cm_actions(overseer_s *overseer,
                struct sockaddr_in6 sender_addr,
                socklen_t socklen,
                control_message_s *cm) {
+    cm_status_actions(overseer, cm);
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
     // If local is P or HS and P-terms are equal and message is not Indicate P, Indicate HS, HS Vote or HS Voting Bid
@@ -512,12 +515,16 @@ int cm_actions(overseer_s *overseer,
     }
 
     // If message has superior or equal P-term and comes from P and local is not already P
-    if (cm->P_term >= overseer->log->P_term && cm->status == HOST_STATUS_P && local_status != HOST_STATUS_P) {
+    if (cm->P_term >= overseer->log->P_term &&
+        overseer->hl->hosts[cm->host_id].status == HOST_STATUS_P &&
+        local_status != HOST_STATUS_P) {
         debug_log(4, stdout, "Message is from P, resetting Liveness timeout.\n");
         p_liveness_set_timeout(overseer); // Reset P liveness timer
     }
     // If message has superior or equal HS-term and comes from HS and local is CS
-    if (cm->status == HOST_STATUS_HS && cm->HS_term >= overseer->log->HS_term && local_status == HOST_STATUS_CS) {
+    if (overseer->hl->hosts[cm->host_id].status == HOST_STATUS_HS &&
+        cm->HS_term >= overseer->log->HS_term &&
+        local_status == HOST_STATUS_CS) {
         debug_log(4, stdout, "Message is from HS, resetting election timeout.\n");
         election_set_timeout(overseer); // Reset HS election timer
     }
@@ -526,7 +533,8 @@ int cm_actions(overseer_s *overseer,
     if (cm->type == MSG_TYPE_HB_DEFAULT ||
         cm->type == MSG_TYPE_NETWORK_PROBE ||
         cm->type == MSG_TYPE_HS_TAKEOVER ||
-        cm->type == MSG_TYPE_P_TAKEOVER) {
+        cm->type == MSG_TYPE_P_TAKEOVER ||
+        cm->type == MSG_TYPE_GENERIC_ACK) {
         // If local host is a master node
         if (local_status != HOST_STATUS_S)
             return hb_actions_as_master(overseer, sender_addr, socklen, cm);
@@ -590,7 +598,6 @@ int hb_actions_as_master(overseer_s *overseer,
         }
 
         // Acknowledge CM by HB back
-        debug_log(4, stdout, "Answering with HB DEFAULT ... ");
         if (cm_sendto_with_rt_init(overseer,
                                    sender_addr,
                                    socklen,
@@ -601,7 +608,7 @@ int hb_actions_as_master(overseer_s *overseer,
                                    CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to send and RT init an HB DEFAULT\n");
             rv = EXIT_FAILURE;
-        } else debug_log(4, stdout, "Done.\n");
+        }
 
         debug_log(4, stdout, "Starting Log Repair ... ");
         if (log_repair(overseer, cm) != EXIT_SUCCESS) {
@@ -837,6 +844,7 @@ int hb_actions_as_master(overseer_s *overseer,
                    overseer->log->commit_index);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
+
         if (local_status == HOST_STATUS_P) {
             if (cm->commit_index + 1 > overseer->log->next_index) {
                 debug_log(0,
@@ -1143,8 +1151,6 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
     switch (cm->type) {
-        case MSG_TYPE_GENERIC_ACK:
-                    __attribute__ ((fallthrough));
         case MSG_TYPE_INDICATE_P:
             if (cm->P_term < overseer->log->P_term) { // If local P-term is greater
                 if (DEBUG_LEVEL >= 3) {
