@@ -57,24 +57,8 @@ void log_entry_state_string(char *buf, enum entry_state state) {
 
 int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum entry_state state) {
     if (overseer->log->next_index == LOG_LENGTH) {
-        debug_log(0, stderr, "Log full\n");
-        return EXIT_FAILURE;
-    }
-
-    // If local host is not a cluster monitor and there are some cluster monitors in the list
-    if (overseer->hl->nb_monitors > 0 && overseer->hl->hosts[overseer->hl->localhost_id].type != NODE_TYPE_CM) {
-        // Increment coherency check counter
-        overseer->log->log_coherency_counter++;
-
-        // If Threshold is reached
-        if (overseer->log->log_coherency_counter >= COHERENCY_CHECK_THRESHOLD) {
-            // Transmit current state
-            if (pstr_transmit(overseer) != EXIT_SUCCESS) {
-                debug_log(0, stderr, "Failed to transmit at least one PSTR.\n");
-            }
-            // Then reset counter
-            overseer->log->log_coherency_counter = 0;
-        }
+        debug_log(0, stderr, "Fatal error: Log full.\n");
+        exit(EXIT_FAILURE);
     }
 
     // Set entry in the log
@@ -137,6 +121,22 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
                                     overseer->log->next_index,
                                     overseer->log->commit_index);
 
+    // If local host is not a cluster monitor and there are some cluster monitors in the list
+    if (overseer->hl->nb_monitors > 0 && overseer->hl->hosts[overseer->hl->localhost_id].type != NODE_TYPE_CM) {
+        // Increment coherency check counter
+        overseer->log->log_coherency_counter++;
+
+        // If Threshold is reached
+        if (overseer->log->log_coherency_counter >= COHERENCY_CHECK_THRESHOLD) {
+            // Transmit current state
+            if (pstr_transmit(overseer) != EXIT_SUCCESS) {
+                debug_log(0, stderr, "Failed to transmit at least one PSTR.\n");
+            }
+            // Then reset counter
+            overseer->log->log_coherency_counter = 0;
+        }
+    }
+
     return EXIT_SUCCESS;
 }
 
@@ -155,7 +155,7 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
             // If there is another repair conversation ongoing
             if (cm->ack_back != overseer->log->fix_conversation) {
                 // Ignore repair request to not lead to proliferation
-                debug_log(2,
+                debug_log(1,
                           stdout,
                           "Log Repair requested but already ongoing through another conversation, ignoring action.\n");
                 return EXIT_SUCCESS;
@@ -168,6 +168,7 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
                     __attribute__ ((fallthrough));
 
         case FIX_TYPE_NONE:
+            // Set the current fix to repair
             overseer->log->fix_type = FIX_TYPE_REPAIR;
             break;
 
@@ -178,6 +179,12 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
 
     // Decrement next index (with boundary check)
     overseer->log->next_index = overseer->log->next_index > 1 ? overseer->log->next_index - 1 : 1;
+    // If the previous entry is marked invalid (for example, because of the logfix carrying an invalidating value in the
+    // prev_term field, we further decrease the local next index (also checking for boundaries, the log entries array
+    // starting at 1)
+    if (overseer->log->next_index - 1 > 2 &&
+        overseer->log->entries[overseer->log->next_index - 1].state == ENTRY_STATE_INVALID)
+        overseer->log->next_index--;
 
     // Determine if P is known
     errno = 0;
@@ -190,20 +197,20 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
     }
 
     // Create a retransmission cache for the Fix conversation
-    uint32_t rv = rtc_add_new(overseer,
-                              CM_DEFAULT_RT_ATTEMPTS,
-                              overseer->hl->hosts[p_id].addr,
-                              overseer->hl->hosts[p_id].socklen,
-                              MSG_TYPE_LOG_REPAIR,
-                              NULL,
-                              cm->ack_reference);
-    if (rv == 0) {
+    uint32_t rtc_id = rtc_add_new(overseer,
+                                  CM_DEFAULT_RT_ATTEMPTS,
+                                  overseer->hl->hosts[p_id].addr,
+                                  overseer->hl->hosts[p_id].socklen,
+                                  MSG_TYPE_LOG_REPAIR,
+                                  NULL,
+                                  cm->ack_reference);
+    if (rtc_id == 0) {
         debug_log(0, stderr, "Failed creating retransmission cache for Log Repair.\n");
         return EXIT_FAILURE;
     }
 
     // Save the fix conversation id
-    overseer->log->fix_conversation = rv;
+    overseer->log->fix_conversation = rtc_id;
 
     // Request Logfix through Log Repair
     if (cm_sendto_with_rt_init(overseer,
@@ -211,8 +218,8 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
                                overseer->hl->hosts[p_id].socklen,
                                MSG_TYPE_LOG_REPAIR,
                                0,
-                               rv,
-                               cm->ack_reference) != EXIT_SUCCESS) {
+                               rtc_id,
+                               cm->ack_reference, CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
         debug_log(0, stderr, "Failed to Log Repair send and RT init.\n");
         return EXIT_FAILURE;
     }
@@ -236,7 +243,7 @@ int log_replay(overseer_s *overseer, control_message_s *cm) {
             // If there is another replay conversation ongoing
             if (cm->ack_back != overseer->log->fix_conversation) {
                 // Ignore replay request to not lead to proliferation
-                debug_log(2,
+                debug_log(1,
                           stdout,
                           "Log Replay requested but already ongoing through another conversation, ignoring action.\n");
                 return EXIT_SUCCESS;
@@ -288,7 +295,8 @@ int log_replay(overseer_s *overseer, control_message_s *cm) {
                                MSG_TYPE_LOG_REPLAY,
                                0,
                                rv,
-                               cm->ack_reference) != EXIT_SUCCESS) {
+                               cm->ack_reference,
+                               CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
         debug_log(0, stderr, "Failed to Log Replay send and RT init.\n");
         return EXIT_FAILURE;
     }
@@ -316,7 +324,10 @@ int log_replay_ongoing(overseer_s *overseer) {
 }
 
 int log_repair_override(overseer_s *overseer, control_message_s *cm) {
-    debug_log(0, stderr, "Log Repair Override not implemented. This is an optimization for future work.\n");
+    debug_log(0, stderr,
+              "Log Repair Override not implemented. This is an optimization for future work. Using Log Repair"
+              "instead.\n");
+    log_repair(overseer, cm);
     // TODO Extension implement log repair Override
     return EXIT_SUCCESS;
 }
@@ -371,6 +382,8 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
 }
 
 int log_commit_upto(overseer_s *overseer, uint64_t index) {
+    if (index < overseer->log->commit_index)
+        return EXIT_SUCCESS;
     if (DEBUG_LEVEL >= 4)
         fprintf(stdout,
                 "Committing entries from index %ld up to %ld included ... ",
