@@ -339,12 +339,10 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
         minor_incoherences++;
 
         if (MONITORING_LEVEL >= 3) {
-            printf("> Dist host's MFS has more applied op (%ld) than local (%ld)%s. This is a minor incoherence.%s\n",
+            printf("> Dist host's MFS has more applied op (%ld) than local (%ld)%s. This is a minor incoherence.\n",
                    pstr->nb_ops,
                    overseer->mfs->nb_ops,
-                   is_p == true ? ", but has status P" : " and hasn't P status",
-                   is_p == true ? ""
-                                : " However, minor incoherences caused by an advanced MFS may hide major incoherences.");
+                   is_p == true ? ", but has status P" : " and hasn't P status");
         }
     }
     // Same but to see if it's outdated compared to local
@@ -354,13 +352,11 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
         else major_incoherences++;
 
         if ((is_p == false && MONITORING_LEVEL >= 3) || MONITORING_LEVEL >= 1) {
-            printf("> Dist host's MFS has fewer applied op (%ld) than local (%ld)%s. This is a %s incoherence.%s\n",
+            printf("> Dist host's MFS has fewer applied op (%ld) than local (%ld)%s. This is a %s incoherence.\n",
                    pstr->nb_ops,
                    overseer->mfs->nb_ops,
-                   is_p == false ? ", but has status P" : " and hasn't P status",
-                   is_p == false ? "minor" : "major",
-                   is_p == false ? ""
-                                 : " However, minor incoherences caused by an advanced MFS may hide major incoherences.");
+                   is_p == true ? ", but has status P" : " and hasn't P status",
+                   is_p == true ? "major" : "minor");
         }
     }
 
