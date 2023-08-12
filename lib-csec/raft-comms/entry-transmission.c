@@ -782,9 +782,10 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
         }
         // As P-terms are equal at this stage, it means the log has pending entries from a precedent P-Term that did not
         // reach consensus, and then got overridden by more recent changes
-        if (log_repair_ongoing(overseer) == true)
+        if (log_repair_ongoing(overseer) == true) {
             log_repair_override(overseer, &etr->cm);
-        else {
+            started_repair = true;
+        } else {
             log_repair(overseer, &etr->cm);
             started_repair = true;
         }
@@ -814,16 +815,18 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                     debug_log(0, stderr, "Failed to Ack back New Entry and send Proposition.\n");
                     return EXIT_FAILURE;
                 }
-            } else if (cm_sendto_with_rt_init(overseer,
-                                              sender_addr,
-                                              socklen,
-                                              MSG_TYPE_ACK_ENTRY,
-                                              CM_DEFAULT_RT_ATTEMPTS,
-                                              0,
-                                              etr->cm.ack_reference,
-                                              CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
-                debug_log(0, stderr, "Failed to Ack back New Entry.\n");
-                return EXIT_FAILURE;
+            } else if (started_repair == false) {
+                if (cm_sendto_with_rt_init(overseer,
+                                           sender_addr,
+                                           socklen,
+                                           MSG_TYPE_ACK_ENTRY,
+                                           CM_DEFAULT_RT_ATTEMPTS,
+                                           0,
+                                           etr->cm.ack_reference,
+                                           CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
+                    debug_log(0, stderr, "Failed to Ack back New Entry.\n");
+                    return EXIT_FAILURE;
+                }
             }
             break;
 
@@ -832,17 +835,19 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                 debug_log(2, stdout, "Log check was not validated, caching received entry.\n");
                 log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
             } else log_add_entry(overseer, etr, ENTRY_STATE_COMMITTED);
-            if (cm_sendto_with_rt_init(overseer,
-                                       sender_addr,
-                                       socklen,
-                                       MSG_TYPE_ACK_COMMIT,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0,
-                                       etr->cm.ack_reference,
-                                       CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
-                debug_log(0, stderr, "Failed to Ack back Commit Order.\n");
-                return EXIT_FAILURE;
-            }
+
+            if (started_repair == false)
+                if (cm_sendto_with_rt_init(overseer,
+                                           sender_addr,
+                                           socklen,
+                                           MSG_TYPE_ACK_COMMIT,
+                                           CM_DEFAULT_RT_ATTEMPTS,
+                                           0,
+                                           etr->cm.ack_reference,
+                                           CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
+                    debug_log(0, stderr, "Failed to Ack back Commit Order.\n");
+                    return EXIT_FAILURE;
+                }
             break;
 
         case MSG_TYPE_ETR_LOGFIX:
@@ -1001,6 +1006,9 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                 debug_log(0, stderr, "Fatal error: Invalid message type received by server node.\n");
                 exit(EXIT_FAILURE);
             }
+
+            // Masters that previously have been P may receive other types of ETRs from outdated nodes thinking it is
+            // still P
             if (cm_sendto_with_ack_back(overseer,
                                         sender_addr,
                                         socklen,
