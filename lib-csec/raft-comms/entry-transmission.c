@@ -528,6 +528,7 @@ int etr_actions(overseer_s *overseer,
         return etr_actions_as_cm(overseer, sender_addr, socklen, etr);
 
     if ((local_status == HOST_STATUS_P || local_status == HOST_STATUS_HS) &&
+        overseer->hl->hosts[etr->cm.host_id].type != NODE_TYPE_CM &&
         etr->cm.P_term == overseer->log->P_term &&
         etr->cm.type != MSG_TYPE_INDICATE_P &&
         etr->cm.type != MSG_TYPE_INDICATE_HS) {
@@ -669,6 +670,9 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
     // To keep track if we didn't start a repair as action to this message in order to not override it
     int started_repair = false;
 
+    // Variable to hold if log is up-to-date and the new entry can be added. If not, it will be cached.
+    int utd_check = true;
+
     // If dist P-term is greater than local
     if (etr->cm.P_term > overseer->log->P_term) {
         if (DEBUG_LEVEL >= 4) {
@@ -676,7 +680,10 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             if (INSTANT_FFLUSH) fflush(stdout);
         }
 
-        return log_repair(overseer, &etr->cm);
+        if (log_repair(overseer, &etr->cm) == EXIT_SUCCESS) {
+            started_repair = true;
+            utd_check = false;
+        }
     }
 
     // If local P-term is greater than dist
@@ -741,9 +748,6 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
 
     // At this point local HS-terms matters are settled
 
-    // Variable to hold if log is up-to-date and the new entry can be added. If not, it will be cached.
-    int utd_check = 1;
-
     // If dist next index is greater than local
     // and ETR is not a logfix (situation handled later)
     // and !(message type is new entry and dist next index equals local + 1)
@@ -772,7 +776,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
 
         utd_check = 0;
     }
-        // If local next index is greater than dist
+        // Else if local next index is greater than dist
     else if (etr->cm.next_index < overseer->log->next_index) {
         if (DEBUG_LEVEL >= 4) {
             printf("Local next index (%ld) is greater than dist (%ld).\n",
@@ -792,7 +796,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
         utd_check = 0;
     }
 
-    // Else next indexes are equal or message type is new entry and dist next index equals local + 1
+    // Else next indexes are equal or message type is new entry and dist next index equals local + 1, or dist P-term was
+    // greater and a log repair was started (or is already ongoing)
     uint32_t p_id = hl_whois(overseer->hl, HOST_STATUS_P);
 
     switch (etr->cm.type) {
@@ -878,16 +883,18 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                     overseer->log->entries[etr->index - 1].state = ENTRY_STATE_INVALID;
                     errno = 0;
                     log_repair(overseer, &etr->cm);
-                    if (errno != ENONE && cm_sendto_with_rt_init(overseer,
-                                                                 overseer->hl->hosts[p_id].addr,
-                                                                 overseer->hl->hosts[p_id].socklen,
-                                                                 MSG_TYPE_ACK_ENTRY,
-                                                                 CM_DEFAULT_RT_ATTEMPTS,
-                                                                 0,
-                                                                 etr->cm.ack_reference,
-                                                                 CSEC_FLAG_DEFAULT) !=
-                                          EXIT_SUCCESS) {
-                        debug_log(0, stderr, "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
+                    if (dist_status != HOST_STATUS_P) {
+                        if (errno != ENONE && cm_sendto_with_rt_init(overseer,
+                                                                     overseer->hl->hosts[p_id].addr,
+                                                                     overseer->hl->hosts[p_id].socklen,
+                                                                     MSG_TYPE_ACK_ENTRY,
+                                                                     CM_DEFAULT_RT_ATTEMPTS,
+                                                                     0,
+                                                                     etr->cm.ack_reference,
+                                                                     CSEC_FLAG_DEFAULT) !=
+                                              EXIT_SUCCESS) {
+                            debug_log(0, stderr, "Failed to Ack back Entry to P after receiving Logfix from HS.\n");
+                        }
                     }
                     return EXIT_SUCCESS;
                 }
@@ -957,6 +964,7 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                     return EXIT_SUCCESS;
                 }
             }
+
             if (DEBUG_LEVEL >= 3 && cached_set > 0 && committed_set > 0) {
                 printf("%ld cached entries set to PENDING and %ld to COMMITTED.\n",
                        cached_set,

@@ -718,13 +718,6 @@ int hb_actions_as_master(overseer_s *overseer,
             exit(EXIT_FAILURE);
         }
 
-        if (local_status == HOST_STATUS_HS && cm->status == HOST_STATUS_CS) {
-            debug_log(0,
-                      stderr,
-                      "Fatal error: HS cannot receive messages from CS if P-terms are equal.\n");
-            exit(EXIT_FAILURE);
-        }
-
         // If the log is being repaired or replayed in another conversation
         if ((log_replay_ongoing(overseer) == true || log_repair_ongoing(overseer) == true) &&
             cm->ack_back != overseer->log->fix_conversation) {
@@ -760,19 +753,17 @@ int hb_actions_as_master(overseer_s *overseer,
 
     if (cm->next_index < overseer->log->next_index) { // If local next_index is greater than dist
         debug_log(4, stdout, "Local next index is greater than dist\n");
-        if (local_status == HOST_STATUS_P) { // If local is P
-            // Send Logfix corresponding to dist's next index
-            debug_log(4, stdout, "Replying with Logfix.\n");
-            return etr_reply_logfix(overseer, cm);
-        }
+//        if (local_status == HOST_STATUS_P) { // If local is P
+//            // Send Logfix corresponding to dist's next index
+//            debug_log(4, stdout, "Replying with Logfix.\n");
+//            return etr_reply_logfix(overseer, cm);
+//        } // TODO Improvement implement preemptive logfix
 
         if (dist_status == HOST_STATUS_P || local_status == HOST_STATUS_CS) {
             if (log_repair_ongoing(overseer) == true) {
                 debug_log(4, stdout, "Overriding outdated Log Repair process.\n");
                 log_repair_override(overseer, cm);
             }
-
-            log_invalidate_from(overseer->log, cm->next_index);
             debug_log(4, stdout, "Starting Log Repair.\n");
             return log_repair(overseer, cm);
         }
@@ -782,56 +773,43 @@ int hb_actions_as_master(overseer_s *overseer,
 
     if (cm->commit_index < overseer->log->commit_index) { // If local commit index is greater
         debug_log(4, stdout, "Local commit index is greater than dist.\n");
-        if (local_status == HOST_STATUS_CS) {
-            if (cm->next_index < overseer->log->commit_index + 1) {
-                debug_log(0,
-                          stderr,
-                          "Fatal error: CS cannot have greater commit index if P-terms are equal and dist next "
-                          "index is inferior to local commit index + 1.\n");
-                exit(EXIT_FAILURE);
-            }
-            debug_log(2,
-                      stdout,
-                      "Warning: local commit index is higher than dist's, however dist's next index indicates "
-                      "recovery is possible.\n");
-            if (cm_sendto_with_rt_init(overseer,
-                                       sender_addr,
-                                       socklen,
-                                       MSG_TYPE_HB_DEFAULT,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0,
-                                       cm->ack_reference,
-                                       CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
-                debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
-                return EXIT_FAILURE;
-            }
-        }
+//        if (local_status == HOST_STATUS_CS) {
+//            if (cm->next_index < overseer->log->commit_index + 1) {
+//                debug_log(0,
+//                          stderr,
+//                          "Fatal error: CS cannot have greater commit index if P-terms are equal and dist next "
+//                          "index is inferior to local commit index + 1.\n");
+//                exit(EXIT_FAILURE);
+//            }
+//            debug_log(2,
+//                      stdout,
+//                      "Warning: local commit index is higher than dist's, however dist's next index indicates "
+//                      "recovery is possible.\n");
+//            if (cm_sendto_with_rt_init(overseer,
+//                                       sender_addr,
+//                                       socklen,
+//                                       MSG_TYPE_HB_DEFAULT,
+//                                       CM_DEFAULT_RT_ATTEMPTS,
+//                                       0,
+//                                       cm->ack_reference,
+//                                       CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
+//                debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
+//                return EXIT_FAILURE;
+//            }
+//        }
+//
+//        if (local_status == HOST_STATUS_P || (local_status == HOST_STATUS_HS && dist_status == HOST_STATUS_CS)) {
+//            debug_log(4, stdout, "Sending heartbeat for target node to update its commit index.\n");
+//            return cm_sendto_with_rt_init(overseer,
+//                                          sender_addr,
+//                                          socklen,
+//                                          MSG_TYPE_HB_DEFAULT,
+//                                          CM_DEFAULT_RT_ATTEMPTS,
+//                                          0,
+//                                          cm->ack_reference,
+//                                          CSEC_FLAG_DEFAULT);
+//        } // TODO Improvement figure preemptive fixes and OOD dist detection later
 
-        if (local_status == HOST_STATUS_P || (local_status == HOST_STATUS_HS && dist_status == HOST_STATUS_CS)) {
-            debug_log(4, stdout, "Sending heartbeat for target node to update its commit index.\n");
-            return cm_sendto_with_rt_init(overseer,
-                                          sender_addr,
-                                          socklen,
-                                          MSG_TYPE_HB_DEFAULT,
-                                          CM_DEFAULT_RT_ATTEMPTS,
-                                          0,
-                                          cm->ack_reference,
-                                          CSEC_FLAG_DEFAULT);
-        }
-
-        // Else if local is HS and dist is P
-        if (cm->next_index < overseer->log->commit_index + 1) {
-            debug_log(0,
-                      stderr,
-                      "Fatal error: HS cannot have greater commit index than P if P-terms are equal and dist next "
-                      "index is inferior to local commit index + 1.\n");
-            exit(EXIT_FAILURE);
-        }
-
-        debug_log(2,
-                  stdout,
-                  "Warning: local commit index is higher than dist's, however dist's next index indicates "
-                  "recovery is possible.\n");
         if (cm_sendto_with_ack_back(overseer,
                                     sender_addr,
                                     socklen,
@@ -841,6 +819,7 @@ int hb_actions_as_master(overseer_s *overseer,
             debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             return EXIT_FAILURE;
         }
+        return EXIT_SUCCESS;
     }
 
     if (cm->commit_index > overseer->log->commit_index) { // If dist commit index is greater
@@ -852,28 +831,10 @@ int hb_actions_as_master(overseer_s *overseer,
         }
 
         if (local_status == HOST_STATUS_P) {
-            if (cm->commit_index + 1 > overseer->log->next_index) {
-                debug_log(0,
-                          stderr,
-                          "Fatal error: P cannot have outdated commit index if P-terms are equal and local next "
-                          "index is inferior to dist commit index + 1.\n");
-                exit(EXIT_FAILURE);
-            }
-            debug_log(2,
-                      stdout,
-                      "Warning: dist commit index is higher than local, however local next index indicates "
-                      "recovery is possible.\n");
-            if (cm_sendto_with_rt_init(overseer,
-                                       sender_addr,
-                                       socklen,
-                                       MSG_TYPE_HB_DEFAULT,
-                                       CM_DEFAULT_RT_ATTEMPTS,
-                                       0,
-                                       cm->ack_reference,
-                                       CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
-                debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
-                return EXIT_FAILURE;
-            }
+            debug_log(0,
+                      stderr,
+                      "Fatal error: P cannot have outdated commit index if P-terms are equal.\n");
+            exit(EXIT_FAILURE);
         }
 
         // Else if local is HS or CS
@@ -992,32 +953,6 @@ int hb_actions_as_server(overseer_s *overseer,
 
     // Else if local and dist P-terms are equal
 
-    if (cm->commit_index < overseer->log->commit_index && // If local commit index is greater and
-        cm->next_index < overseer->log->commit_index + 1) { // dist next index is smaller than local commit index +1
-        debug_log(0,
-                  stderr,
-                  "Fatal error: an S node cannot have greater commit index if P-terms are equal and dist next "
-                  "index is inferior to local commit index + 1.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    if (cm->commit_index < overseer->log->commit_index && // If local commit index is greater and
-        cm->next_index >= overseer->log->commit_index + 1) {// dist next index greater or equal to local commit index +1
-        debug_log(2,
-                  stdout,
-                  "Warning: local commit index is higher than dist's, however dist's next index indicates "
-                  "recovery is possible.\n");
-        if (cm_sendto_with_ack_back(overseer,
-                                    sender_addr,
-                                    socklen,
-                                    MSG_TYPE_GENERIC_ACK,
-                                    cm->ack_reference,
-                                    CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
-            debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
-            return EXIT_FAILURE;
-        }
-    }
-
     if (cm->commit_index > overseer->log->commit_index) { // If dist commit index is greater
         if (DEBUG_LEVEL >= 3) {
             printf("Dist commit index (%ld) is greater than local (%ld).\n",
@@ -1028,13 +963,13 @@ int hb_actions_as_server(overseer_s *overseer,
         log_commit_upto(overseer, cm->commit_index);
     }
 
-    // Else if local and dist commit index are equal
+    // Else if local and dist commit index are equal (or local is greater, which is likely because of a delayed message
 
     // If the Ops-queue isn't empty, send first prop
     if (overseer->mfs->queue != NULL) {
         debug_log(4, stdout, "Everything is in order, but Ops-queue isn't empty. ");
         if (server_send_first_prop(overseer, cm->ack_reference) != EXIT_SUCCESS) {
-            debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
+            debug_log(0, stderr, "Failed to send first OP in the queue.\n");
             return EXIT_FAILURE;
         }
     } else if (cm->ack_reference != 0) {
@@ -1089,8 +1024,15 @@ int cm_election_actions(overseer_s *overseer,
                 debug_log(0, stderr, "Failed to ack back HS Vote.\n");
 
             // If majority is reached, step up as the new HS
-            if (overseer->es->vote_count >= overseer->log->master_majority)
+            if (overseer->es->vote_count >= overseer->log->master_majority) {
+                if (DEBUG_LEVEL >= 2) {
+                    printf("Master vote count (%d) reached threshold (%d).\n",
+                           overseer->es->vote_count,
+                           overseer->log->master_majority);
+                    if (INSTANT_FFLUSH) fflush(stdout);
+                }
                 return promote_to_hs(overseer);
+            }
             return EXIT_SUCCESS;
 
         case MSG_TYPE_HS_VOTING_BID:
