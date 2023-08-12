@@ -220,10 +220,6 @@ void pstr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
         printf("Received from %s (aka. %s) a PSTR:\n", buf, overseer->hl->hosts[pstr.id].name);
-        if (MONITORING_LEVEL >= 4)
-            pstr_print(&pstr, stdout, CSEC_FLAG_DEFAULT);
-        else if (DEBUG_LEVEL == 3)
-            pstr_print(&pstr, stdout, FLAG_PRINT_SHORT);
     }
     if (DEBUG_LEVEL >= 4)
         pstr_print(&pstr, stdout, CSEC_FLAG_DEFAULT);
@@ -231,7 +227,7 @@ void pstr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         pstr_print(&pstr, stdout, FLAG_PRINT_SHORT);
 
     if (pstr_actions(overseer, &pstr) != 0)
-        debug_log(0, stderr, "--- /!\\ --- Attention: PSTR action detected major incoherences. --- /!\\ ---\n");
+        debug_log(0, stderr, "\n--- /!\\ --- Attention: PSTR action detected major incoherences. --- /!\\ ---\n\n");
 
     pstr_reception_init(overseer);
     debug_log(4, stdout,
@@ -310,20 +306,20 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
                                      &pstr->last_entries[i].op,
                                      stdout);
 
-        if (MONITORING_LEVEL >= ((committed == true && op_comp != CSEC_FLAG_DEFAULT) ? 1 : 4))
-            printf("> Entry #%d ", i);
+        if (op_comp != CSEC_FLAG_DEFAULT) {
+            if (MONITORING_LEVEL >= (committed == true ? 1 : 3))
+                printf("> Entry #%d ", i);
 
-        // Major incoherence if entry is different and committed or different and has the same term
-        if (op_comp != CSEC_FLAG_DEFAULT &&
-            (committed == true ||
-             overseer->log->entries[entry_number].term != pstr->last_entries[i].term)) {
-            if (MONITORING_LEVEL >= 1)
-                printf("    > As the op is committed, this is a major incoherence.\n");
-            major_incoherences++;
-        } else if (op_comp != CSEC_FLAG_DEFAULT && committed == false) {
-            if (MONITORING_LEVEL >= 4)
-                printf("    > As the op is uncommitted, this is a minor incoherence.\n");
-            minor_incoherences++; // Otherwise if it's different it is only a minor incoherence
+            // Major incoherence if entry is different and committed or different and has the same term
+            if (committed == true || overseer->log->entries[entry_number].term != pstr->last_entries[i].term) {
+                if (MONITORING_LEVEL >= 1)
+                    printf("    > As the op is committed, this is a major incoherence.\n");
+                major_incoherences++;
+            } else if (committed == false) {
+                if (MONITORING_LEVEL >= 3)
+                    printf("    > As the op is uncommitted, this is a minor incoherence.\n");
+                minor_incoherences++; // Otherwise if it's different it is only a minor incoherence
+            }
         }
     }
 

@@ -80,7 +80,7 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
     log_entry_state_string(state_string, state);
     if (DEBUG_LEVEL >= 4) {
         printf("Added to the log the following entry:\n"
-               "- entry number: %ld\n"
+               "- index:        %ld\n"
                "- P-term:       %d\n"
                "- state:        %d (%s)\n"
                "- row:          %d\n"
@@ -94,7 +94,7 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
                nentry->op.column,
                nentry->op.newval);
     } else if (DEBUG_LEVEL >= 1) {
-        printf("New log entry%s [# %ld,  PTerm %d,  %s,  Row %d,  Col %d,  Val %c]\n",
+        printf("New log entry%s [Index %ld,  PTerm %d,  %s,  Row %d,  Col %d,  Val %c]\n",
                DEBUG_LEVEL == 3 ? ":\n-" : "",
                etr->index,
                nentry->term,
@@ -116,18 +116,22 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
     if (etr->cm.type == MSG_TYPE_ETR_PROPOSITION &&
         overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P &&
         etr->index == overseer->log->next_index) {
-        overseer->log->next_index++;
+        if (overseer->log->next_index < 2)
+            overseer->log->next_index = 2;
+        else overseer->log->next_index++;
     } else if ((state == ENTRY_STATE_PENDING || state == ENTRY_STATE_COMMITTED) &&
-               etr->index > overseer->log->next_index) {
+               etr->index >= overseer->log->next_index) {
         // Otherwise adjust next index if entry is committed or pending and local next index is lower
         debug_log(4, stdout, "Adjusting next index.\n");
-        overseer->log->next_index = etr->index;
+        overseer->log->next_index = etr->index + 1;
     }
+
+    if ((state == ENTRY_STATE_COMMITTED || state == ENTRY_STATE_PENDING) && overseer->log->P_term < etr->term)
+        overseer->log->P_term = etr->term; // Adjust term if necessary
 
     // If local status is a master node and the entry isn't committed, update the replication array. If it was
     // committed, the log_commit_upto will already have updated the array
-    if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M &&
-        state != ENTRY_STATE_COMMITTED)
+    if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M && state != ENTRY_STATE_COMMITTED)
         hl_replication_index_change(overseer,
                                     overseer->hl->localhost_id,
                                     overseer->log->next_index,
@@ -160,6 +164,7 @@ log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id) {
 int log_repair(overseer_s *overseer, control_message_s *cm) {
     debug_log(1, stdout, "Starting Log Repair ... ");
     uint64_t old_index = overseer->log->next_index;
+
     // Adjust local next index based on dist and invalidate anything above
     log_invalidate_from(overseer->log, cm->next_index);
 
@@ -174,23 +179,12 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
 
                 // If message expected an answer, Ack it back
                 if (cm->ack_reference != 0) {
-                    if (cm->type == MSG_TYPE_ETR_LOGFIX ||
-                        cm->type == MSG_TYPE_ETR_COMMIT ||
-                        cm->type == MSG_TYPE_ETR_NEW ||
-                        cm->type == MSG_TYPE_ETR_NEW_AND_ACK)
-                        cm_sendto_with_ack_back(overseer,
-                                                overseer->hl->hosts[cm->host_id].addr,
-                                                overseer->hl->hosts[cm->host_id].socklen,
-                                                MSG_TYPE_ACK_ENTRY,
-                                                cm->ack_reference,
-                                                CSEC_FLAG_DEFAULT);
-                    else
-                        cm_sendto_with_ack_back(overseer,
-                                                overseer->hl->hosts[cm->host_id].addr,
-                                                overseer->hl->hosts[cm->host_id].socklen,
-                                                MSG_TYPE_GENERIC_ACK,
-                                                cm->ack_reference,
-                                                CSEC_FLAG_DEFAULT);
+                    cm_sendto_with_ack_back(overseer,
+                                            overseer->hl->hosts[cm->host_id].addr,
+                                            overseer->hl->hosts[cm->host_id].socklen,
+                                            MSG_TYPE_GENERIC_ACK,
+                                            cm->ack_reference,
+                                            CSEC_FLAG_DEFAULT);
                 }
                 return EXIT_SUCCESS;
             }
@@ -212,13 +206,15 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
     }
 
     // If invalidation did not reduce index below the old index
-    if (overseer->log->next_index >= old_index) {
+    if (overseer->log->next_index >= old_index && overseer->log->next_index > 1) {
         // Decrement next index (with boundary check)
-        overseer->log->next_index = overseer->log->next_index > 1 ? overseer->log->next_index - 1 : 1;
+        overseer->log->next_index = overseer->log->next_index > overseer->log->commit_index + 1 ?
+                                    overseer->log->next_index - 1 :
+                                    overseer->log->commit_index + 1;
         // If the previous entry is marked invalid (for example, because of the logfix carrying an invalidating value in the
         // prev_term field, we further decrease the local next index (also checking for boundaries, the log entries array
-        // starting at 1)
-        if (overseer->log->next_index - 1 > 2 &&
+        // starting at entry 1)
+        if (overseer->log->next_index - 1 > 0 &&
             overseer->log->entries[overseer->log->next_index - 1].state == ENTRY_STATE_INVALID)
             overseer->log->next_index--;
     }
@@ -286,23 +282,12 @@ int log_replay(overseer_s *overseer, control_message_s *cm) {
 
                 // If message expected an answer, Ack it back
                 if (cm->ack_reference != 0) {
-                    if (cm->type == MSG_TYPE_ETR_LOGFIX ||
-                        cm->type == MSG_TYPE_ETR_COMMIT ||
-                        cm->type == MSG_TYPE_ETR_NEW ||
-                        cm->type == MSG_TYPE_ETR_NEW_AND_ACK)
-                        cm_sendto_with_ack_back(overseer,
-                                                overseer->hl->hosts[cm->host_id].addr,
-                                                overseer->hl->hosts[cm->host_id].socklen,
-                                                MSG_TYPE_ACK_ENTRY,
-                                                cm->ack_reference,
-                                                CSEC_FLAG_DEFAULT);
-                    else
-                        cm_sendto_with_ack_back(overseer,
-                                                overseer->hl->hosts[cm->host_id].addr,
-                                                overseer->hl->hosts[cm->host_id].socklen,
-                                                MSG_TYPE_GENERIC_ACK,
-                                                cm->ack_reference,
-                                                CSEC_FLAG_DEFAULT);
+                    cm_sendto_with_ack_back(overseer,
+                                            overseer->hl->hosts[cm->host_id].addr,
+                                            overseer->hl->hosts[cm->host_id].socklen,
+                                            MSG_TYPE_GENERIC_ACK,
+                                            cm->ack_reference,
+                                            CSEC_FLAG_DEFAULT);
                 }
                 return EXIT_SUCCESS;
             }
@@ -467,22 +452,24 @@ int log_commit_upto(overseer_s *overseer, uint64_t index) {
     uint64_t i = 0;
     for (; i + 1 + overseer->log->commit_index <= index; i++) {
         if (log_entry_commit(overseer, i + 1 + overseer->log->commit_index) != EXIT_SUCCESS) {
-            if (DEBUG_LEVEL >= 4) {
+            if (DEBUG_LEVEL >= 2) {
                 fprintf(stdout,
                         "Failure (%ld entr%s successfully committed beforehand).\n",
                         i,
                         i == 1 ? "y" : "ies");
-                mfs_array_print(overseer->mfs, stdout);
+                if (DEBUG_LEVEL >= 4)
+                    mfs_array_print(overseer->mfs, stdout);
             }
             return EXIT_FAILURE;
         }
     }
 
-    if (DEBUG_LEVEL >= 4) {
+    if (DEBUG_LEVEL >= 2) {
         fprintf(stdout, "Done (%ld entr%s successfully committed).\n",
                 i,
                 i == 1 ? "y" : "ies");
-        mfs_array_print(overseer->mfs, stdout);
+        if (DEBUG_LEVEL >= 4)
+            mfs_array_print(overseer->mfs, stdout);
     }
 
     // Adjust replication index

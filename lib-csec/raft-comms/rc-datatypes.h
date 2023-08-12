@@ -35,7 +35,7 @@
 // Offset for all timeouts (except fuzzer) to slow down the program without having to fine tune it, for
 // debugging purposes.
 // Unit in microseconds
-#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 1000000
+#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 750000
 #endif
 
 #ifndef TIMEOUT_RANGE_ELECTION
