@@ -486,7 +486,7 @@ int cm_broadcast(overseer_s *overseer, enum message_type type, uint8_t rt_attemp
             continue;
 
         if (DEBUG_LEVEL >= 4) {
-            printf("\n- CM target: %s\n", target->name);
+            printf("CM#%d target: %s\n", i + 1, target->name);
             if (INSTANT_FFLUSH) fflush(stdout);
         }
 
@@ -514,6 +514,11 @@ int cm_actions(overseer_s *overseer,
                socklen_t socklen,
                control_message_s *cm) {
     cm_status_actions(overseer, cm);
+
+    // CMs from cluster monitor nodes are just for ACKs and updating the HL, so we don't have to do anything else
+    if (overseer->hl->hosts[cm->host_id].type == NODE_TYPE_CM)
+        return EXIT_SUCCESS;
+
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
     // If local is P or HS and P-terms are equal and message is not Indicate P, Indicate HS, HS Vote or HS Voting Bid
@@ -538,8 +543,8 @@ int cm_actions(overseer_s *overseer,
     if (overseer->hl->hosts[cm->host_id].status == HOST_STATUS_HS &&
         cm->HS_term >= overseer->log->HS_term &&
         local_status == HOST_STATUS_CS) {
-        debug_log(4, stdout, "Message is from HS, resetting election timeout.\n");
-        election_set_timeout(overseer); // Reset HS election timer
+        debug_log(4, stdout, "Message is from HS, resetting election state.\n");
+        election_state_reset(overseer); // Reset HS election timer
     }
 
     // If CM is a default HB, takeover message or network probe message

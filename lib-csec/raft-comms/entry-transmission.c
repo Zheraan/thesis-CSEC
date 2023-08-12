@@ -66,10 +66,10 @@ void etr_print(const entry_transmission_s *etr, FILE *stream, int flags) {
     if ((flags & FLAG_PRINT_SHORT) == FLAG_PRINT_SHORT) {
         fprintf(stream, "- ");
         cm_print(&(etr->cm), stream, flags);
-        fprintf(stream, "- [# %ld,  %s,  PTerm %d,  Row %d,  Col %d,  Val %c]\n",
+        fprintf(stream, "- [Index %ld,  PTerm %d,  %s,  Row %d,  Col %d,  Val %c]\n",
                 etr->index,
-                buf,
                 etr->term,
+                buf,
                 etr->op.row,
                 etr->op.column,
                 etr->op.newval);
@@ -78,17 +78,17 @@ void etr_print(const entry_transmission_s *etr, FILE *stream, int flags) {
         cm_print(&(etr->cm), stream, flags);
         fprintf(stream,
                 "- Entry Metadata:\n"
-                "   > state:         %d (%s)\n"
                 "   > index:         %ld\n"
                 "   > P-term:        %d\n"
+                "   > state:         %d (%s)\n"
                 "- Data Op Metadata:\n"
                 "   > row:           %d\n"
                 "   > column:        %d\n"
                 "   > newval:        %c\n",
-                etr->state,
-                buf,
                 etr->index,
                 etr->term,
+                etr->state,
+                buf,
                 etr->op.row,
                 etr->op.column,
                 etr->op.newval);
@@ -545,8 +545,8 @@ int etr_actions(overseer_s *overseer,
     if (overseer->hl->hosts[etr->cm.host_id].status == HOST_STATUS_HS &&
         etr->cm.HS_term >= overseer->log->HS_term &&
         local_status != HOST_STATUS_HS) {
-        debug_log(4, stdout, "Message is from active HS:\n");
-        election_set_timeout(overseer); // Reset HS election timer
+        debug_log(4, stdout, "Message is from HS, resetting election state.\n");
+        election_state_reset(overseer); // Reset HS election timer
     }
 
     if (local_status == HOST_STATUS_P)
