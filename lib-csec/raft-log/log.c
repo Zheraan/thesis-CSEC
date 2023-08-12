@@ -282,6 +282,7 @@ int log_replay(overseer_s *overseer, control_message_s *cm) {
     }
 
     // Create a retransmission cache for the Fix conversation
+    debug_log(4, stdout, "Creating new RTC for fix conversation :\n");
     uint32_t rv = rtc_add_new(overseer,
                               CM_DEFAULT_RT_ATTEMPTS,
                               overseer->hl->hosts[p_id].addr,
@@ -315,6 +316,7 @@ int log_replay(overseer_s *overseer, control_message_s *cm) {
 }
 
 void log_fix_end(overseer_s *overseer) {
+    debug_log(4, stdout, "Clearing any fix conversation related RTC entry ... ");
     rtc_remove_by_id(overseer, overseer->log->fix_conversation, FLAG_SILENT);
     overseer->log->fix_conversation = 0;
     overseer->log->fix_type = FIX_TYPE_NONE;
@@ -345,9 +347,16 @@ void log_invalidate_from(log_s *log, uint64_t index) {
     if (index > log->next_index - 1)
         return;
     uint64_t invalidated = 0;
-    for (uint64_t i = index;
-         log->entries[i].state != ENTRY_STATE_EMPTY;
-         ++i) {
+    uint64_t i = index;
+    // It is necessary to guard against indexes below the commit index in order to not invalidate non-erroneous
+    // committed entries when an outdated message is received
+    if (index <= log->commit_index) {
+        i = log->commit_index + 1;
+        debug_log(2,
+                  stdout,
+                  "Invalidating index was lower than local commit index, adjusting to prevent corruption.\n");
+    }
+    for (; log->entries[i].state != ENTRY_STATE_EMPTY; ++i) {
         if (log->entries[i].state == ENTRY_STATE_COMMITTED) {
             debug_log(0, stderr, "Fatal Error: trying to invalidate COMMITTED log entry.\n");
             exit(EXIT_FAILURE);
@@ -355,7 +364,7 @@ void log_invalidate_from(log_s *log, uint64_t index) {
         log->entries[i].state = ENTRY_STATE_INVALID;
         invalidated++;
     }
-    if (log->next_index > index)
+    if (log->next_index > index && index > log->commit_index)
         log->next_index = index;
     if (DEBUG_LEVEL >= 2 & invalidated != 0) {
         printf("Invalidated %ld local log entries from index %ld.\n", invalidated, index);
@@ -376,6 +385,7 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
         return EXIT_FAILURE;
     }
 
+    // Verify that previous entry is also committed
     if (index > 1 && overseer->log->commit_index < index - 1) {
         fprintf(stderr, "Failed to commit entry %ld: previous entry is not in a committed state.\n", index);
         if (INSTANT_FFLUSH) fflush(stderr);
@@ -383,21 +393,28 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
     }
 
     overseer->log->entries[index].state = ENTRY_STATE_COMMITTED;
+    if (overseer->log->entries[index].term > overseer->log->P_term)
+        overseer->log->P_term = overseer->log->entries[index].term; // Adjust local P-term if necessary
+
     if (overseer->log->commit_index < index)
-        overseer->log->commit_index = index;
+        overseer->log->commit_index = index; // Adjust local commit index
+
     if (overseer->log->next_index <= overseer->log->commit_index)
-        overseer->log->next_index = overseer->log->commit_index + 1;
-    return mfs_apply_op(overseer->mfs, &overseer->log->entries[index].op);
+        overseer->log->next_index = overseer->log->commit_index + 1; // Adjust local next index if necessary
+
+    return mfs_apply_op(overseer->mfs, &overseer->log->entries[index].op); // Apply op in the MFS
 }
 
 int log_commit_upto(overseer_s *overseer, uint64_t index) {
     if (index < overseer->log->commit_index)
         return EXIT_SUCCESS;
+
     if (DEBUG_LEVEL >= 4)
         fprintf(stdout,
                 "Committing entries from index %ld up to %ld included ... ",
                 overseer->log->commit_index + 1,
                 index);
+
     uint64_t i = 0;
     for (; i + 1 + overseer->log->commit_index <= index; i++) {
         if (log_entry_commit(overseer, i + 1 + overseer->log->commit_index) != EXIT_SUCCESS) {
@@ -418,6 +435,8 @@ int log_commit_upto(overseer_s *overseer, uint64_t index) {
                 i == 1 ? "y" : "ies");
         mfs_array_print(overseer->mfs, stdout);
     }
+
+    // Adjust replication index
     if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M)
         hl_replication_index_change(overseer,
                                     overseer->hl->localhost_id,
