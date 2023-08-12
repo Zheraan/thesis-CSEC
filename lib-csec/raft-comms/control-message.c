@@ -414,6 +414,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     // If attempts max reached, remove cache entry
     if (rtc->cur_attempts >= rtc->max_attempts) {
+        debug_log(4, stdout, "This was the last retransmission attempt, removing cache entry ");
         rtc_remove_by_id(rtc->overseer, rtc->id, CSEC_FLAG_DEFAULT);
     } else { // Otherwise add retransmission event
         // Add the event in the loop
@@ -671,7 +672,8 @@ int hb_actions_as_master(overseer_s *overseer,
         overseer->log->HS_term = cm->HS_term;
     }
 
-    if (cm->HS_term < overseer->log->HS_term) { // If local HS-term is greater
+    // If local HS-term is greater and dist is a master node
+    if (cm->HS_term < overseer->log->HS_term && overseer->hl->hosts[cm->host_id].type == NODE_TYPE_M) {
         if (DEBUG_LEVEL >= 3) {
             printf("Local HS-term (%d) is greater than dist (%d).\n",
                    overseer->log->HS_term,
@@ -772,7 +774,7 @@ int hb_actions_as_master(overseer_s *overseer,
         }
     }
 
-    // Else if local and dist next_indexes are equal
+    // Else local and dist next_indexes are equal
 
     if (cm->commit_index < overseer->log->commit_index) { // If local commit index is greater
         debug_log(4, stdout, "Local commit index is greater than dist.\n");
@@ -879,14 +881,16 @@ int hb_actions_as_master(overseer_s *overseer,
 
     // Else if commit indexes are equal
 
-    debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
-    if (cm_sendto_with_ack_back(overseer,
-                                sender_addr,
-                                socklen,
-                                MSG_TYPE_GENERIC_ACK,
-                                cm->ack_reference,
-                                CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
-        debug_log(0, stderr, "Failed to reply with GENERIC ACK.\n");
+    if (cm->ack_reference != 0) {
+        debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
+        if (cm_sendto_with_ack_back(overseer,
+                                    sender_addr,
+                                    socklen,
+                                    MSG_TYPE_GENERIC_ACK,
+                                    cm->ack_reference,
+                                    CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
+            debug_log(0, stderr, "Failed to reply with GENERIC ACK.\n");
+    } else debug_log(4, stdout, "Everything is in order, ending HB Actions.\n");
 
     return EXIT_SUCCESS;
 }
@@ -1029,7 +1033,7 @@ int hb_actions_as_server(overseer_s *overseer,
             debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             return EXIT_FAILURE;
         }
-    } else {
+    } else if (cm->ack_reference != 0) {
         debug_log(4, stdout, "Everything is in order, replying with GENERIC ACK.\n");
         if (cm_sendto_with_ack_back(overseer,
                                     sender_addr,
@@ -1040,7 +1044,7 @@ int hb_actions_as_server(overseer_s *overseer,
             debug_log(0, stderr, "Failed to send a GENERIC ACK\n");
             return EXIT_FAILURE;
         }
-    }
+    } else debug_log(4, stdout, "Everything is in order, ending HB Actions.\n");
 
     return EXIT_SUCCESS;
 }
