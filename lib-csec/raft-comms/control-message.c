@@ -994,6 +994,28 @@ int cm_election_actions(overseer_s *overseer,
                         control_message_s *cm) {
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
+    if (local_status == HOST_STATUS_HS) {
+        if (cm->type == MSG_TYPE_HS_VOTING_BID) {
+            debug_log(2, stdout, "Received a voting bid as HS, replying with HB DEFAULT.\n");
+            return cm_sendto_with_rt_init(overseer,
+                                          sender_addr,
+                                          socklen,
+                                          MSG_TYPE_HB_DEFAULT,
+                                          CM_DEFAULT_RT_ATTEMPTS,
+                                          0,
+                                          cm->ack_reference,
+                                          CSEC_FLAG_DEFAULT);
+        } else if (cm->type == MSG_TYPE_HS_VOTE) {
+            debug_log(2, stdout, "Received a vote as HS, replying with GENERIC ACK.\n");
+            return cm_sendto_with_ack_back(overseer,
+                                           sender_addr,
+                                           socklen,
+                                           MSG_TYPE_GENERIC_ACK,
+                                           cm->ack_reference,
+                                           CSEC_FLAG_DEFAULT);
+        }
+    }
+
     // If local is S, or if local is P and CM is a vote
     if (local_status == HOST_STATUS_S || (local_status == HOST_STATUS_P && cm->type == MSG_TYPE_HS_VOTE)) {
         fprintf(stderr,
