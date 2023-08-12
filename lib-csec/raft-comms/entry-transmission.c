@@ -639,11 +639,29 @@ int etr_actions_as_p(overseer_s *overseer,
 
         // Else if next indexes are equal
 
-        // Add entry to local
-        log_add_entry(overseer, etr, ENTRY_STATE_PENDING);
+        // Add entry to local, but with guard if given index is wrong to avoid ops that are out of date
+        if (etr->index == overseer->log->next_index)
+            log_add_entry(overseer, etr, ENTRY_STATE_PENDING);
+        else {
+            if (DEBUG_LEVEL >= 2) {
+                printf("Proposition has right P-term metadata (%d) but outdated index (%ld, should be %ld), aborting.\n",
+                       etr->cm.P_term,
+                       etr->index,
+                       overseer->log->next_index);
+                if (INSTANT_FFLUSH) fflush(stdout);
+            }
+            rv = cm_sendto_with_ack_back(overseer,
+                                         sender_addr,
+                                         socklen,
+                                         MSG_TYPE_GENERIC_ACK,
+                                         etr->cm.ack_reference,
+                                         CSEC_FLAG_DEFAULT);
+            if (rv != EXIT_SUCCESS)
+                debug_log(0, stderr, "Failed to GENERIC ACK back.\n");
+            return rv;
+        }
 
-        if (etr_broadcast_new_entry(overseer, etr->index, etr->cm.host_id, etr->cm.ack_reference)
-            != EXIT_SUCCESS) {
+        if (etr_broadcast_new_entry(overseer, etr->index, etr->cm.host_id, etr->cm.ack_reference) != EXIT_SUCCESS) {
             debug_log(0, stderr, "Failed to broadcast new entry.\n");
             rv = EXIT_FAILURE;
         }
@@ -909,14 +927,6 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             // If the program reaches this point, the local log is (now) fixed up until the last added entry
             debug_log(3, stdout, "Log coherency OK.\n");
 
-            // If local next index is higher than 1 (meaning there's at least one synced entry) and the latest entry in
-            // the local log has higher term than local
-            if (overseer->log->next_index > 1 &&
-                overseer->log->P_term < overseer->log->entries[overseer->log->next_index - 1].term) {
-                // Set the local term to the latest entry
-                overseer->log->P_term = overseer->log->entries[overseer->log->next_index - 1].term;
-            }
-
             uint64_t cached_set = 0, committed_set = 0;
 
             // While local next index is smaller than dist
@@ -926,8 +936,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                 if (e->state == ENTRY_STATE_CACHED && e->term == etr->cm.P_term) {
                     // Set it in the right state
                     if (etr->cm.commit_index >= overseer->log->next_index) {
-                        log_commit_upto(overseer, overseer->log->next_index); // Auto adjusts local P-term if necessary
-                        overseer->log->next_index++;
+                        // Auto adjusts local P-term and Next index if necessary
+                        log_commit_upto(overseer, overseer->log->next_index);
                         committed_set++;
                     } else if (etr->cm.next_index >= overseer->log->next_index) {
                         e->state = ENTRY_STATE_PENDING;
@@ -1039,6 +1049,9 @@ int etr_actions_as_cm(overseer_s *overseer,
     if (etr->cm.P_term > overseer->log->P_term)
         overseer->log->P_term = etr->cm.P_term;
 
+    // Add entry to the log in the given state
+    log_add_entry(overseer, etr, etr->state);
+
     // Ack back
     if (cm_sendto_with_ack_back(overseer,
                                 sender_addr,
@@ -1048,9 +1061,6 @@ int etr_actions_as_cm(overseer_s *overseer,
                                 FLAG_BYPASS_FUZZER) != EXIT_SUCCESS) {
         debug_log(0, stderr, "Failed to Ack back Entry.\n");
     }
-
-    // Add entry to the log in the given state
-    log_add_entry(overseer, etr, etr->state);
 
     return EXIT_SUCCESS;
 }
