@@ -112,7 +112,14 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
         }
     }
 
-    if ((state == ENTRY_STATE_PENDING || state == ENTRY_STATE_COMMITTED) && etr->index > overseer->log->next_index) {
+    // Increment next index is entry is a new proposition added into the log
+    if (etr->cm.type == MSG_TYPE_ETR_PROPOSITION &&
+        overseer->hl->hosts[overseer->hl->localhost_id].status == HOST_STATUS_P &&
+        etr->index == overseer->log->next_index) {
+        overseer->log->next_index++;
+    } else if ((state == ENTRY_STATE_PENDING || state == ENTRY_STATE_COMMITTED) &&
+               etr->index > overseer->log->next_index) {
+        // Otherwise adjust next index if entry is committed or pending and local next index is lower
         debug_log(4, stdout, "Adjusting next index.\n");
         overseer->log->next_index = etr->index;
     }

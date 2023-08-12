@@ -32,19 +32,20 @@
 #endif
 
 #ifndef TIMEOUT_GLOBAL_SLOWDOWN_OFFSET
-// Offset for all timeouts to slow down the program without having to fine tune it, for debug purposes.
+// Offset for all timeouts (except fuzzer) to slow down the program without having to fine tune it, for
+// debugging purposes.
 // Unit in microseconds
-#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 500000
+#define TIMEOUT_GLOBAL_SLOWDOWN_OFFSET 1000000
 #endif
 
 #ifndef TIMEOUT_RANGE_ELECTION
-// Timeout duration range for elections. Default value of 500ms, in microseconds
-#define TIMEOUT_RANGE_ELECTION 500000
+// Timeout duration range for elections. Default value of 1s, in microseconds
+#define TIMEOUT_RANGE_ELECTION 1000000
 #endif
 
 #ifndef TIMEOUT_OFFSET_ELECTION
-// Timeout duration offset for elections. Default value of 1s, in microseconds
-#define TIMEOUT_OFFSET_ELECTION 1000000
+// Timeout duration offset for elections. Default value of 500ms, in microseconds
+#define TIMEOUT_OFFSET_ELECTION 500000
 #endif
 
 #ifndef TIMEOUT_RANGE_RANDOM_OPS
@@ -72,18 +73,18 @@
 #endif
 
 #ifndef TIMEOUT_VALUE_P_HB
-// Timeout duration for P's heartbeat. Default value of 750ms, in microseconds
-#define TIMEOUT_VALUE_P_HB 750000
+// Timeout duration for P's heartbeat. Default value of 1s, in microseconds
+#define TIMEOUT_VALUE_P_HB 1000000
 #endif
 
 #ifndef TIMEOUT_VALUE_HS_HB
-// Timeout duration for HS's heartbeat. Default value of 750ms, in microseconds
-#define TIMEOUT_VALUE_HS_HB 750000
+// Timeout duration for HS's heartbeat. Default value of 1s, in microseconds
+#define TIMEOUT_VALUE_HS_HB 1000000
 #endif
 
 #ifndef TIMEOUT_VALUE_P_LIVENESS
-// Timeout duration for P's liveness. Default value of 1.75s, in microseconds
-#define TIMEOUT_VALUE_P_LIVENESS 1750000
+// Timeout duration for P's liveness. Default value of 2.5s, in microseconds
+#define TIMEOUT_VALUE_P_LIVENESS 2500000
 #endif
 
 #ifndef TIMEOUT_RANGE_FUZZER

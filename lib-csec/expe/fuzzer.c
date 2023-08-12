@@ -126,7 +126,7 @@ int fuzzer_entry_free(overseer_s *overseer, uint32_t id) {
 
 void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout,
-              "Start of Fuzzer transmission callback ----------------------------------------------------------\n");
+              "Start of Fuzzer transmission callback --------------------------------------------------------------------\n");
     fuzzer_cache_s *fc = arg;
 
     if (DEBUG_LEVEL >= 3) {
@@ -177,7 +177,7 @@ void fuzzer_transmission_cb(evutil_socket_t fd, short event, void *arg) {
 
     debug_log(3, stdout, "Done.\n");
     debug_log(4, stdout,
-              "End of Fuzzer transmission callback ------------------------------------------------------------\n\n");
+              "End of Fuzzer transmission callback ----------------------------------------------------------------------\n\n");
     if (DEBUG_LEVEL == 3)
         printf("\n");
     return;

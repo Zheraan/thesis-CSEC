@@ -6,7 +6,7 @@
 #define THESIS_CSEC_DATATYPES_H
 
 #ifndef DEBUG_LEVEL
-#define DEBUG_LEVEL 4 // Defines the level of details in the logs
+#define DEBUG_LEVEL 3 // Defines the level of details in the logs
 #endif
 
 #ifndef PORT_CM

@@ -34,6 +34,7 @@ log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id);
 // input CM's ack_back value with the stored fix_conversation cache ID. Otherwise, any ongoing replay process
 // is ended, local next index is decremented, and a Log Repair request is sent to P. The state variables to
 // keep track of ongoing fix (fix_type and fix_conversation) are set to keep track of it.
+// In case no action is taken because another fix is ongoing, acks back the communication in the proper way.
 // Returns EXIT_FAILURE if no P was found in the local hosts-list, if the local Fix-Type was invalid, if the
 // retransmission initialization failed, or if the message failed to be sent (note that the message will still
 // be retransmitted as per the RTC). EXIT_SUCCESS is returned otherwise.
@@ -43,6 +44,7 @@ int log_repair(overseer_s *overseer, control_message_s *cm);
 // ack_back value with the stored fix_conversation cache ID. Otherwise, any ongoing repair process is ended,
 // and a Log Replay request is sent to P. The state variables to keep track of ongoing fix (fix_type and
 // fix_conversation) are set to keep track of it.
+// In case no action is taken because another fix is ongoing, acks back the communication in the proper way.
 // Returns EXIT_FAILURE if no P was found in the local hosts-list, if the local Fix-Type was invalid, if the
 // retransmission initialization failed, or if the message failed to be sent (note that the message will still
 // be retransmitted as per the RTC). EXIT_SUCCESS is returned otherwise.
