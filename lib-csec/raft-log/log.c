@@ -164,6 +164,27 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
                 debug_log(1,
                           stdout,
                           "Log Repair requested but already ongoing through another conversation, ignoring action.\n");
+
+                // If message expected an answer, Ack it back
+                if (cm->ack_reference != 0) {
+                    if (cm->type == MSG_TYPE_ETR_LOGFIX ||
+                        cm->type == MSG_TYPE_ETR_COMMIT ||
+                        cm->type == MSG_TYPE_ETR_NEW ||
+                        cm->type == MSG_TYPE_ETR_NEW_AND_ACK)
+                        cm_sendto_with_ack_back(overseer,
+                                                overseer->hl->hosts[cm->host_id].addr,
+                                                overseer->hl->hosts[cm->host_id].socklen,
+                                                MSG_TYPE_ACK_ENTRY,
+                                                cm->ack_reference,
+                                                CSEC_FLAG_DEFAULT);
+                    else
+                        cm_sendto_with_ack_back(overseer,
+                                                overseer->hl->hosts[cm->host_id].addr,
+                                                overseer->hl->hosts[cm->host_id].socklen,
+                                                MSG_TYPE_GENERIC_ACK,
+                                                cm->ack_reference,
+                                                CSEC_FLAG_DEFAULT);
+                }
                 return EXIT_SUCCESS;
             }
                     __attribute__ ((fallthrough));
@@ -255,6 +276,27 @@ int log_replay(overseer_s *overseer, control_message_s *cm) {
                 debug_log(1,
                           stdout,
                           "Log Replay requested but already ongoing through another conversation, ignoring action.\n");
+
+                // If message expected an answer, Ack it back
+                if (cm->ack_reference != 0) {
+                    if (cm->type == MSG_TYPE_ETR_LOGFIX ||
+                        cm->type == MSG_TYPE_ETR_COMMIT ||
+                        cm->type == MSG_TYPE_ETR_NEW ||
+                        cm->type == MSG_TYPE_ETR_NEW_AND_ACK)
+                        cm_sendto_with_ack_back(overseer,
+                                                overseer->hl->hosts[cm->host_id].addr,
+                                                overseer->hl->hosts[cm->host_id].socklen,
+                                                MSG_TYPE_ACK_ENTRY,
+                                                cm->ack_reference,
+                                                CSEC_FLAG_DEFAULT);
+                    else
+                        cm_sendto_with_ack_back(overseer,
+                                                overseer->hl->hosts[cm->host_id].addr,
+                                                overseer->hl->hosts[cm->host_id].socklen,
+                                                MSG_TYPE_GENERIC_ACK,
+                                                cm->ack_reference,
+                                                CSEC_FLAG_DEFAULT);
+                }
                 return EXIT_SUCCESS;
             }
                     __attribute__ ((fallthrough));

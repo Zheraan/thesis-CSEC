@@ -300,7 +300,7 @@ int cm_reception_init(overseer_s *overseer) {
 
 void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout,
-              "Start of CM reception callback -----------------------------------------------------------------\n");
+              "Start of CM reception callback ---------------------------------------------------------------------------\n");
 
     overseer_s *overseer = (overseer_s *) arg;
     control_message_s cm;
@@ -321,7 +321,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
                 debug_log(1, stdout, "Failure receiving CM.\n");
                 cm_reception_init(overseer);
                 debug_log(4, stdout,
-                          "End of CM reception callback -------------------------------------------------------------------\n\n");
+                          "End of CM reception callback -----------------------------------------------------------------------------\n\n");
                 if (DEBUG_LEVEL == 3)
                     printf("\n");
                 return; // Failure
@@ -371,7 +371,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
     cm_reception_init(overseer); // Fatal error in case of failure anyway, so no need for a check
 
     debug_log(4, stdout,
-              "End of CM reception callback -------------------------------------------------------------------\n\n");
+              "End of CM reception callback -----------------------------------------------------------------------------\n\n");
 
     if (DEBUG_LEVEL == 3)
         printf("\n");
@@ -380,7 +380,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
 
 void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     debug_log(4, stdout,
-              "Start of CM retransmission callback ------------------------------------------------------------\n");
+              "Start of CM retransmission callback ----------------------------------------------------------------------\n");
 
     retransmission_cache_s *rtc = arg;
     if (DEBUG_LEVEL >= 3) {
@@ -430,7 +430,7 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     if (success == 1)
         debug_log(3, stdout, "Done.\n");
     debug_log(4, stdout,
-              "End of CM retransmission callback --------------------------------------------------------------\n\n");
+              "End of CM retransmission callback ------------------------------------------------------------------------\n\n");
 
     if (DEBUG_LEVEL == 3)
         printf("\n");
@@ -601,19 +601,6 @@ int hb_actions_as_master(overseer_s *overseer,
         if (local_status != HOST_STATUS_CS) { // If local host is P or HS
             if (stepdown_to_cs(overseer) != EXIT_SUCCESS)
                 rv = EXIT_FAILURE;
-        }
-
-        // Acknowledge CM by HB back
-        if (cm_sendto_with_rt_init(overseer,
-                                   sender_addr,
-                                   socklen,
-                                   MSG_TYPE_HB_DEFAULT,
-                                   CM_DEFAULT_RT_ATTEMPTS,
-                                   0,
-                                   cm->ack_reference,
-                                   CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
-            debug_log(0, stderr, "Failed to send and RT init an HB DEFAULT\n");
-            rv = EXIT_FAILURE;
         }
 
         debug_log(4, stdout, "Starting Log Repair ... ");
