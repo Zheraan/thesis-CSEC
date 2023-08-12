@@ -846,16 +846,29 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
             break;
 
         case MSG_TYPE_ETR_LOGFIX:
-            // If the local version of the received entry has a different term or if the entry is marked invalid
+            // If the local version of the received entry has a lower term, is empty, or if the entry is marked invalid
             if (overseer->log->entries[etr->index].state == ENTRY_STATE_INVALID ||
-                overseer->log->entries[etr->index].term != etr->term) {
-                debug_log(2, stdout, "Local version of the entry is invalid.\n");
-                // If the local version of the previous entry than the one received (if there is one) has a different
-                // term
-                if (overseer->log->next_index > 2 && overseer->log->entries[etr->index - 1].term != etr->prev_term) {
-                    debug_log(2,
-                              stdout,
-                              "Local version of the previous entry is also invalid, caching the received one.\n");
+                overseer->log->entries[etr->index].state == ENTRY_STATE_EMPTY ||
+                overseer->log->entries[etr->index].term < etr->term) {
+
+                if (overseer->log->entries[etr->index].state != ENTRY_STATE_EMPTY)
+                    debug_log(2, stdout, "Local version of the entry is invalid.\n");
+
+                // If the local version of the previous entry than the one received is also empty or invalid
+                if (overseer->log->next_index > 2 &&
+                    (overseer->log->entries[etr->index - 1].term < etr->prev_term ||
+                     overseer->log->entries[etr->index - 1].state == ENTRY_STATE_INVALID ||
+                     overseer->log->entries[etr->index - 1].state == ENTRY_STATE_EMPTY)) {
+
+                    if (overseer->log->entries[etr->index - 1].state != ENTRY_STATE_EMPTY)
+                        debug_log(2,
+                                  stdout,
+                                  "Local version of the previous entry is also invalid, caching the received one.\n");
+                    else
+                        debug_log(2,
+                                  stdout,
+                                  "Local version of the previous entry is also empty, caching the received one.\n");
+
                     log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
                     overseer->log->entries[etr->index - 1].state = ENTRY_STATE_INVALID;
                     errno = 0;
@@ -877,8 +890,8 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                 // If local next index is 1 and received entry does not have index 1, or if the local version of the
                 // previous entry than the one received has the same term
                 if (overseer->log->next_index <= 1 && etr->index != 1)
-                    log_add_entry(overseer, etr, ENTRY_STATE_CACHED);
-                else log_add_entry(overseer, etr, etr->state);
+                    log_add_entry(overseer, etr, ENTRY_STATE_CACHED); // Cache it
+                else log_add_entry(overseer, etr, etr->state); // Add it in the right state
             }
 
             // If the program reaches this point, the local log is (now) fixed up until the last added entry
@@ -901,13 +914,15 @@ int etr_actions_as_s_hs_cs(overseer_s *overseer,
                 if (e->state == ENTRY_STATE_CACHED && e->term == etr->cm.P_term) {
                     // Set it in the right state
                     if (etr->cm.commit_index >= overseer->log->next_index) {
-                        log_commit_upto(overseer, overseer->log->next_index);
+                        log_commit_upto(overseer, overseer->log->next_index); // Auto adjusts local P-term if necessary
                         overseer->log->next_index++;
                         committed_set++;
                     } else if (etr->cm.next_index >= overseer->log->next_index) {
                         e->state = ENTRY_STATE_PENDING;
                         overseer->log->next_index++;
                         cached_set++;
+                        if (e->term > overseer->log->P_term)
+                            overseer->log->P_term = e->term; // Adjust local P-term if necessary
                     }
                 } else {
                     if (DEBUG_LEVEL >= 3 && cached_set > 0 && committed_set > 0) {
