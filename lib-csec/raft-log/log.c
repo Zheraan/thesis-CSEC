@@ -61,6 +61,11 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
         exit(EXIT_FAILURE);
     }
 
+    if (overseer->log->entries[etr->index].state == ENTRY_STATE_COMMITTED) {
+        debug_log(2, stdout, "Local entry in given index is already committed, aborting.\n");
+        return EXIT_FAILURE;
+    }
+
     // Set entry in the log
     log_entry_s *nentry = &(overseer->log->entries[etr->index]);
     nentry->term = etr->term;
@@ -107,9 +112,9 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
         }
     }
 
-    if (state == ENTRY_STATE_PENDING && etr->index == overseer->log->next_index) {
-        debug_log(4, stdout, "Incrementing next index.\n");
-        overseer->log->next_index++;
+    if ((state == ENTRY_STATE_PENDING || state == ENTRY_STATE_COMMITTED) && etr->index > overseer->log->next_index) {
+        debug_log(4, stdout, "Adjusting next index.\n");
+        overseer->log->next_index = etr->index;
     }
 
     // If local status is a master node and the entry isn't committed, update the replication array. If it was
@@ -147,6 +152,7 @@ log_entry_s *log_get_entry_by_id(log_s *log, uint64_t id) {
 
 int log_repair(overseer_s *overseer, control_message_s *cm) {
     debug_log(1, stdout, "Starting Log Repair ... ");
+    uint64_t old_index = overseer->log->next_index;
     // Adjust local next index based on dist and invalidate anything above
     log_invalidate_from(overseer->log, cm->next_index);
 
@@ -177,14 +183,17 @@ int log_repair(overseer_s *overseer, control_message_s *cm) {
             return EXIT_FAILURE;
     }
 
-    // Decrement next index (with boundary check)
-    overseer->log->next_index = overseer->log->next_index > 1 ? overseer->log->next_index - 1 : 1;
-    // If the previous entry is marked invalid (for example, because of the logfix carrying an invalidating value in the
-    // prev_term field, we further decrease the local next index (also checking for boundaries, the log entries array
-    // starting at 1)
-    if (overseer->log->next_index - 1 > 2 &&
-        overseer->log->entries[overseer->log->next_index - 1].state == ENTRY_STATE_INVALID)
-        overseer->log->next_index--;
+    // If invalidation did not reduce index below the old index
+    if (overseer->log->next_index >= old_index) {
+        // Decrement next index (with boundary check)
+        overseer->log->next_index = overseer->log->next_index > 1 ? overseer->log->next_index - 1 : 1;
+        // If the previous entry is marked invalid (for example, because of the logfix carrying an invalidating value in the
+        // prev_term field, we further decrease the local next index (also checking for boundaries, the log entries array
+        // starting at 1)
+        if (overseer->log->next_index - 1 > 2 &&
+            overseer->log->entries[overseer->log->next_index - 1].state == ENTRY_STATE_INVALID)
+            overseer->log->next_index--;
+    }
 
     // Determine if P is known
     errno = 0;
