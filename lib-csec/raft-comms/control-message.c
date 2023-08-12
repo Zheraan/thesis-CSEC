@@ -394,6 +394,18 @@ void cm_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
                rtc->max_attempts);
         if (INSTANT_FFLUSH) fflush(stdout);
     }
+
+    // Retransmission concerns a vote or voting bid and the local host is already HS
+    if ((rtc->type == MSG_TYPE_HS_VOTING_BID || rtc->type == MSG_TYPE_HS_VOTE) &&
+        rtc->overseer->hl->hosts[rtc->overseer->hl->localhost_id].status == HOST_STATUS_HS) {
+        // Abort and remove retransmission
+        debug_log(3, stdout, "Retransmission concerns elections but local host is already HS, dropping RTC entry.\n");
+        rtc_remove_by_id(rtc->overseer, rtc->id, CSEC_FLAG_DEFAULT);
+        debug_log(4, stdout,
+                  "End of CM retransmission callback ------------------------------------------------------------------------\n\n");
+        return;
+    }
+
     int success = 1;
 
     // Send message to P
