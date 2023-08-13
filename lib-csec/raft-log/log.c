@@ -427,7 +427,8 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
     }
 
     // Verify that previous entry is also committed
-    if (index > 1 && overseer->log->commit_index < index - 1) {
+    if (index > 1 && (overseer->log->commit_index < index - 1 ||
+                      overseer->log->entries[overseer->log->commit_index - 1].state != ENTRY_STATE_COMMITTED)) {
         fprintf(stderr, "Failed to commit entry %ld: previous entry is not in a committed state.\n", index);
         if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;

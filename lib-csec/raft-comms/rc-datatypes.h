@@ -39,8 +39,8 @@
 #endif
 
 #ifndef TIMEOUT_RANGE_ELECTION
-// Timeout duration range for elections. Default value of 1s, in microseconds
-#define TIMEOUT_RANGE_ELECTION 1000000
+// Timeout duration range for elections. Default value of 500ms, in microseconds
+#define TIMEOUT_RANGE_ELECTION 500000
 #endif
 
 #ifndef TIMEOUT_OFFSET_ELECTION
@@ -78,18 +78,18 @@
 #endif
 
 #ifndef TIMEOUT_VALUE_P_HB
-// Timeout duration for P's heartbeat. Default value of 1s, in microseconds
-#define TIMEOUT_VALUE_P_HB 1000000
+// Timeout duration for P's heartbeat. Default value of 800ms, in microseconds
+#define TIMEOUT_VALUE_P_HB 800000
 #endif
 
 #ifndef TIMEOUT_VALUE_HS_HB
 // Timeout duration for HS's heartbeat. Default value of 1s, in microseconds
-#define TIMEOUT_VALUE_HS_HB 1000000
+#define TIMEOUT_VALUE_HS_HB 800000
 #endif
 
 #ifndef TIMEOUT_VALUE_P_LIVENESS
-// Timeout duration for P's liveness. Default value of 2.5s, in microseconds
-#define TIMEOUT_VALUE_P_LIVENESS 2500000
+// Timeout duration for P's liveness. Default value of 2s, in microseconds
+#define TIMEOUT_VALUE_P_LIVENESS 2000000
 #endif
 
 #ifndef TIMEOUT_RANGE_FUZZER
