@@ -41,6 +41,11 @@ struct timeval timeout_gen(enum timeout_type type) {
             ntv.tv_sec = DIVIDE(TIMEOUT_VALUE_P_LIVENESS + TIMEOUT_GLOBAL_SLOWDOWN_OFFSET, 1000000);
             break;
 
+        case TIMEOUT_TYPE_MONITOR_ACK:
+            ntv.tv_usec = MODULO(TIMEOUT_VALUE_MONITOR_ACK + TIMEOUT_GLOBAL_SLOWDOWN_OFFSET, 1000000);
+            ntv.tv_sec = DIVIDE(TIMEOUT_VALUE_MONITOR_ACK + TIMEOUT_GLOBAL_SLOWDOWN_OFFSET, 1000000);
+            break;
+
         case TIMEOUT_TYPE_HS_ELECTION:
             if (TIMEOUT_RANGE_ELECTION > 0)
                 modulo = TIMEOUT_RANGE_ELECTION + 1;

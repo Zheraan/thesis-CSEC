@@ -67,6 +67,11 @@
 #define TIMEOUT_VALUE_ACK 200000
 #endif
 
+#ifndef TIMEOUT_VALUE_MONITOR_ACK
+// Timeout duration for Acks from monitor nodes. Default value of 5ms, in microseconds
+#define TIMEOUT_VALUE_MONITOR_ACK 5000
+#endif
+
 #ifndef TIMEOUT_VALUE_PROP_RETRANSMISSION
 // Timeout duration for the proposition retransmission. Default value of 300ms, in microseconds
 #define TIMEOUT_VALUE_PROP_RETRANSMISSION 300000
@@ -197,7 +202,7 @@ enum timeout_type {
     TIMEOUT_TYPE_HS_HB = 1,
     // Data op proposition timeout type, after which the proposition is deleted from queue
     TIMEOUT_TYPE_PROPOSITION = 2,
-    // Message ack timeout type, after which a message is considered to be lost
+    // Message ack timeout type, after which a message is considered to be lost and needs to be retransmitted
     TIMEOUT_TYPE_ACK = 3,
     // Master election timeout type, after which a round of HS elections starts
     TIMEOUT_TYPE_HS_ELECTION = 4,
@@ -211,6 +216,9 @@ enum timeout_type {
     TIMEOUT_TYPE_P_LIVENESS = 8,
     // Timeout before another kill message is sent to a node by the monitor
     TIMEOUT_TYPE_KILL = 9,
+    // Message ack timeout type, after which a message to the cluster monitor is considered to be lost and
+    // needs to be retransmitted
+    TIMEOUT_TYPE_MONITOR_ACK = 10,
 };
 
 typedef struct control_message_s {

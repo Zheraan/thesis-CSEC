@@ -316,8 +316,15 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     rtc->etr->cm = *ncm;
     free(ncm);
 
-    // Send proposition to P
-    if (etr_sendto(rtc->overseer, rtc->addr, rtc->socklen, rtc->etr, CSEC_FLAG_DEFAULT)) {
+    int bypass = false;
+    if (memcmp(&rtc->addr, &rtc->overseer->hl->monitor_addr, sizeof(struct sockaddr_in6)) == 0)
+        bypass = true;
+    // Send ETR
+    if (etr_sendto(rtc->overseer,
+                   rtc->addr,
+                   rtc->socklen,
+                   rtc->etr,
+                   bypass == true ? FLAG_BYPASS_FUZZER : CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
         fprintf(stderr, "Failed retransmitting ETR.\n");
         success = 0;
     }

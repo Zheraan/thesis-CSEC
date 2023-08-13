@@ -94,10 +94,18 @@ uint32_t rtc_add_new(overseer_s *overseer,
     // We add the retransmission event to the event op_cache to keep track of it for eventual deletion and free
     nrtc->ev = nevent;
 
+    // We use a lower retransmission time for monitors
+    int bypass = false;
+    if (memcmp(&sockaddr, &overseer->hl->monitor_addr, sizeof(struct sockaddr_in6)) == 0)
+        bypass = true;
+
     // Add the event in the loop with ACK timeout (if local host doesn't receive an ack with the ID of the message
     // before the timeout, retransmission will happen)
     errno = 0;
-    struct timeval retransmission_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
+    struct timeval retransmission_timeout;
+    if (bypass)
+        retransmission_timeout = timeout_gen(TIMEOUT_TYPE_MONITOR_ACK);
+    else retransmission_timeout = timeout_gen(TIMEOUT_TYPE_ACK);
     if (errno == EUNKNOWN_TIMEOUT_TYPE || event_add(nevent, &retransmission_timeout) != 0) {
         fprintf(stderr, "Failed to add a retransmission event\n");
         fflush(stderr);

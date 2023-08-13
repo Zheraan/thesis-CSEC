@@ -92,6 +92,10 @@ typedef struct hosts_list_s {
     uint32_t nb_masters;
     // Number of hosts in the list
     uint32_t nb_monitors;
+    // Address of the monitor in the list
+    // FIXME allow for more than one (this is just for fuzzer matters). Could be removed by transitioning
+    //  send functions and rtc to use IDs instead of addresses
+    struct sockaddr_in6 monitor_addr;
 } hosts_list_s;
 
 #endif //THESIS_CSEC_HL_DATATYPES_H
