@@ -186,8 +186,10 @@ int rtc_remove_by_id(overseer_s *overseer, uint32_t id, char flags) {
     if (overseer->rtc == NULL) {
         if ((flags & FLAG_SILENT) == FLAG_SILENT)
             return EXIT_SUCCESS;
-        fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
-        if (INSTANT_FFLUSH) fflush(stderr);
+        if (DEBUG_LEVEL >= 3) {
+            fprintf(stderr, "Attempting to remove cache element %d but cache is empty.\n", id);
+            if (INSTANT_FFLUSH) fflush(stderr);
+        }
         return EXIT_FAILURE;
     }
 

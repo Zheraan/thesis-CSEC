@@ -106,6 +106,7 @@ void killer_cb(evutil_socket_t fd, short event, void *arg) {
                  target->status == HOST_STATUS_P)) {
                 // Kill it if its number is equal to the random value we generated
                 if (j == buf) {
+
                     if (DEBUG_LEVEL >= 1) {
                         printf("Killing off %s.\n", target->name);
                         if (INSTANT_FFLUSH) fflush(stdout);
@@ -121,6 +122,14 @@ void killer_cb(evutil_socket_t fd, short event, void *arg) {
             if (active_servers != 0 && target->status == HOST_STATUS_S) {
                 // Kill it if its number is equal to the random value we generated
                 if (j == buf) {
+                    if (is_killing_ok(overseer) == false) {
+                        if (DEBUG_LEVEL >= 3) {
+                            printf("Killing off %s is not OK since the cluster does not have recovered yet.\n",
+                                   target->name);
+                            if (INSTANT_FFLUSH) fflush(stdout);
+                        }
+                        break;
+                    }
                     if (DEBUG_LEVEL >= 1) {
                         printf("Killing off %s.\n", target->name);
                         if (INSTANT_FFLUSH) fflush(stdout);
@@ -148,4 +157,18 @@ void killer_cb(evutil_socket_t fd, short event, void *arg) {
 
 int kill_sendto(overseer_s *overseer, struct sockaddr_in6 sockaddr, socklen_t socklen) {
     return cm_sendto(overseer, sockaddr, socklen, MSG_TYPE_KILL, FLAG_BYPASS_FUZZER);
+}
+
+int is_killing_ok(overseer_s *overseer) {
+    uint32_t utd_count = 0;
+    for (uint32_t i = 0; i < overseer->hl->nb_hosts; ++i) {
+        if ((overseer->hl->hosts[i].status == HOST_STATUS_CS ||
+             overseer->hl->hosts[i].status == HOST_STATUS_HS ||
+             overseer->hl->hosts[i].status == HOST_STATUS_P) &&
+            overseer->hl->hosts[i].next_index >= overseer->log->next_index)
+            utd_count++;
+    }
+    if (utd_count >= overseer->log->master_majority)
+        return true;
+    return false;
 }

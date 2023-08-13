@@ -266,6 +266,11 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
 
         // If target entry has higher number than the maximum value in the local log
         if (entry_number > overseer->log->next_index - 1) {
+            if (MONITORING_LEVEL >= 3)
+                printf("Entry %d of the PSTR has a higher log number (%ld) than the latest entry in the local log. "
+                       "This is a minor incoherence.\n",
+                       i,
+                       entry_number);
             advanced_entries[i] = true;
             minor_incoherences++;
             continue;

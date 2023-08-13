@@ -103,7 +103,7 @@ struct timeval timeout_gen(enum timeout_type type) {
         }
     }
 
-    if (DEBUG_LEVEL >= 4)
+    if (DEBUG_LEVEL >= 4 || (type == TIMEOUT_TYPE_KILL && DEBUG_LEVEL >= 3))
         printf("[Created a timeout of type %d and a duration of %ld.%lds] ",
                type,
                ntv.tv_sec,

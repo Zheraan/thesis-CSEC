@@ -1055,6 +1055,9 @@ int etr_actions_as_cm(overseer_s *overseer,
     // Add entry to the log in the given state
     log_add_entry(overseer, etr, etr->state);
 
+    // Keep track of replication in order to ensure we don't kill when recovery was not complete
+    hl_replication_index_change(overseer, etr->cm.host_id, etr->cm.next_index, etr->cm.commit_index);
+
     // In case local commits are out of date because some communication failed
     if (etr->cm.status == HOST_STATUS_P &&
         etr->cm.P_term >= overseer->log->P_term &&
