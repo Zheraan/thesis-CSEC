@@ -1055,6 +1055,14 @@ int etr_actions_as_cm(overseer_s *overseer,
     // Add entry to the log in the given state
     log_add_entry(overseer, etr, etr->state);
 
+    // In case local commits are out of date because some communication failed
+    if (etr->cm.status == HOST_STATUS_P &&
+        etr->cm.P_term >= overseer->log->P_term &&
+        etr->cm.commit_index > overseer->log->commit_index) {
+        debug_log(2, stdout, "Local commit index was out of date, correcting:\n");
+        log_commit_upto(overseer, etr->cm.commit_index);
+    }
+
     // Ack back
     if (cm_sendto_with_ack_back(overseer,
                                 sender_addr,

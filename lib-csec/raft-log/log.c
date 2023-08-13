@@ -440,7 +440,7 @@ int log_entry_commit(overseer_s *overseer, uint64_t index) {
 }
 
 int log_commit_upto(overseer_s *overseer, uint64_t index) {
-    if (index < overseer->log->commit_index)
+    if (index <= overseer->log->commit_index)
         return EXIT_SUCCESS;
 
     if (DEBUG_LEVEL >= 4)
