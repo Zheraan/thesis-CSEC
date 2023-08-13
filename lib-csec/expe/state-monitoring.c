@@ -308,7 +308,8 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
         }
 
         // If entry term is greater than local
-        if (pstr->last_entries[i].term > overseer->log->entries[entry_number].term) {
+        if (pstr->last_entries[i].term > overseer->log->entries[entry_number].term &&
+            overseer->log->entries[entry_number].term != 0) {
             printf("> Entry #%d of the PSTR has term %d instead of %d, this is a major incoherence.\n",
                    i,
                    pstr->last_entries[i].term,

@@ -129,6 +129,13 @@ int log_add_entry(overseer_s *overseer, const entry_transmission_s *etr, enum en
     if ((state == ENTRY_STATE_COMMITTED || state == ENTRY_STATE_PENDING) && overseer->log->P_term < etr->term)
         overseer->log->P_term = etr->term; // Adjust term if necessary
 
+    // If this entry is the latest in the log but has been added in a previous term, we can increase the term to be
+    // the same as dist to prevent constant repairs
+    if ((state == ENTRY_STATE_COMMITTED || state == ENTRY_STATE_PENDING) &&
+        overseer->log->P_term < etr->cm.P_term &&
+        etr->index == etr->cm.next_index - 1)
+        overseer->log->P_term = etr->cm.P_term; // Adjust term if necessary
+
     // If local status is a master node and the entry isn't committed, update the replication array. If it was
     // committed, the log_commit_upto will already have updated the array
     if (overseer->hl->hosts[overseer->hl->localhost_id].type == NODE_TYPE_M && state != ENTRY_STATE_COMMITTED)
