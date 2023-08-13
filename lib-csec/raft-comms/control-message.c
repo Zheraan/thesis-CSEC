@@ -207,7 +207,9 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
 
     control_message_s *ncm = cm_new(overseer, type, ack_back);
     if (ncm == NULL) {
-        fprintf(stderr, "Failed to create message of type %d", type);
+        char buf[32];
+        cm_type_string(buf, type);
+        fprintf(stderr, "Failed to create message of type %s\n", buf);
         if (INSTANT_FFLUSH) fflush(stderr);
         return EXIT_FAILURE;
     }
@@ -224,7 +226,7 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
         ncm->ack_reference = rv;
     } else ncm->ack_reference = ack_reference;
 
-    if (DEBUG_LEVEL >= 3) {
+    if (DEBUG_LEVEL >= 2) {
         char addr_buf[256];
         evutil_inet_ntop(AF_INET6, &(sockaddr.sin6_addr), addr_buf, 256);
 
@@ -336,7 +338,7 @@ void cm_receive_cb(evutil_socket_t fd, short event, void *arg) {
         }
     } while (errno == EAGAIN);
 
-    if (DEBUG_LEVEL == 2) printf("Received from %s a CM", overseer->hl->hosts[cm.host_id].name);
+    if (DEBUG_LEVEL == 1 || DEBUG_LEVEL == 2) printf("Received from %s a CM", overseer->hl->hosts[cm.host_id].name);
     else if (DEBUG_LEVEL >= 3) {
         char buf[256];
         evutil_inet_ntop(AF_INET6, &(sender_addr.sin6_addr), buf, 256);
@@ -1032,17 +1034,29 @@ int cm_election_actions(overseer_s *overseer,
     }
 
     // If local is S, or if local is P and CM is a vote
-    if (local_status == HOST_STATUS_S || (local_status == HOST_STATUS_P && cm->type == MSG_TYPE_HS_VOTE)) {
+    if (local_status == HOST_STATUS_S) {
+        char buf[32];
+        cm_type_string(buf, cm->type);
         fprintf(stderr,
-                "Fatal error: a node with host status %d should not receive a CM of type %d.\n",
-                local_status,
-                cm->type);
+                "Fatal error: a server node should not receive a CM of type %d.\n", buf);
         if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
     switch (cm->type) {
         case MSG_TYPE_HS_VOTE:
+            // P nodes shouldn't receive votes, so we just ack it back without doing anything
+            if (local_status == HOST_STATUS_P) {
+                if (cm_sendto_with_ack_back(overseer,
+                                            sender_addr,
+                                            socklen,
+                                            MSG_TYPE_GENERIC_ACK,
+                                            cm->ack_reference,
+                                            CSEC_FLAG_DEFAULT) != EXIT_SUCCESS)
+                    debug_log(0, stderr, "Failed to ack back HS Vote.\n");
+                return EXIT_SUCCESS;
+            }
+
             if (cm->HS_term != overseer->log->HS_term || // If HS-terms don't match
                 overseer->es->candidacy != CANDIDACY_HS || // If the local node is not a candidate
                 cm->commit_index != overseer->es->bid_number) { // If vote does not concern the right bid
@@ -1166,7 +1180,7 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
 
         case MSG_TYPE_INDICATE_HS:
             if (local_status != HOST_STATUS_CS) {
-                debug_log(0, stderr, "Fatal error: should not receive INDICATE HS as a S host\n");
+                debug_log(0, stderr, "Fatal error: a server node should not receive INDICATE HS.\n");
                 exit(EXIT_FAILURE);
             }
 
@@ -1202,9 +1216,15 @@ int cm_other_actions_as_s_cs(overseer_s *overseer,
             break;
 
         default:
-            fprintf(stderr, "Fatal error: Invalid CM type %d\n", cm->type);
+            fprintf(stderr, "Error: Invalid CM type %d, likely because of an outdated dist Hosts-list.\n", cm->type);
             if (INSTANT_FFLUSH) fflush(stderr);
-            exit(EXIT_FAILURE);
+            cm_sendto_with_ack_back(overseer,
+                                    sender_addr,
+                                    socklen,
+                                    MSG_TYPE_GENERIC_ACK,
+                                    cm->ack_reference,
+                                    CSEC_FLAG_DEFAULT);
+            return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
