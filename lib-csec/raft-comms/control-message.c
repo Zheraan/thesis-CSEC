@@ -201,6 +201,9 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            uint32_t ack_reference,
                            uint32_t ack_back,
                            int flags) {
+    // Avoid unnecessary acks when there's no reference
+    if (ack_reference == 0 && type == MSG_TYPE_GENERIC_ACK)
+        return EXIT_SUCCESS;
 
     control_message_s *ncm = cm_new(overseer, type, ack_back);
     if (ncm == NULL) {

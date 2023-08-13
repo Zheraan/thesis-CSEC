@@ -293,8 +293,10 @@ void etr_retransmission_cb(evutil_socket_t fd, short event, void *arg) {
     retransmission_cache_s *rtc = arg;
 
     if (DEBUG_LEVEL >= 3) {
+        char address_buf[256];
+        evutil_inet_ntop(AF_INET6, &(rtc->addr.sin6_addr), address_buf, 256);
         printf("ETR retransmission timed out, reattempting transmission to %s (attempt %d) ... ",
-               rtc->overseer->hl->hosts[rtc->etr->cm.host_id].name,
+               address_buf,
                rtc->cur_attempts + 1);
         if (DEBUG_LEVEL == 3)
             printf("\n");
@@ -436,8 +438,8 @@ int etr_broadcast_commit_order(overseer_s *overseer, uint64_t index) {
                                     target_socklen,
                                     netr,
                                     ETR_DEFAULT_RT_ATTEMPTS,
-                                    target->status == HOST_STATUS_CM ? FLAG_BYPASS_FUZZER : CSEC_FLAG_DEFAULT) !=
-            EXIT_SUCCESS) {
+                                    target->status == HOST_STATUS_CM ?
+                                    FLAG_BYPASS_FUZZER : CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send and RT init Commit Order.\n");
         } else nb_orders++;
     }
@@ -502,8 +504,8 @@ int etr_broadcast_new_entry(overseer_s *overseer, uint64_t index, uint32_t sende
                                     target->socklen,
                                     netr,
                                     ETR_DEFAULT_RT_ATTEMPTS,
-                                    target->status == HOST_STATUS_CM ? FLAG_BYPASS_FUZZER : CSEC_FLAG_DEFAULT) !=
-            EXIT_SUCCESS) {
+                                    target->status == HOST_STATUS_CM ?
+                                    FLAG_BYPASS_FUZZER : CSEC_FLAG_DEFAULT) != EXIT_SUCCESS) {
             fprintf(stderr, "Failed to send and RT init New Entry.\n");
         } else nb_etr++;
     }
@@ -521,6 +523,7 @@ int etr_actions(overseer_s *overseer,
                 struct sockaddr_in6 sender_addr,
                 socklen_t socklen,
                 entry_transmission_s *etr) {
+
     cm_status_actions(overseer, &etr->cm);
     enum host_status local_status = overseer->hl->hosts[overseer->hl->localhost_id].status;
 
