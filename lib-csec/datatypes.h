@@ -9,6 +9,8 @@
 #define DEBUG_LEVEL 3 // Defines the level of details in the logs
 #endif
 
+#define EXIT_KILLED_OFF (-200)
+
 #ifndef PORT_CM
 #define PORT_CM 35007
 #endif
@@ -94,9 +96,10 @@ struct overseer_s {
     fuzzer_cache_s *fc;
 
     // Pointer to keep track of heartbeat events for master nodes, random op generator for server nodes,
-    // and PSTR reception for cluster monitor nodes
+    // and random kill event for cluster monitor nodes
     struct event *special_event;
-    // Pointer to keep track of control message reception events
+    // Pointer to keep track of control message reception events for server and master nodes, or PSTR
+    // reception for cluster monitor nodes
     struct event *cm_reception_event;
     // Pointer to keep track of entry transmission reception events
     struct event *etr_reception_event;

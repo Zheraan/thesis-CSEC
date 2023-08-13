@@ -179,9 +179,9 @@ int pstr_reception_init(overseer_s *overseer) {
     // PSTR reception has low priority
     event_priority_set(reception_event, 1);
 
-    if (overseer->special_event != NULL) // Freeing the past event if any
-        event_free(overseer->special_event);
-    overseer->special_event = reception_event;
+    if (overseer->cm_reception_event != NULL) // Freeing the past event if any
+        event_free(overseer->cm_reception_event);
+    overseer->cm_reception_event = reception_event;
 
     // Add the event in the loop
     if (event_add(reception_event, NULL) != 0) {
@@ -225,6 +225,8 @@ void pstr_receive_cb(evutil_socket_t fd, short event, void *arg) {
         pstr_print(&pstr, stdout, CSEC_FLAG_DEFAULT);
     else if (DEBUG_LEVEL == 3)
         pstr_print(&pstr, stdout, FLAG_PRINT_SHORT);
+
+    hl_update_status(overseer, pstr.status, pstr.id);
 
     if (pstr_actions(overseer, &pstr) != 0)
         debug_log(0, stderr, "\n--- /!\\ --- Attention: PSTR action detected major incoherences. --- /!\\ ---\n\n");

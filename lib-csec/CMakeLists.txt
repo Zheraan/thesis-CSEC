@@ -44,4 +44,6 @@ add_library(
         status/server-events.h
         status/status-datatypes.h
         expe/state-monitoring.c
-        expe/state-monitoring.h)
+        expe/state-monitoring.h
+        expe/killer.c
+        expe/killer.h)

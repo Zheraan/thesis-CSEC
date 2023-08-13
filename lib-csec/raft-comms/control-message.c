@@ -168,6 +168,10 @@ void cm_type_string(char *buf, enum message_type type) {
         case MSG_TYPE_ETR_NEW_AND_ACK:
             sprintf(buf, "ETR NEW AND ACK");
             break;
+
+        case MSG_TYPE_KILL:
+            sprintf(buf, "KILL");
+            break;
     }
     return;
 }
@@ -514,6 +518,14 @@ int cm_actions(overseer_s *overseer,
                socklen_t socklen,
                control_message_s *cm) {
     cm_status_actions(overseer, cm);
+
+    if (cm->type == MSG_TYPE_KILL && overseer->hl->hosts[cm->host_id].type == NODE_TYPE_CM) {
+        // Stop the node and return an error code
+        debug_log(0, stdout, "\nThis node has been killed off by the cluster monitor.\n");
+        overseer_wipe(overseer);
+        debug_log(0, stdout, "\n----------------------   RIP   ----------------------\n\n");
+        exit(EXIT_KILLED_OFF);
+    }
 
     // CMs from cluster monitor nodes are just for ACKs and updating the HL, so we don't have to do anything else
     if (overseer->hl->hosts[cm->host_id].type == NODE_TYPE_CM)

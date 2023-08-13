@@ -120,6 +120,15 @@
 
 // TODO Improvement enforce 0<A<C<B for the distribution function
 
+#ifndef TIMEOUT_RANGE_KILL
+// Timeout duration range for the fuzzer. Default value of 50s, in microseconds
+#define TIMEOUT_RANGE_KILL 50000000
+#endif
+#ifndef TIMEOUT_OFFSET_KILL
+// Timeout duration offset for the fuzzer. Default value of 0, in microseconds
+#define TIMEOUT_OFFSET_KILL 0
+#endif
+
 // Control message type values, including those only used within the transmission struct.
 // Message types concerning CMs have values <=100, and those concerning ETRs have values >100
 enum message_type {
@@ -176,6 +185,9 @@ enum message_type {
     // Master replying to the node sending a proposition, serves as an ack of the node's proposition and as
     // a new pending entry order. Is important to avoid duplicates in a simple way without multiplying messages
     MSG_TYPE_ETR_NEW_AND_ACK = 105,
+
+    // Cluster monitor sending a message to a node to crash itself, for testing purposes
+    MSG_TYPE_KILL = 200,
 };
 
 enum timeout_type {
@@ -197,6 +209,8 @@ enum timeout_type {
     TIMEOUT_TYPE_PROP_RETRANSMISSION = 7,
     // Timeout before P is considered unreachable
     TIMEOUT_TYPE_P_LIVENESS = 8,
+    // Timeout before another kill message is sent to a node by the monitor
+    TIMEOUT_TYPE_KILL = 9,
 };
 
 typedef struct control_message_s {

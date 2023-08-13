@@ -15,6 +15,11 @@
 #define MONITORING_LEVEL 3
 #endif
 
+#ifndef RANDOM_KILL_ENABLE
+// Enables the random killings of server and master nodes by the cluster monitor
+#define RANDOM_KILL_ENABLE 1
+#endif
+
 #include "event2/event.h"
 #include "../datatypes.h"
 #include "../overseer.h"

@@ -46,6 +46,7 @@ EOT
         ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:$address
     deploy:
       replicas: 1
+    restart: on-failure
 EOT
   # Generate a hostfile line in all hostfiles
   k=0
@@ -99,6 +100,7 @@ EOT
         ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:$address
     deploy:
       replicas: 1
+    restart: on-failure
 EOT
   # Generate a hostfile line in all hostfiles
   k=0
@@ -151,6 +153,7 @@ EOT
         ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:$address
     deploy:
       replicas: 1
+    restart: on-failure
 EOT
   # Generate a hostfile line in all hostfiles
   k=0

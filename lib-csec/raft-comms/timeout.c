@@ -76,6 +76,13 @@ struct timeval timeout_gen(enum timeout_type type) {
             randomize = true;
             break;
 
+        case TIMEOUT_TYPE_KILL:
+            if (TIMEOUT_RANGE_KILL > 0)
+                modulo = TIMEOUT_RANGE_KILL + 1;
+            offset = TIMEOUT_OFFSET_KILL;
+            randomize = true;
+            break;
+
         default:
             debug_log(0, stderr, "Unknown timeout type\n");
             errno = EUNKNOWN_TIMEOUT_TYPE;

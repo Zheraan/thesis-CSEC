@@ -3,6 +3,7 @@
 //
 
 #include "expe/state-monitoring.h"
+#include "expe/killer.h"
 #include "lib-csec.h"
 
 int main(int argc, char *argv[]) {
@@ -23,7 +24,9 @@ int main(int argc, char *argv[]) {
 
     // Initialize event loop
     if (pstr_reception_init(&overseer) != EXIT_SUCCESS || // Initialize the PSTR reception handler event
-        etr_reception_init(&overseer) != EXIT_SUCCESS) { // Initialize ETR reception handler event
+                                                          etr_reception_init(&overseer) != EXIT_SUCCESS ||
+                                                          killer_init(
+                                                                  &overseer)) { // Initialize ETR reception handler event
         fprintf(stderr, "Failed to initialize the event loop\n");
         overseer_wipe(&overseer);
         exit(EXIT_FAILURE);
