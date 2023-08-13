@@ -275,6 +275,20 @@ uint64_t pstr_actions(overseer_s *overseer, program_state_transmission_s *pstr) 
             minor_incoherences++;
             continue;
         }
+
+        if (pstr->last_entries[i].state == ENTRY_STATE_COMMITTED &&
+            overseer->log->entries[entry_number].state == ENTRY_STATE_PENDING &&
+            pstr->last_entries[i].term == overseer->log->entries[entry_number].term) {
+            if (MONITORING_LEVEL >= 3)
+                printf("Entry %d of the PSTR is committed (entry %ld in the log), whereas in the local log it is not. "
+                       "This is a minor incoherence.\n",
+                       i,
+                       entry_number);
+            advanced_entries[i] = true;
+            minor_incoherences++;
+            continue;
+        }
+
         if (entry_number == 0) {
             major_incoherences++;
             printf("> Entry #%d of the PSTR has log number 0, this is a major incoherence.\n", i);
