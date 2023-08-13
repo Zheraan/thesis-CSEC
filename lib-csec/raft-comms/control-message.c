@@ -201,8 +201,8 @@ int cm_sendto_with_rt_init(overseer_s *overseer,
                            uint32_t ack_reference,
                            uint32_t ack_back,
                            int flags) {
-    // Avoid unnecessary acks when there's no reference
-    if (ack_reference == 0 && type == MSG_TYPE_GENERIC_ACK)
+    // Avoid unnecessary acks when there's no ack back
+    if (ack_back == 0 && type == MSG_TYPE_GENERIC_ACK)
         return EXIT_SUCCESS;
 
     control_message_s *ncm = cm_new(overseer, type, ack_back);
@@ -1038,7 +1038,7 @@ int cm_election_actions(overseer_s *overseer,
         char buf[32];
         cm_type_string(buf, cm->type);
         fprintf(stderr,
-                "Fatal error: a server node should not receive a CM of type %d.\n", buf);
+                "Fatal error: a server node should not receive a CM of type %s.\n", buf);
         if (INSTANT_FFLUSH) fflush(stderr);
         exit(EXIT_FAILURE);
     }
