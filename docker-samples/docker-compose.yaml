@@ -12,6 +12,7 @@ services:
         ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:0010
     deploy:
       replicas: 1
+    restart: on-failure
 
   raft-server:
     build:
@@ -24,6 +25,7 @@ services:
         ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:0011
     deploy:
       replicas: 1
+    restart: on-failure
 
   cluster-monitor:
     build:
@@ -36,6 +38,7 @@ services:
         ipv6_address: 2001:0db8:0002:0000:0000:0000:0000:0012
     deploy:
       replicas: 1
+    restart: on-failure
 
 networks:
   global:
